@@ -1,0 +1,2 @@
+# Local bootstrap tooling is intentionally not source-controlled.
+composer.phar

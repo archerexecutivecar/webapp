@@ -1,0 +1,14 @@
+﻿node_modules/
+vendor/
+.next/
+dist/
+build/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.tar
+*.log
+storage/*.key
+.DS_Store
