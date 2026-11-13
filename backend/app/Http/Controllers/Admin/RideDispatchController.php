@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DriverNotification;
 use App\Models\RideRequest;
 use App\Support\ApiResponse;
+use App\Support\CustomerMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -45,6 +46,10 @@ class RideDispatchController extends Controller
         ]);
 
         $ride->update($validated);
+
+        if (isset($validated['status']) && $validated['status'] !== $previousStatus) {
+            CustomerMailer::sendRideStatusChanged($ride, $previousStatus, $validated['status']);
+        }
 
         // If driver was newly assigned or changed, trigger an in-app driver notification!
         if (!empty($validated['assigned_driver_id']) && $validated['assigned_driver_id'] !== $previousDriverId) {

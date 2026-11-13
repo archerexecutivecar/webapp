@@ -39,6 +39,8 @@ class CustomerAccounts
             $user->roles()->attach($role->id);
         }
 
+        CustomerMailer::sendWelcome($user);
+
         return $user;
     }
 }

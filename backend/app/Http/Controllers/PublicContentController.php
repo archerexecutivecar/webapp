@@ -13,6 +13,7 @@ use App\Models\SecurityAddon;
 use App\Models\ServiceType;
 use App\Models\Vehicle;
 use App\Support\ApiResponse;
+use App\Support\CustomerMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -72,6 +73,8 @@ class PublicContentController extends Controller
         $validated['status'] = 'pending';
 
         $ride = RideRequest::create($validated);
+
+        CustomerMailer::sendBookingConfirmation($ride);
 
         // Notify Admin & Dispatch team in real-time
         AdminNotification::create([

@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\DriverNotification;
 use App\Models\RideRequest;
 use App\Support\ApiResponse;
+use App\Support\CustomerMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -120,11 +121,16 @@ class DriverPortalController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        $previousStatus = $ride->status;
         $ride->status = $validated['status'];
         if (!empty($validated['notes'])) {
             $ride->dispatch_notes = ($ride->dispatch_notes ? $ride->dispatch_notes . "\n" : "") . "[Driver Note]: " . $validated['notes'];
         }
         $ride->save();
+
+        if ($previousStatus !== $validated['status']) {
+            CustomerMailer::sendRideStatusChanged($ride, $previousStatus, $validated['status']);
+        }
 
         return ApiResponse::data([
             'message' => 'Ride status updated successfully',

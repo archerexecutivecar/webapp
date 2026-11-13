@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\RideRequest;
 use App\Support\ApiResponse;
 use App\Support\CustomerAccounts;
+use App\Support\CustomerMailer;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -78,6 +79,8 @@ class PublicBookingController extends Controller
         }
 
         AuditLog::record('booking_request.created', null, ['reference' => $ride->reference, 'type' => $type], $ride);
+
+        CustomerMailer::sendBookingConfirmation($ride);
 
         AdminNotification::create([
             'ride_request_id' => $ride->id,

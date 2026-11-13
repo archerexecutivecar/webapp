@@ -71,14 +71,47 @@ class CustomerAccountTest extends TestCase
         $this->assertSame(['dispatcher'], $staff->fresh()->roleKeys());
     }
 
-    public function test_code_request_never_reveals_whether_an_account_exists(): void
+    public function test_code_request_returns_404_when_account_does_not_exist(): void
     {
         $this->book('ada@example.com');
-        $known = $this->postJson('/api/v1/customer/auth/code', ['email' => 'ada@example.com'])->assertStatus(202);
-        $unknown = $this->postJson('/api/v1/customer/auth/code', ['email' => 'nobody@example.com'])->assertStatus(202);
-
-        $this->assertSame($known->json(), $unknown->json());
+        $this->postJson('/api/v1/customer/auth/code', ['email' => 'ada@example.com'])->assertStatus(202);
+        $res = $this->postJson('/api/v1/customer/auth/code', ['email' => 'nobody@example.com'])->assertStatus(404);
+        $this->assertSame('ACCOUNT_NOT_FOUND', $res->json('error.code'));
         $this->assertSame(1, LoginCode::count());
+    }
+
+    public function test_customer_can_register_directly_without_prior_booking(): void
+    {
+        $res = $this->postJson('/api/v1/customer/auth/register', [
+            'name' => 'Paul Miller',
+            'email' => 'paul@example.com',
+            'phone' => '8485550199',
+            'password' => 'SecurePass123',
+            'password_confirmation' => 'SecurePass123',
+        ])->assertCreated();
+
+        $this->assertNotEmpty($res->json('data.token'));
+        $this->assertSame('paul@example.com', $res->json('data.user.email'));
+        $this->assertTrue($res->json('data.user.has_password'));
+
+        $user = User::where('email', 'paul@example.com')->firstOrFail();
+        $this->assertSame(['customer'], $user->roleKeys());
+
+        // Can sign in immediately with email + password via /auth/login
+        $loginRes = $this->postJson('/api/v1/auth/login', [
+            'email' => 'paul@example.com',
+            'password' => 'SecurePass123',
+        ])->assertOk();
+        $this->assertNotEmpty($loginRes->json('data.token'));
+
+        // Duplicate registration is rejected
+        $dup = $this->postJson('/api/v1/customer/auth/register', [
+            'name' => 'Paul Miller Again',
+            'email' => 'paul@example.com',
+            'password' => 'SecurePass123',
+            'password_confirmation' => 'SecurePass123',
+        ])->assertStatus(422);
+        $this->assertSame('ACCOUNT_EXISTS', $dup->json('error.code'));
     }
 
     public function test_emailed_code_signs_in_once_and_is_stored_only_as_a_hash(): void

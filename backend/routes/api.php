@@ -44,8 +44,9 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/site', [PublicSiteController::class, 'show']);
     Route::get('/faqs', [PublicContentController::class, 'faqs']);
 
-    // Customer account: sign in with an emailed code (no password) or with email + password via /auth/login.
+    // Customer account: register directly, sign in with an emailed code (no password), or with email + password via /auth/login.
     Route::prefix('customer')->group(function (): void {
+        Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:customer-code');
         Route::post('/auth/code', [CustomerAuthController::class, 'requestCode'])->middleware('throttle:customer-code');
         Route::post('/auth/code/verify', [CustomerAuthController::class, 'verifyCode'])->middleware('throttle:customer-code-verify');
 

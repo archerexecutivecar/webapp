@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\ApiToken;
 use App\Models\AuditLog;
 use App\Models\LoginCode;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\ApiResponse;
+use App\Support\CustomerMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,30 +24,99 @@ use Illuminate\Validation\Rules\Password;
  */
 class CustomerAuthController extends Controller
 {
-    /** POST /v1/customer/auth/code — always answers the same, so accounts cannot be discovered. */
+    /** POST /v1/customer/auth/code — generates a one-time sign-in code if account exists, or informs the user to create one. */
     public function requestCode(Request $request): JsonResponse
     {
         $email = Str::lower($request->validate(['email' => ['required', 'email', 'max:150']])['email']);
 
         $user = User::where('email', $email)->first();
-        if ($user && $user->isActive() && in_array('customer', $user->roleKeys(), true)) {
-            LoginCode::where('email', $email)->whereNull('consumed_at')->update(['consumed_at' => now()]);
-
-            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            LoginCode::create([
-                'email' => $email,
-                'code_hash' => LoginCode::hashCode($email, $code),
-                'expires_at' => now()->addMinutes(LoginCode::TTL_MINUTES),
-            ]);
-
-            Mail::raw(
-                "Your Archer sign-in code is {$code}.\n\nIt expires in ".LoginCode::TTL_MINUTES." minutes. If you didn't ask for it, you can ignore this email.",
-                fn ($m) => $m->to($email)->subject('Your Archer sign-in code')
+        if (! $user || ! in_array('customer', $user->roleKeys(), true)) {
+            return ApiResponse::error(
+                'ACCOUNT_NOT_FOUND',
+                "No Archer account was found for {$email}. You can create an account below.",
+                404,
+                ['email' => $email, 'not_found' => true]
             );
-            AuditLog::record('customer.code_requested', $user->getKey());
         }
 
-        return ApiResponse::data(['message' => 'If an Archer account exists for that email, a sign-in code has been sent.'], 202);
+        if (! $user->isActive()) {
+            return ApiResponse::error(
+                'ACCOUNT_INACTIVE',
+                'This account is currently inactive. Please contact Archer support.',
+                403
+            );
+        }
+
+        LoginCode::where('email', $email)->whereNull('consumed_at')->update(['consumed_at' => now()]);
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        LoginCode::create([
+            'email' => $email,
+            'code_hash' => LoginCode::hashCode($email, $code),
+            'expires_at' => now()->addMinutes(LoginCode::TTL_MINUTES),
+        ]);
+
+        Mail::raw(
+            "Your Archer sign-in code is {$code}.\n\nIt expires in ".LoginCode::TTL_MINUTES." minutes. If you didn't ask for it, you can ignore this email.",
+            fn ($m) => $m->to($email)->subject('Your Archer sign-in code')
+        );
+        AuditLog::record('customer.code_requested', $user->getKey());
+
+        return ApiResponse::data([
+            'message' => "A sign-in code has been sent to {$email}.",
+            'email' => $email,
+        ], 202);
+    }
+
+    /** POST /v1/customer/auth/register — create a new customer account directly without booking. */
+    public function register(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:150'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'password' => ['required', 'confirmed', Password::min(10)->letters()->numbers()],
+        ]);
+
+        $email = Str::lower(trim($data['email']));
+        $existing = User::where('email', $email)->first();
+        if ($existing) {
+            return ApiResponse::error(
+                'ACCOUNT_EXISTS',
+                'An account with that email already exists. Please sign in instead.',
+                422,
+                ['email' => $email]
+            );
+        }
+
+        $user = new User([
+            'name' => trim($data['name']),
+            'email' => $email,
+            'password' => $data['password'],
+        ]);
+        $user->forceFill([
+            'password_set_at' => now(),
+            'email_verified_at' => now(),
+            'phone' => ! empty($data['phone']) ? trim($data['phone']) : null,
+        ])->save();
+
+        $role = Role::where('key', 'customer')->first();
+        if ($role) {
+            $user->roles()->attach($role->id);
+        }
+
+        CustomerMailer::sendWelcome($user);
+
+        AuditLog::record('customer.registered', $user->getKey(), ['via' => 'direct_registration']);
+
+        [$plain, $expires] = ApiToken::issueFor($user);
+
+        return ApiResponse::data([
+            'token' => $plain,
+            'token_type' => 'Bearer',
+            'expires_at' => $expires->toIso8601String(),
+            'user' => self::payload($user),
+        ], 201);
     }
 
     /** POST /v1/customer/auth/code/verify */
