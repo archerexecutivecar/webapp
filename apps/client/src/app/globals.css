@@ -612,12 +612,37 @@ a.card:active {
 .account-grid { display: flex; flex-direction: column; gap: 16px; }
 .ride-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-@media (max-width: 480px) {
-  .auth {
-    padding: 24px 18px;
-    border-radius: var(--radius-md);
+.tabbar a {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.tabbar a:focus, .tabbar a:focus-visible, .tabbar a:active {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  .center {
+    justify-content: flex-start;
+    padding: calc(env(safe-area-inset-top) + 20px) 16px calc(env(safe-area-inset-bottom) + 32px);
   }
-  .title { font-size: 25px; }
+  .auth {
+    max-width: 100%;
+    padding: 16px 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    gap: 18px;
+  }
+  .shell {
+    padding-left: 14px;
+    padding-right: 14px;
+    padding-top: calc(env(safe-area-inset-top) + 12px);
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .title { font-size: 26px; }
+  .card { padding: 16px; border-radius: var(--radius-md); }
+  .hero-book-banner { padding: 16px; border-radius: var(--radius-md); }
 }
 
 @media (min-width: 768px) {

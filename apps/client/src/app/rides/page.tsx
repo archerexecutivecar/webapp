@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ACTIVE, api, errorText, SITE_URL, type Ride } from "@/lib/api";
 import { RideCard } from "@/components/RideCard";
@@ -30,7 +31,7 @@ function RidesList() {
   return (
     <div className="stack" style={{ gap: 20 }}>
       {/* Uber style "Where to?" action card */}
-      <a href={`${SITE_URL}/book`} className="hero-book-banner">
+      <Link href="/book" className="hero-book-banner">
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--accent)", color: "#000", display: "grid", placeItems: "center" }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -45,7 +46,7 @@ function RidesList() {
           </div>
         </div>
         <div style={{ color: "var(--accent)", fontWeight: 700, fontSize: 14 }}>BOOK &rarr;</div>
-      </a>
+      </Link>
 
       <div>
         <span className="eyebrow">YOUR RESERVATIONS</span>
@@ -79,9 +80,9 @@ function RidesList() {
             </div>
           </div>
           {tab === "upcoming" && (
-            <a className="btn" href={`${SITE_URL}/book`} style={{ marginTop: 8 }}>
+            <Link className="btn" href="/book" style={{ marginTop: 8 }}>
               RESERVE A RIDE
-            </a>
+            </Link>
           )}
         </div>
       )}

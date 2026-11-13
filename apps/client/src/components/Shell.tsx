@@ -83,14 +83,14 @@ export function Shell({ children }: { children: ReactNode }) {
             </svg>
             <span>Rides</span>
           </Link>
-          <a href={`${SITE_URL}/book`}>
+          <Link href="/book" aria-current={path.startsWith("/book") ? "page" : undefined}>
             <svg viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="16" />
               <line x1="8" y1="12" x2="16" y2="12" />
             </svg>
             <span>Book</span>
-          </a>
+          </Link>
           <Link href="/account" aria-current={path.startsWith("/account") ? "page" : undefined}>
             <svg viewBox="0 0 24 24">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
