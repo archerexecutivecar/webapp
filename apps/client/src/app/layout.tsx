@@ -1,10 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Epilogue, Roboto } from "next/font/google";
 import "./globals.css";
 import { RegisterSW } from "@/components/RegisterSW";
-
-const epilogue = Epilogue({ subsets: ["latin"], weight: ["500", "600", "700", "800"], variable: "--font-epilogue", display: "swap" });
-const roboto = Roboto({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-roboto", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Archer · My rides",
@@ -18,7 +14,15 @@ export const viewport: Viewport = { themeColor: "#121212", width: "device-width"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${epilogue.variable} ${roboto.variable}`}>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Epilogue:wght@500;600;700;800&family=Roboto:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         {children}
         <RegisterSW />

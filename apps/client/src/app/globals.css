@@ -17,8 +17,10 @@
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-full: 9999px;
-  --head: var(--font-epilogue), system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-sans: var(--font-roboto), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-epilogue: "Epilogue", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-roboto: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --head: var(--font-epilogue);
+  --font-sans: var(--font-roboto);
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
