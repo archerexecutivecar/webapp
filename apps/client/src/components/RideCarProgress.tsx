@@ -4,10 +4,10 @@ import { useCallback, useEffect, useId, useState } from "react";
 import type { TimelineStep } from "@/lib/api";
 
 const STEPS = [
-  { key: "pending", label: "Request received", shortLabel: "Received" },
+  { key: "pending", label: "Request received", shortLabel: "Requested" },
   { key: "dispatched", label: "Chauffeur assigned", shortLabel: "Assigned" },
-  { key: "in_progress", label: "On the way", shortLabel: "On Way" },
-  { key: "completed", label: "Completed", shortLabel: "Done" },
+  { key: "in_progress", label: "On the way", shortLabel: "On the way" },
+  { key: "completed", label: "Completed", shortLabel: "Completed" },
 ];
 
 function getStepIndex(status: string): number {
@@ -25,7 +25,20 @@ function getStepIndex(status: string): number {
   }
 }
 
-const STEP_PERCENTAGES = [0, 33.333, 66.666, 100];
+// Coordinate constants for pixel-perfect SVG alignment
+const X_START = 52;
+const X_END = 448;
+const TOTAL_SPAN = X_END - X_START; // 396px
+
+const MILESTONE_X = [
+  X_START,
+  X_START + Math.round(TOTAL_SPAN * 0.3333),
+  X_START + Math.round(TOTAL_SPAN * 0.6667),
+  X_END,
+];
+
+const ROAD_Y_DETAIL = 46;
+const ROAD_Y_COMPACT = 36;
 
 export interface RideCarProgressProps {
   status: string;
@@ -44,43 +57,55 @@ export function RideCarProgress({
 }: RideCarProgressProps) {
   const maskId = useId();
   const targetIndex = getStepIndex(status);
-  const targetPercent = STEP_PERCENTAGES[targetIndex] ?? 0;
 
+  // Animation states
   const [currentPercent, setCurrentPercent] = useState<number>(0);
-  const [isMoving, setIsMoving] = useState<boolean>(true);
-  const [reachedSteps, setReachedSteps] = useState<number[]>([0]);
+  const [isDriving, setIsDriving] = useState<boolean>(true);
+  const [activeStepIndices, setActiveStepIndices] = useState<number[]>([0]);
+
+  // Target percent along track (0% to 100%)
+  const targetPercent = (targetIndex / 3) * 100;
+
+  // Stately luxury drive animation duration: 3.6 seconds
+  const DURATION_MS = 3600;
 
   const triggerAnimation = useCallback(() => {
-    // Start from stage 0 (Request received)
+    // Reset to start
     setCurrentPercent(0);
-    setIsMoving(true);
-    setReachedSteps([0]);
+    setIsDriving(true);
+    setActiveStepIndices([0]);
 
-    // Animate to target percentage
+    // Begin forward motion after brief 80ms paint
     const startTimer = setTimeout(() => {
       setCurrentPercent(targetPercent);
 
-      // Sequentially activate milestone nodes as car drives past them
+      // Light up milestone nodes in sync as car drives past them
       STEPS.forEach((_, idx) => {
         if (idx <= targetIndex) {
-          const delay = targetIndex === 0 ? 0 : Math.round((idx / targetIndex) * 1600);
+          const milestoneDelay =
+            targetIndex === 0
+              ? 0
+              : Math.round((idx / targetIndex) * (DURATION_MS * 0.85));
           setTimeout(() => {
-            setReachedSteps((prev) => (prev.includes(idx) ? prev : [...prev, idx]));
-          }, delay);
+            setActiveStepIndices((prev) =>
+              prev.includes(idx) ? prev : [...prev, idx]
+            );
+          }, milestoneDelay);
         }
       });
-    }, 120);
+    }, 80);
 
-    // Stop driving motion when arriving
-    const arriveTimer = setTimeout(() => {
-      setIsMoving(false);
-      // Ensure all target steps are marked reached
-      setReachedSteps(STEPS.map((_, i) => i).filter((i) => i <= targetIndex));
-    }, 2100);
+    // Conclude drive smoothly
+    const endTimer = setTimeout(() => {
+      setIsDriving(false);
+      setActiveStepIndices(
+        STEPS.map((_, i) => i).filter((i) => i <= targetIndex)
+      );
+    }, DURATION_MS + 200);
 
     return () => {
       clearTimeout(startTimer);
-      clearTimeout(arriveTimer);
+      clearTimeout(endTimer);
     };
   }, [targetIndex, targetPercent]);
 
@@ -90,55 +115,74 @@ export function RideCarProgress({
   }, [triggerAnimation]);
 
   const isCompact = variant === "compact";
+  const roadY = isCompact ? ROAD_Y_COMPACT : ROAD_Y_DETAIL;
+  const viewBoxHeight = isCompact ? 80 : 106;
 
-  // Narrative message based on status
+  // Exact pixel X coordinate of the car center
+  const carX = X_START + (currentPercent / 100) * TOTAL_SPAN;
+
+  // Dash offset for active line (line length = TOTAL_SPAN)
+  const activeDashOffset = TOTAL_SPAN * (1 - currentPercent / 100);
+
+  // Status narrative banner copy
   const narrative = (() => {
     switch (status) {
       case "pending":
         return {
-          title: "Reservation Received",
-          desc: "Archer Dispatch is reviewing chauffeur availability and trip timing.",
+          badge: "REQUEST RECEIVED",
+          desc: "Archer Dispatch is reviewing trip logistics and vehicle preparation.",
         };
       case "dispatched":
         return {
-          title: "Chauffeur Assigned",
-          desc: "Your executive chauffeur has been scheduled and your vehicle staged.",
+          badge: "CHAUFFEUR ASSIGNED",
+          desc: "Your chauffeur is assigned and staging your vehicle.",
         };
       case "in_progress":
         return {
-          title: "Chauffeur On The Way",
-          desc: "Chauffeur is en route to pickup. Live executive dispatch is monitoring.",
+          badge: "ON THE WAY",
+          desc: "Chauffeur is en route to pickup location. Live dispatch active.",
         };
       case "completed":
         return {
-          title: "Trip Completed",
-          desc: "Thank you for traveling with Archer Executive Transportation.",
+          badge: "TRIP COMPLETED",
+          desc: "Thank you for choosing Archer Executive Transportation.",
         };
       default:
         return {
-          title: "Reservation Active",
+          badge: "RESERVATION ACTIVE",
           desc: "Archer Executive Chauffeur Service.",
         };
     }
   })();
 
   return (
-    <div className={`car-progress-wrapper ${isCompact ? "compact" : "detail"} ${className}`}>
-      {/* Detail header with live status pill and replay button */}
+    <div
+      className={`executive-progress-container ${isCompact ? "compact" : "detail"} ${className}`}
+    >
+      {/* Header with live status and replay button */}
       {!isCompact && (
-        <div className="car-progress-head">
-          <div className="car-progress-eyebrow">
-            <span className="live-dot" />
+        <div className="executive-progress-top">
+          <div className="executive-badge-live">
+            <span className="live-radar-dot" />
             LIVE TRIP PROGRESS
           </div>
           <button
             type="button"
-            className="car-replay-btn"
+            className="executive-replay-pill"
             onClick={triggerAnimation}
             title="Replay journey animation"
             aria-label="Replay car animation"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
             </svg>
             Replay
@@ -146,200 +190,376 @@ export function RideCarProgress({
         </div>
       )}
 
-      {/* Main Track Arena */}
-      <div className={`car-track-arena ${isMoving ? "is-driving" : "is-idle"}`}>
-        {/* Track Line Layer */}
-        <div className="car-track-line-wrapper">
-          {/* Base Road */}
-          <div className="car-road-base" />
+      {/* Unified SVG Highway Track */}
+      <div className="executive-svg-stage">
+        <svg
+          viewBox={`0 0 500 ${viewBoxHeight}`}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="executive-svg-canvas"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            {/* Soft forward headlight beam gradient */}
+            <linearGradient
+              id={`headlightGlow-${maskId}`}
+              x1="0%"
+              y1="50%"
+              x2="100%"
+              y2="50%"
+            >
+              <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.8" />
+              <stop offset="45%" stopColor="#FBBF24" stopOpacity="0.35" />
+              <stop offset="85%" stopColor="#FDE68A" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#FFF" stopOpacity="0" />
+            </linearGradient>
 
-          {/* Animated Road Lane Dashes */}
-          <div className={`car-road-dashes ${isMoving ? "animating" : ""}`} />
+            {/* Active gold road bar gradient */}
+            <linearGradient
+              id={`goldRoadGrad-${maskId}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="0%"
+            >
+              <stop offset="0%" stopColor="#E87722" />
+              <stop offset="100%" stopColor="#F59E0B" />
+            </linearGradient>
 
-          {/* Golden Active Progress Bar */}
-          <div
-            className="car-road-active"
+            {/* Obsidian metallic body paint */}
+            <linearGradient
+              id={`carPaintGrad-${maskId}`}
+              x1="0%"
+              y1="0%"
+              x2="0%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor="#30323C" />
+              <stop offset="20%" stopColor="#1C1D24" />
+              <stop offset="70%" stopColor="#0F1014" />
+              <stop offset="100%" stopColor="#08080A" />
+            </linearGradient>
+
+            {/* Tinted VIP Glass */}
+            <linearGradient
+              id={`vipGlassGrad-${maskId}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor="#1A1B22" />
+              <stop offset="100%" stopColor="#08090C" />
+            </linearGradient>
+
+            {/* Alloy rim metallic gradient */}
+            <linearGradient
+              id={`alloyRimGrad-${maskId}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor="#F3F4F6" />
+              <stop offset="50%" stopColor="#9CA3AF" />
+              <stop offset="100%" stopColor="#374151" />
+            </linearGradient>
+          </defs>
+
+          {/* 1. BASE ROAD BED (Dark Asphalt) */}
+          <line
+            x1={X_START}
+            y1={roadY}
+            x2={X_END}
+            y2={roadY}
+            stroke="#1D1E26"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
+
+          {/* 2. ROAD LANE DASHES */}
+          <line
+            x1={X_START}
+            y1={roadY}
+            x2={X_END}
+            y2={roadY}
+            stroke="rgba(255, 255, 255, 0.16)"
+            strokeWidth="1.6"
+            strokeDasharray="6 8"
+          />
+
+          {/* 3. ACTIVE GOLD PROGRESS LINE (Perfect center-axis alignment) */}
+          <line
+            x1={X_START}
+            y1={roadY}
+            x2={X_END}
+            y2={roadY}
+            stroke={`url(#goldRoadGrad-${maskId})`}
+            strokeWidth="5"
+            strokeLinecap="round"
+            strokeDasharray={TOTAL_SPAN}
+            strokeDashoffset={activeDashOffset}
             style={{
-              width: `${currentPercent}%`,
-              transition: isMoving ? "width 1.9s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+              transition: isDriving
+                ? `stroke-dashoffset ${DURATION_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`
+                : "none",
             }}
           />
 
-          {/* Moving Black Car */}
-          <div
-            className="car-vehicle-holder"
+          {/* 4. LUXURY EXECUTIVE BLACK CHAUFFEUR VEHICLE */}
+          <g
+            className={`executive-car-chassis ${isDriving ? "driving" : "idle"}`}
+            transform={`translate(${carX - 32}, ${roadY - 24})`}
             style={{
-              left: `${currentPercent}%`,
-              transition: isMoving ? "left 1.9s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+              transition: isDriving
+                ? `transform ${DURATION_MS}ms cubic-bezier(0.25, 0.1, 0.25, 1)`
+                : "none",
             }}
           >
-            <svg
-              className="executive-car-svg"
-              viewBox="0 0 120 44"
+            {/* Forward Headlight Beam illuminating the highway */}
+            <polygon
+              points="60,14 86,6 86,23 60,17"
+              fill={`url(#headlightGlow-${maskId})`}
+            />
+
+            {/* Amber Road Glow Underbody Reflection */}
+            <ellipse
+              cx="32"
+              cy="23"
+              rx="24"
+              ry="2"
+              fill="rgba(232, 119, 34, 0.45)"
+            />
+
+            {/* Modern Executive SUV / Chauffeur Sedan Body */}
+            <path
+              d="M 4 21 C 4 21, 5 14, 8 13 C 11 11, 16 5, 20 4 L 40 4 C 44 4, 50 10, 52 12 L 58 14 C 61 15, 62 17, 61 21 L 54 21 C 54 18, 48 18, 48 21 L 22 21 C 22 18, 16 18, 16 21 Z"
+              fill={`url(#carPaintGrad-${maskId})`}
+              stroke="#3D404C"
+              strokeWidth="0.8"
+            />
+
+            {/* Specular Chrome Shoulder Highlight */}
+            <path
+              d="M 20 4.8 L 40 4.8 Q 50 10 52 12.5"
+              stroke="rgba(255, 255, 255, 0.4)"
+              strokeWidth="0.75"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-label="Archer Executive Chauffeur Vehicle"
-            >
-              <defs>
-                {/* Forward Headlight Beam */}
-                <linearGradient id={`headlightBeam-${maskId}`} x1="0%" y1="50%" x2="100%" y2="50%">
-                  <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.85" />
-                  <stop offset="40%" stopColor="#FBBF24" stopOpacity="0.45" />
-                  <stop offset="80%" stopColor="#FDE68A" stopOpacity="0.12" />
-                  <stop offset="100%" stopColor="#FFF" stopOpacity="0" />
-                </linearGradient>
+            />
 
-                {/* Midnight Metallic Executive Body Paint */}
-                <linearGradient id={`carBodyPaint-${maskId}`} x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#363842" />
-                  <stop offset="25%" stopColor="#1E2026" />
-                  <stop offset="70%" stopColor="#111215" />
-                  <stop offset="100%" stopColor="#08080A" />
-                </linearGradient>
+            {/* VIP Privacy Windows with Chrome Day-Light Opening */}
+            <path
+              d="M 21 6 L 31 6 L 31 12 L 18 12 Q 19 8 21 6 Z"
+              fill={`url(#vipGlassGrad-${maskId})`}
+              stroke="#9CA3AF"
+              strokeWidth="0.5"
+            />
+            <path
+              d="M 33 6 L 41 6 L 41 12 L 33 12 Z"
+              fill={`url(#vipGlassGrad-${maskId})`}
+              stroke="#9CA3AF"
+              strokeWidth="0.5"
+            />
+            <path
+              d="M 43 6 L 44 6 Q 49 11 50 12 L 43 12 Z"
+              fill={`url(#vipGlassGrad-${maskId})`}
+              stroke="#9CA3AF"
+              strokeWidth="0.5"
+            />
 
-                {/* Privacy Glass Window Tint */}
-                <linearGradient id={`windowTint-${maskId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#1B1D24" />
-                  <stop offset="100%" stopColor="#0A0B0E" />
-                </linearGradient>
+            {/* Archer Gold Rocker Accent */}
+            <line
+              x1="22"
+              y1="21.5"
+              x2="48"
+              y2="21.5"
+              stroke="#E87722"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+            />
 
-                {/* Luxury Alloy Rim */}
-                <linearGradient id={`rimGrad-${maskId}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#E5E7EB" />
-                  <stop offset="50%" stopColor="#6B7280" />
-                  <stop offset="100%" stopColor="#1F2937" />
-                </linearGradient>
-              </defs>
+            {/* LED Tail Blade (Red) */}
+            <rect x="4" y="14" width="2" height="4" rx="0.5" fill="#EF4444" />
 
-              {/* Headlight Beam Projecting Forward */}
-              <polygon points="98,24 120,16 120,34 98,28" fill={`url(#headlightBeam-${maskId})`} />
+            {/* LED Projector Headlight */}
+            <path d="M 59 15 L 61 16 L 61 18 L 59 17.5 Z" fill="#FFFFFF" />
 
-              {/* Amber Ground Effect Underglow */}
-              <ellipse cx="54" cy="37" rx="36" ry="2.5" fill="rgba(232, 119, 34, 0.4)" />
-
-              {/* Executive SUV / Sedan Body */}
-              <path
-                d="M12 32 C12 32 13 25 15 24 C17 23 24 15 27 14 C32 13.5 56 13.5 60 14 C64 14.5 73 22 75 23 L94 25 C97 25.5 98 28 98 30 C98 32 96 33 94 33 L86 33 C86 28 76 28 76 33 L38 33 C38 28 28 28 28 33 L14 33 C12.5 33 12 32.5 12 32 Z"
-                fill={`url(#carBodyPaint-${maskId})`}
-                stroke="#474A59"
+            {/* Rear Alloy Wheel (cx=19, cy=21) */}
+            <g className={`alloy-wheel rear ${isDriving ? "rolling" : ""}`}>
+              <circle
+                cx="19"
+                cy="21"
+                r="4.6"
+                fill="#111216"
+                stroke="#2A2C36"
                 strokeWidth="0.8"
               />
+              <circle
+                cx="19"
+                cy="21"
+                r="3.2"
+                fill={`url(#alloyRimGrad-${maskId})`}
+              />
+              <line
+                x1="19"
+                y1="18.2"
+                x2="19"
+                y2="23.8"
+                stroke="#E5E7EB"
+                strokeWidth="0.6"
+              />
+              <line
+                x1="16.6"
+                y1="19.8"
+                x2="21.4"
+                y2="22.2"
+                stroke="#E5E7EB"
+                strokeWidth="0.6"
+              />
+              <line
+                x1="17.2"
+                y1="22.8"
+                x2="20.8"
+                y2="19.2"
+                stroke="#E5E7EB"
+                strokeWidth="0.6"
+              />
+              <circle cx="19" cy="21" r="1" fill="#111" />
+            </g>
 
-              {/* Specular Roofline Chrome Accent */}
-              <path d="M28 14.5 Q45 14 60 14.5 Q72 22 74 23.5" stroke="rgba(255,255,255,0.45)" strokeWidth="0.75" fill="none" />
+            {/* Front Alloy Wheel (cx=51, cy=21) */}
+            <g className={`alloy-wheel front ${isDriving ? "rolling" : ""}`}>
+              <circle
+                cx="51"
+                cy="21"
+                r="4.6"
+                fill="#111216"
+                stroke="#2A2C36"
+                strokeWidth="0.8"
+              />
+              <circle
+                cx="51"
+                cy="21"
+                r="3.2"
+                fill={`url(#alloyRimGrad-${maskId})`}
+              />
+              <line
+                x1="51"
+                y1="18.2"
+                x2="51"
+                y2="23.8"
+                stroke="#E5E7EB"
+                strokeWidth="0.6"
+              />
+              <line
+                x1="48.6"
+                y1="19.8"
+                x2="53.4"
+                y2="22.2"
+                stroke="#E5E7EB"
+                strokeWidth="0.6"
+              />
+              <line
+                x1="49.2"
+                y1="22.8"
+                x2="52.8"
+                y2="19.2"
+                stroke="#E5E7EB"
+                strokeWidth="0.6"
+              />
+              <circle cx="51" cy="21" r="1" fill="#111" />
+            </g>
+          </g>
 
-              {/* Side Windows: Quarter, Rear Passenger, Front Chauffeur */}
-              <path d="M28 16 L38 16 L38 23 L23 23 Q26 18 28 16 Z" fill={`url(#windowTint-${maskId})`} stroke="#9CA3AF" strokeWidth="0.6" />
-              <path d="M40 16 L54 16 L54 23 L40 23 Z" fill={`url(#windowTint-${maskId})`} stroke="#9CA3AF" strokeWidth="0.6" />
-              <path d="M56 16 L60 16 Q70 22 72 23 L56 23 Z" fill={`url(#windowTint-${maskId})`} stroke="#9CA3AF" strokeWidth="0.6" />
-
-              {/* Subtle Window Reflection Sheen */}
-              <path d="M32 23 L36 16 L39 16 L35 23 Z" fill="rgba(255,255,255,0.12)" />
-              <path d="M48 23 L52 16 L54 16 L50 23 Z" fill="rgba(255,255,255,0.12)" />
-
-              {/* Side Mirror with Amber Turn Signal */}
-              <path d="M69 23.5 L73 23 L72 25 L68.5 25 Z" fill="#1C1D24" stroke="#6B7280" strokeWidth="0.4" />
-              <circle cx="72" cy="24" r="0.6" fill="#E87722" />
-
-              {/* Chrome Door Handles */}
-              <rect x="42" y="24.5" width="4" height="1" rx="0.5" fill="#6B7280" />
-              <rect x="58" y="24.5" width="4" height="1" rx="0.5" fill="#6B7280" />
-
-              {/* Archer Signature Amber Rocker Trim Line */}
-              <line x1="39" y1="32.5" x2="75" y2="32.5" stroke="#E87722" strokeWidth="1" strokeLinecap="round" />
-
-              {/* LED Red Taillight Strip */}
-              <rect x="12" y="24" width="2" height="4.5" rx="0.8" fill="#EF4444" />
-              <circle cx="13" cy="26" r="2.5" fill="#EF4444" opacity="0.6" />
-
-              {/* Projector LED Headlight Unit */}
-              <path d="M93 26 L97 27 L97 29.5 L93 29 Z" fill="#FFFFFF" />
-              <circle cx="95" cy="28" r="2.5" fill="#FBBF24" opacity="0.75" />
-
-              {/* Rear Wheel (cx=33, cy=33) */}
-              <g className={`wheel-svg-rear ${isMoving ? "spinning" : ""}`}>
-                <circle cx="33" cy="33" r="6.5" fill="#141519" stroke="#2D2F38" strokeWidth="1" />
-                <circle cx="33" cy="33" r="4.2" fill={`url(#rimGrad-${maskId})`} />
-                <line x1="33" y1="29.2" x2="33" y2="36.8" stroke="#E5E7EB" strokeWidth="0.8" />
-                <line x1="29.4" y1="31.8" x2="36.6" y2="34.2" stroke="#E5E7EB" strokeWidth="0.8" />
-                <line x1="30.2" y1="35.2" x2="35.8" y2="30.8" stroke="#E5E7EB" strokeWidth="0.8" />
-                <circle cx="33" cy="33" r="1.2" fill="#111" />
-              </g>
-
-              {/* Front Wheel (cx=81, cy=33) */}
-              <g className={`wheel-svg-front ${isMoving ? "spinning" : ""}`}>
-                <circle cx="81" cy="33" r="6.5" fill="#141519" stroke="#2D2F38" strokeWidth="1" />
-                <circle cx="81" cy="33" r="4.2" fill={`url(#rimGrad-${maskId})`} />
-                <line x1="81" y1="29.2" x2="81" y2="36.8" stroke="#E5E7EB" strokeWidth="0.8" />
-                <line x1="77.4" y1="31.8" x2="84.6" y2="34.2" stroke="#E5E7EB" strokeWidth="0.8" />
-                <line x1="78.2" y1="35.2" x2="83.8" y2="30.8" stroke="#E5E7EB" strokeWidth="0.8" />
-                <circle cx="81" cy="33" r="1.2" fill="#111" />
-              </g>
-            </svg>
-          </div>
-        </div>
-
-        {/* Milestone Nodes */}
-        <div className="car-milestones-row">
+          {/* 5. MILESTONE NODES (Mathematically locked to ROAD_Y) */}
           {STEPS.map((step, idx) => {
-            const isReached = reachedSteps.includes(idx);
+            const nodeX = MILESTONE_X[idx];
+            const isReached = activeStepIndices.includes(idx);
             const isCurrent = idx === targetIndex;
             const stepTimestamp = timeline?.find((t) => t.key === step.key)?.at;
 
             return (
-              <div
-                key={step.key}
-                className={`car-milestone-node ${isReached ? "is-reached" : ""} ${isCurrent ? "is-current" : ""}`}
-                style={{ left: `${STEP_PERCENTAGES[idx]}%` }}
-              >
-                {/* Node Indicator Dot */}
-                <div className="car-node-dot">
-                  {isReached && !isCurrent ? (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : isCurrent ? (
-                    <span className="car-beacon-core" />
-                  ) : (
-                    <span className="car-unreached-dot" />
-                  )}
-                </div>
+              <g key={step.key} className="milestone-station-group">
+                {/* Current Active Step: Pulsing Radar Beacon Halo */}
+                {isCurrent && (
+                  <circle
+                    cx={nodeX}
+                    cy={roadY}
+                    r="15"
+                    fill="rgba(232, 119, 34, 0.22)"
+                    className="beacon-pulse-ring"
+                  />
+                )}
 
-                {/* Node Label */}
-                <div className="car-node-label-container">
-                  <span className="car-node-label">
-                    {isCompact ? step.shortLabel : step.label}
-                  </span>
-                  {!isCompact && stepTimestamp && (
-                    <span className="car-node-time">
-                      {new Date(stepTimestamp).toLocaleTimeString(undefined, {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  )}
-                </div>
-              </div>
+                {/* Milestone Node Outer Ring */}
+                <circle
+                  cx={nodeX}
+                  cy={roadY}
+                  r={isCurrent ? "9" : "7.5"}
+                  fill={isReached ? "#E87722" : "#13141A"}
+                  stroke={isReached ? "#FFFFFF" : "#323542"}
+                  strokeWidth={isCurrent ? "2.5" : "2"}
+                  className="station-node-circle"
+                />
+
+                {/* Inner Icon: Checkmark if completed, glowing core if current, dark dot if upcoming */}
+                {isReached && !isCurrent && (
+                  <polyline
+                    points={`${nodeX - 3},${roadY} ${nodeX - 0.5},${roadY + 2.5} ${nodeX + 3.5},${roadY - 2}`}
+                    fill="none"
+                    stroke="#0A0A0E"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+                {isCurrent && (
+                  <circle cx={nodeX} cy={roadY} r="3" fill="#FFFFFF" />
+                )}
+                {!isReached && (
+                  <circle cx={nodeX} cy={roadY} r="2" fill="#4B4E60" />
+                )}
+
+                {/* Station Label Text (Centered under node) */}
+                <text
+                  x={nodeX}
+                  y={roadY + (isCompact ? 22 : 26)}
+                  textAnchor="middle"
+                  className={`station-label-svg ${
+                    isCurrent ? "current" : isReached ? "reached" : "upcoming"
+                  }`}
+                >
+                  {isCompact ? step.shortLabel : step.label}
+                </text>
+
+                {/* Timestamp (Detail view only, positioned cleanly below label) */}
+                {!isCompact && stepTimestamp && (
+                  <text
+                    x={nodeX}
+                    y={roadY + 41}
+                    textAnchor="middle"
+                    className="station-time-svg"
+                  >
+                    {new Date(stepTimestamp).toLocaleTimeString(undefined, {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </text>
+                )}
+              </g>
             );
           })}
-        </div>
+        </svg>
       </div>
 
-      {/* Narrative Status Box (Detail variant or when requested) */}
+      {/* Narrative Status Callout (Detail variant only) */}
       {!isCompact && showNarrative && (
-        <div className="car-narrative-banner">
-          <div className="car-narrative-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-              <circle cx="7" cy="17" r="2" />
-              <path d="M9 17h6" />
-              <circle cx="17" cy="17" r="2" />
-            </svg>
+        <div className="executive-narrative-card">
+          <div className="executive-narrative-pill">
+            <span className="executive-dot-live" />
+            {narrative.badge}
           </div>
-          <div>
-            <div className="car-narrative-title">{narrative.title}</div>
-            <div className="car-narrative-desc">{narrative.desc}</div>
-          </div>
+          <div className="executive-narrative-text">{narrative.desc}</div>
         </div>
       )}
     </div>
