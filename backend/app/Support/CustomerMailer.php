@@ -11,7 +11,7 @@ class CustomerMailer
 {
     private static function portalUrl(string $path = ''): string
     {
-        $base = rtrim((string) env('CLIENT_URL', 'https://client.archerexecutivecar.com'), '/');
+        $base = rtrim((string) env('CLIENT_URL', 'https://app.archerexecutivecar.com'), '/');
 
         return $path !== '' ? "{$base}/" . ltrim($path, '/') : $base;
     }
