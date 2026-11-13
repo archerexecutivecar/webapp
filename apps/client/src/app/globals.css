@@ -621,6 +621,368 @@ a.card:active {
   box-shadow: none !important;
 }
 
+/* ---------- Luxury Black Car Riding Progress Animation ---------- */
+.car-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.car-progress-wrapper.detail {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.car-progress-wrapper.compact {
+  background: rgba(18, 18, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 12px 10px;
+  margin: 6px 0 2px;
+}
+
+.car-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.car-progress-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pulseAnimation 1.6s infinite ease-in-out;
+}
+
+.car-replay-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-strong);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.car-replay-btn:hover {
+  color: #FFF;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.car-replay-btn:active {
+  transform: scale(0.95);
+}
+
+.car-track-arena {
+  position: relative;
+  width: 100%;
+  padding-top: 34px;
+  padding-bottom: 30px;
+  user-select: none;
+}
+
+.compact .car-track-arena {
+  padding-top: 26px;
+  padding-bottom: 22px;
+}
+
+.car-track-line-wrapper {
+  position: relative;
+  height: 6px;
+  margin: 0 28px;
+  border-radius: 3px;
+}
+
+.compact .car-track-line-wrapper {
+  margin: 0 20px;
+}
+
+.car-road-base {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: #181920;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.car-road-dashes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0, rgba(255, 255, 255, 0.3) 6px, transparent 6px, transparent 16px);
+  border-radius: 2px;
+  opacity: 0.7;
+}
+
+.car-road-dashes.animating {
+  animation: laneDashMove 0.55s linear infinite;
+}
+
+@keyframes laneDashMove {
+  0% { background-position: 0 0; }
+  100% { background-position: -16px 0; }
+}
+
+.car-road-active {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #E87722 0%, #F59E0B 100%);
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgba(232, 119, 34, 0.75);
+  will-change: width;
+}
+
+.car-vehicle-holder {
+  position: absolute;
+  top: -24px;
+  transform: translateX(-50%);
+  width: 68px;
+  height: 30px;
+  pointer-events: none;
+  z-index: 5;
+  will-change: left;
+  animation: carIdle 2.8s ease-in-out infinite;
+}
+
+.compact .car-vehicle-holder {
+  top: -20px;
+  width: 54px;
+  height: 24px;
+}
+
+.is-driving .car-vehicle-holder {
+  animation: carDrivingBob 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes carIdle {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-1.5px); }
+}
+
+@keyframes carDrivingBob {
+  0% { transform: translateX(-50%) translateY(0); }
+  100% { transform: translateX(-50%) translateY(-2px); }
+}
+
+.executive-car-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+/* Spinning Alloy Wheels */
+.wheel-svg-rear {
+  transform-box: view-box;
+  transform-origin: 33px 33px;
+}
+
+.wheel-svg-front {
+  transform-box: view-box;
+  transform-origin: 81px 33px;
+}
+
+.wheel-svg-rear.spinning,
+.wheel-svg-front.spinning {
+  animation: spinCarWheels 0.4s linear infinite;
+}
+
+@keyframes spinCarWheels {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Milestones Row */
+.car-milestones-row {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  top: 34px;
+  height: 0;
+  pointer-events: none;
+}
+
+.compact .car-milestones-row {
+  left: 20px;
+  right: 20px;
+  top: 26px;
+}
+
+.car-milestone-node {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.car-node-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #181920;
+  border: 2px solid #2F313D;
+  display: grid;
+  place-items: center;
+  color: #111;
+  z-index: 2;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.compact .car-node-dot {
+  width: 14px;
+  height: 14px;
+}
+
+.car-milestone-node.is-reached .car-node-dot {
+  background: var(--accent);
+  border-color: #FFF;
+  color: #111;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.car-milestone-node.is-current .car-node-dot {
+  background: var(--accent);
+  border-color: #FFF;
+  animation: currentBeacon 1.8s infinite ease-in-out;
+}
+
+@keyframes currentBeacon {
+  0% { box-shadow: 0 0 0 2px rgba(232, 119, 34, 0.5), 0 0 8px rgba(232, 119, 34, 0.6); }
+  50% { box-shadow: 0 0 0 6px rgba(232, 119, 34, 0.15), 0 0 16px rgba(232, 119, 34, 0.9); }
+  100% { box-shadow: 0 0 0 2px rgba(232, 119, 34, 0.5), 0 0 8px rgba(232, 119, 34, 0.6); }
+}
+
+.car-unreached-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.car-beacon-core {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #FFF;
+}
+
+.compact .car-beacon-core {
+  width: 4px;
+  height: 4px;
+}
+
+.car-node-label-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8px;
+  width: 76px;
+  text-align: center;
+}
+
+.compact .car-node-label-container {
+  margin-top: 6px;
+  width: 62px;
+}
+
+.car-node-label {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--muted);
+  transition: color 0.25s;
+}
+
+.compact .car-node-label {
+  font-size: 10px;
+  letter-spacing: -0.01em;
+}
+
+.car-milestone-node.is-reached .car-node-label {
+  color: #E5E7EB;
+  font-weight: 600;
+}
+
+.car-milestone-node.is-current .car-node-label {
+  color: var(--accent);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(232, 119, 34, 0.35);
+}
+
+.car-node-time {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.car-narrative-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(232, 119, 34, 0.08);
+  border: 1px solid rgba(232, 119, 34, 0.25);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-top: 4px;
+}
+
+.car-narrative-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(232, 119, 34, 0.15);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.car-narrative-title {
+  color: #FFF;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.car-narrative-desc {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
 @media (max-width: 640px) {
   .center {
     justify-content: flex-start;

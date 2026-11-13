@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { ACTIVE, api, ApiError, DISPATCH_DISPLAY, DISPATCH_TEL, errorText, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
 import { Shell } from "@/components/Shell";
 import { badgeClass } from "@/components/RideCard";
+import { RideCarProgress } from "@/components/RideCarProgress";
 
 const LABELS: Record<string, string> = {
   way: "Trip", stops: "Stops", passengers: "Passengers", bags: "Bags", return_time: "Return pickup", direction: "Direction", airport: "Airport",
@@ -67,17 +68,12 @@ function Detail() {
       {ride.status === "cancelled" ? (
         <div className="alert">This ride was cancelled. Need a new one? Call dispatch at <a href={`tel:${DISPATCH_TEL}`}>{DISPATCH_DISPLAY}</a>.</div>
       ) : (
-        <section className="card" aria-label="Ride progress">
-          <span className="eyebrow">STATUS</span>
-          <ol className="timeline">
-            {ride.timeline?.map((s) => (
-              <li key={s.key} className={`${s.reached ? "reached" : ""} ${s.current ? "current" : ""}`} aria-current={s.current ? "step" : undefined}>
-                <span className="dot" aria-hidden />
-                <div><div className="lbl">{s.label}</div>{s.at && <div className="muted" style={{ fontSize: 13 }}>{new Date(s.at).toLocaleString()}</div>}</div>
-              </li>
-            ))}
-          </ol>
-          {ride.status === "pending" && <p className="muted" style={{ margin: "6px 0 0", fontSize: 14 }}>Dispatch is confirming your chauffeur and the final price. You&apos;ll see them here as soon as they&apos;re assigned.</p>}
+        <section aria-label="Ride progress">
+          <RideCarProgress
+            status={ride.status}
+            variant="detail"
+            timeline={ride.timeline}
+          />
         </section>
       )}
 

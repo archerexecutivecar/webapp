@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ACTIVE, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
+import { RideCarProgress } from "@/components/RideCarProgress";
 
 export function badgeClass(status: string) {
   return status === "completed" ? "badge done" : status === "cancelled" ? "badge cancelled" : "badge";
@@ -24,6 +25,10 @@ export function RideCard({ r }: { r: Ride }) {
       <div style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>
         {whenText(r)}
       </div>
+
+      {r.status !== "cancelled" && (
+        <RideCarProgress status={r.status} variant="compact" timeline={r.timeline} />
+      )}
 
       {(r.pickup_location || r.dropoff_location) && (
         <div className="route-uber">
