@@ -437,13 +437,7 @@ function BookRideForm() {
         <span style={{ fontSize: 12, fontWeight: 700, color: "#9E9890", textTransform: "uppercase", letterSpacing: "0.08em" }}>
           1. Select Service Type
         </span>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
-            gap: 8,
-          }}
-        >
+        <div className="book-service-tabs">
           {SERVICES.map((s) => {
             const active = service === s.id;
             return (
@@ -456,32 +450,10 @@ function BookRideForm() {
                     setHours((h) => Math.max(h, 3));
                   }
                 }}
-                style={{
-                  background: active ? "#E87722" : "#161618",
-                  color: active ? "#FFF" : "#D4D4D8",
-                  border: active ? "1px solid #E87722" : "1px solid #2A2A2E",
-                  borderRadius: 10,
-                  padding: "10px 6px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 3,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
+                className={`book-service-pill ${active ? "active" : ""}`}
               >
-                <span style={{ fontSize: 13, fontWeight: active ? 800 : 600 }}>{s.label}</span>
-                <span
-                  style={{
-                    fontSize: 9,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                    opacity: active ? 0.9 : 0.6,
-                  }}
-                >
-                  {s.badge}
-                </span>
+                <span className="book-service-label">{s.label}</span>
+                <span className="book-service-badge">{s.badge}</span>
               </button>
             );
           })}
@@ -504,7 +476,7 @@ function BookRideForm() {
           boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
           <div>
             <span style={{ fontSize: 10, fontWeight: 800, color: "#E87722", textTransform: "uppercase", letterSpacing: "0.1em" }}>
               Live Fare Estimate
@@ -545,11 +517,11 @@ function BookRideForm() {
 
         {/* Airport specific direction */}
         {service === "airport" && (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <button
               type="button"
               className={airportDirection === "from" ? "btn block" : "btn-outline block"}
-              style={{ fontSize: 12, padding: "8px 12px" }}
+              style={{ fontSize: 12, padding: "10px 8px", minHeight: 44 }}
               onClick={() => setAirportDirection("from")}
             >
               Pickup from Airport
@@ -557,7 +529,7 @@ function BookRideForm() {
             <button
               type="button"
               className={airportDirection === "to" ? "btn block" : "btn-outline block"}
-              style={{ fontSize: 12, padding: "8px 12px" }}
+              style={{ fontSize: 12, padding: "10px 8px", minHeight: 44 }}
               onClick={() => setAirportDirection("to")}
             >
               Drop-off at Airport
@@ -590,7 +562,7 @@ function BookRideForm() {
               </select>
             </label>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div className="form-row-2col">
               <label className="field">
                 <span>Airline & Flight #</span>
                 <input
@@ -741,7 +713,7 @@ function BookRideForm() {
         )}
 
         {/* Date and Time */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="form-row-2col">
           <label className="field">
             <span>Pickup Date</span>
             <input
@@ -765,7 +737,7 @@ function BookRideForm() {
         </div>
 
         {/* Passengers & Bags */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="form-row-2col">
           <label className="field">
             <span>Passengers</span>
             <select
@@ -814,37 +786,28 @@ function BookRideForm() {
               <div
                 key={tItem.tier}
                 onClick={() => setTier(tItem.tier)}
-                style={{
-                  background: active ? "rgba(232, 119, 34, 0.08)" : "#161618",
-                  border: active ? "1.5px solid #E87722" : "1px solid #2A2A2E",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
+                className={`book-tier-card ${active ? "active" : ""}`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: active ? "#FFF" : "#D4D4D8" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 800, color: active ? "#FFF" : "#D4D4D8" }}>
                     {tItem.title}
                   </span>
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 9.5,
                       fontWeight: 700,
                       background: active ? "#E87722" : "#242428",
                       color: active ? "#121212" : "#A1A1AA",
                       padding: "2px 8px",
                       borderRadius: 999,
                       textTransform: "uppercase",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {tItem.tag}
                   </span>
                 </div>
-                <p style={{ margin: 0, fontSize: 12, color: "#9E9890", lineHeight: 1.4 }}>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9E9890", lineHeight: 1.4 }}>
                   {tItem.desc}
                 </p>
               </div>
@@ -856,7 +819,7 @@ function BookRideForm() {
       {/* 5. Vehicle Fleet Selection (when not Client Car or Security) */}
       {!isC && !isS && (
         <div className="card" style={{ display: "flex", flexDirection: "column", gap: 12, padding: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#9E9890", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               4. Fleet Selection
             </span>
@@ -912,27 +875,18 @@ function BookRideForm() {
                     setSize(v.size);
                     setCls(v.cls);
                   }}
-                  style={{
-                    background: active ? "rgba(232, 119, 34, 0.08)" : "#161618",
-                    border: active ? "1.5px solid #E87722" : "1px solid #2A2A2E",
-                    borderRadius: 10,
-                    padding: "12px 14px",
-                    cursor: "pointer",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
+                  className={`book-fleet-card ${active ? "active" : ""}`}
                 >
-                  <div>
+                  <div className="book-fleet-info">
                     <div style={{ fontSize: 14, fontWeight: 800, color: active ? "#FFF" : "#D4D4D8" }}>
                       {v.name}
                     </div>
                     <div style={{ fontSize: 11, color: "#9E9890", marginTop: 2 }}>{v.models}</div>
-                    <div style={{ fontSize: 11, color: "#71717A", marginTop: 3 }}>
+                    <div style={{ fontSize: 11, color: "#71717A", marginTop: 2 }}>
                       Up to {v.passengers} passengers · {v.luggage} bags
                     </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
+                  <div className="book-fleet-price">
                     <div style={{ fontSize: 14, fontWeight: 800, color: "#E87722" }}>{rateDisplay}</div>
                     <div style={{ fontSize: 10, color: "#888" }}>Tier {tier} rate</div>
                   </div>
@@ -945,14 +899,14 @@ function BookRideForm() {
 
       {/* 6. Protection Officers / Guards Add-on */}
       <div className="card" style={{ display: "flex", flexDirection: "column", gap: 10, padding: "16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "#9E9890", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             {isS ? "Armed Protection Officers" : "Optional Security Guard Add-on"}
           </span>
           <span style={{ fontSize: 11, color: "#E87722" }}>{money(CC[t])}/hr per guard</span>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="book-guard-grid">
           {(isS ? [1, 2, 3, 4] : [0, 1, 2, 3]).map((gCount) => {
             const active = (isS ? Math.max(1, guards) : guards) === gCount;
             return (
@@ -960,17 +914,7 @@ function BookRideForm() {
                 key={gCount}
                 type="button"
                 onClick={() => setGuards(gCount)}
-                style={{
-                  flex: 1,
-                  background: active ? "#E87722" : "#161618",
-                  color: active ? "#FFF" : "#AAA",
-                  border: active ? "1px solid #E87722" : "1px solid #2A2A2E",
-                  borderRadius: 8,
-                  padding: "10px 4px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
+                className={`book-guard-btn ${active ? "active" : ""}`}
               >
                 {gCount === 0 ? "None" : `${gCount} Guard${gCount > 1 ? "s" : ""}`}
               </button>
@@ -985,7 +929,7 @@ function BookRideForm() {
           5. Contact Details & Requests
         </span>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="form-row-2col">
           <label className="field">
             <span>First Name</span>
             <input
@@ -1006,7 +950,7 @@ function BookRideForm() {
           </label>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="form-row-2col">
           <label className="field">
             <span>Mobile Phone</span>
             <input
@@ -1055,14 +999,14 @@ function BookRideForm() {
       </div>
 
       {/* 8. Bottom Submit Button */}
-      <div style={{ paddingTop: 4, paddingBottom: 16 }}>
+      <div style={{ paddingTop: 6, paddingBottom: 32 }}>
         <button
           className="btn block"
           type="submit"
           disabled={busy}
-          style={{ height: 50, fontSize: 15, fontWeight: 800 }}
+          style={{ minHeight: 52, fontSize: 15, fontWeight: 800, padding: "14px 16px" }}
         >
-          {busy ? "Transmitting Reservation…" : `REQUEST RIDE · ESTIMATE ${money(totalEstimate)}`}
+          {busy ? "Transmitting Reservation…" : `REQUEST RIDE · ${money(totalEstimate)}`}
         </button>
         <p className="muted" style={{ textAlign: "center", fontSize: 12, margin: "10px 0 0" }}>
           Instant transmission to Archer Dispatch. Confirmation sent directly to your portal and email.
