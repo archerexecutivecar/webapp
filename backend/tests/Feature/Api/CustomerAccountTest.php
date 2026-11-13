@@ -101,6 +101,23 @@ class CustomerAccountTest extends TestCase
         $this->postJson('/api/v1/customer/auth/code/verify', ['email' => 'ada@example.com', 'code' => $code])->assertStatus(422);
     }
 
+    public function test_code_can_also_set_a_password_in_one_step_and_a_weak_password_does_not_burn_the_code(): void
+    {
+        $this->book('ada@example.com');
+        $this->postJson('/api/v1/customer/auth/code', ['email' => 'ada@example.com']);
+        $code = $this->lastCode();
+
+        // weak/mismatched password is rejected before the code is consumed
+        $this->postJson('/api/v1/customer/auth/code/verify', ['email' => 'ada@example.com', 'code' => $code, 'password' => 'short', 'password_confirmation' => 'short'])->assertStatus(422);
+
+        $this->postJson('/api/v1/customer/auth/code/verify', [
+            'email' => 'ada@example.com', 'code' => $code, 'password' => 'Longer-pass-2026', 'password_confirmation' => 'Longer-pass-2026',
+        ])->assertOk()->assertJsonPath('data.user.has_password', true);
+
+        $this->postJson('/api/v1/auth/login', ['email' => 'ada@example.com', 'password' => 'Longer-pass-2026'])->assertOk();
+        $this->assertDatabaseHas('audit_logs', ['event' => 'customer.password_set']);
+    }
+
     public function test_wrong_codes_lock_the_code_after_five_attempts(): void
     {
         $this->book('ada@example.com');

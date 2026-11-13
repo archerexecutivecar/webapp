@@ -51,7 +51,13 @@ class CustomerAuthController extends Controller
     /** POST /v1/customer/auth/code/verify */
     public function verifyCode(Request $request): JsonResponse
     {
-        $data = $request->validate(['email' => ['required', 'email', 'max:150'], 'code' => ['required', 'digits:6']]);
+        // `password` is optional: when sent, the emailed code (proof of email ownership) also lets the customer
+        // choose a password in the same step. It is validated first so a weak password never burns the code.
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:150'],
+            'code' => ['required', 'digits:6'],
+            'password' => ['nullable', 'confirmed', Password::min(10)->letters()->numbers()],
+        ]);
         $email = Str::lower($data['email']);
         $invalid = fn () => ApiResponse::error('INVALID_CODE', 'That code is incorrect or has expired. Request a new one.', 422);
 
@@ -73,7 +79,13 @@ class CustomerAuthController extends Controller
         }
 
         $row->forceFill(['consumed_at' => now()])->save();
-        $user->forceFill(['email_verified_at' => $user->email_verified_at ?? now(), 'last_login_at' => now()])->save();
+        $user->forceFill(['email_verified_at' => $user->email_verified_at ?? now(), 'last_login_at' => now()]);
+        if (! empty($data['password'])) {
+            $user->forceFill(['password' => $data['password'], 'password_set_at' => now()]);
+            $user->apiTokens()->delete(); // choosing a new password signs out every other device
+            AuditLog::record('customer.password_set', $user->getKey(), ['via' => 'email_code']);
+        }
+        $user->save();
         [$plain, $expires] = ApiToken::issueFor($user);
         AuditLog::record('customer.login_code', $user->getKey());
 

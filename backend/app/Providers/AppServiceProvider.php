@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
+use App\Mail\BrevoTransport;
 use App\Models\ApiToken;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // MAIL_MAILER=brevo sends through Brevo's HTTP API using BREVO_API_KEY.
+        Mail::extend('brevo', fn (array $config) => new BrevoTransport((string) ($config['key'] ?? '')));
+
         // Opaque bearer tokens: only the SHA-256 hash is stored; expired tokens and inactive users are rejected.
         Auth::viaRequest('api-token', function (Request $request) {
             $plain = $request->bearerToken();
