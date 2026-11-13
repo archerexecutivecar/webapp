@@ -33,6 +33,19 @@ class RideDispatchController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
+        if ($request->isJson() && ! $request->has('status') && is_string($raw = $request->getContent())) {
+            $trimmed = trim($raw);
+            if (str_starts_with($trimmed, '"') || str_starts_with($trimmed, '{')) {
+                $decoded = json_decode($trimmed, true);
+                if (is_string($decoded)) {
+                    $decoded = json_decode($decoded, true);
+                }
+                if (is_array($decoded)) {
+                    $request->merge($decoded);
+                }
+            }
+        }
+
         $ride = RideRequest::findOrFail($id);
         $previousDriverId = $ride->assigned_driver_id;
         $previousStatus = $ride->status;

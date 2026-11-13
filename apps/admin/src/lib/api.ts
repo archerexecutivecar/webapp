@@ -29,7 +29,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     res = await fetch(`${BASE}${path}`, {
       method: init.method ?? 'GET',
       headers,
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      body: init.body !== undefined ? (typeof init.body === 'string' ? init.body : JSON.stringify(init.body)) : undefined,
     });
   } catch {
     throw new ApiError(0, 'NETWORK_ERROR', 'Unable to reach the server. Check your connection and try again.');

@@ -106,6 +106,19 @@ class DriverPortalController extends Controller
      */
     public function updateRideStatus(Request $request, string $rideId): JsonResponse
     {
+        if ($request->isJson() && ! $request->has('status') && is_string($raw = $request->getContent())) {
+            $trimmed = trim($raw);
+            if (str_starts_with($trimmed, '"') || str_starts_with($trimmed, '{')) {
+                $decoded = json_decode($trimmed, true);
+                if (is_string($decoded)) {
+                    $decoded = json_decode($decoded, true);
+                }
+                if (is_array($decoded)) {
+                    $request->merge($decoded);
+                }
+            }
+        }
+
         $driver = $this->getDriver($request);
 
         if (!$driver) {

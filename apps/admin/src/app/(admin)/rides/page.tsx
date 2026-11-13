@@ -115,11 +115,11 @@ export default function RidesPage() {
       const res = await api<{ ride: RideRequest }>(`/admin/rides/${selectedRide.id}`, {
         method: 'PUT',
         auth: true,
-        body: JSON.stringify({
+        body: {
           status: editStatus,
           assigned_driver_id: editDriverId || null,
           dispatch_notes: editNotes || null,
-        }),
+        },
       });
 
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));

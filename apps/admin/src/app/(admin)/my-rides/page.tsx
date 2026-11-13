@@ -131,10 +131,10 @@ export default function DriverPortalPage() {
       const res = await api<{ message: string; ride: AssignedRide }>(`/driver/rides/${selectedRide.id}/status`, {
         method: 'PUT',
         auth: true,
-        body: JSON.stringify({
+        body: {
           status: newStatus,
           notes: driverNote || undefined,
-        }),
+        },
       });
 
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));

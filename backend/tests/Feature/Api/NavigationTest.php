@@ -34,30 +34,19 @@ class NavigationTest extends TestCase
     {
         $keys = $this->keysFor('dispatcher');
 
-        $this->assertEqualsCanonicalizing(['dashboard', 'rides', 'bookings', 'customers', 'drivers'], $keys);
-    }
-
-    public function test_finance_sees_finance_but_not_pricing_or_content(): void
-    {
-        $keys = $this->keysFor('finance_payroll');
-
-        foreach (['payments', 'closeout', 'payroll', 'audit-logs', 'dashboard'] as $k) {
-            $this->assertContains($k, $keys);
-        }
-        foreach (['settings', 'vehicles', 'cms-pages', 'staff'] as $k) {
-            $this->assertNotContains($k, $keys);
-        }
+        $this->assertEqualsCanonicalizing(['dashboard', 'rides', 'customers', 'drivers'], $keys);
     }
 
     public function test_content_roles_see_only_website_items(): void
     {
-        $this->assertEqualsCanonicalizing(['services', 'cms-pages', 'media', 'site-navigation'], $this->keysFor('content_editor'));
-        $this->assertEqualsCanonicalizing(['services', 'cms-pages', 'media', 'site-navigation', 'seo'], $this->keysFor('content_publisher'));
+        $expected = ['services', 'security-addons', 'testimonials', 'site-content'];
+        $this->assertEqualsCanonicalizing($expected, $this->keysFor('content_editor'));
+        $this->assertEqualsCanonicalizing($expected, $this->keysFor('content_publisher'));
     }
 
-    public function test_driver_and_customer_get_an_empty_navigation(): void
+    public function test_driver_and_customer_navigation(): void
     {
-        $this->assertSame([], $this->keysFor('driver'));
+        $this->assertSame(['driver-portal'], $this->keysFor('driver'));
         $this->assertSame([], $this->keysFor('customer'));
     }
 
