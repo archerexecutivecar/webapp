@@ -158,35 +158,7 @@ class CmsAndServicesSeeder extends Seeder
             ],
         ]);
 
-        // 4. Seed Client Voices / Testimonials
-        DB::table('cms_testimonials')->insert([
-            [
-                'id' => (string) Str::uuid(),
-                'client_name' => 'Jonathan V.',
-                'client_title' => 'Managing Director, Private Equity',
-                'service_tag' => 'Archer Black Client',
-                'quote' => 'Archer has replaced every other car service for our firm’s executive team. The chauffeurs are discreet, early, and operate with true professionalism.',
-                'rating' => 5,
-                'avatar_url' => null,
-                'sort_order' => 1,
-                'is_active' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'id' => (string) Str::uuid(),
-                'client_name' => 'Elena R.',
-                'client_title' => 'Family Office Principal',
-                'service_tag' => 'Client Car Service',
-                'quote' => 'Having a vetted Archer chauffeur pilot my own Range Rover for full-day city appointments provides peace of mind that standard rideshares simply cannot match.',
-                'rating' => 5,
-                'avatar_url' => null,
-                'sort_order' => 2,
-                'is_active' => true,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-        ]);
+        // 4. Client testimonials are intentionally NOT seeded: only real reviews entered in Admin are shown on the website.
 
         // 5. Seed Initial FAQs
         DB::table('cms_faqs')->insert([

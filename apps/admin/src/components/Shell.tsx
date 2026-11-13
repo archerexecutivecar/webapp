@@ -2,8 +2,8 @@
 
 import {
   Bell, CalendarCheck, CalendarClock, Car, ChevronsLeft, ChevronsRight, CircleCheckBig, ClipboardList, CreditCard,
-  ExternalLink, FileText, Image as ImageIcon, LayoutDashboard, LogOut, type LucideIcon, Menu, Monitor, Moon, Plug, Route, ScrollText,
-  Search, Settings, ShieldCheck, Sun, UserRound, Users, Wallet, X, Clock, Check, ChevronRight,
+  FileText, Image as ImageIcon, LayoutDashboard, LogOut, type LucideIcon, Menu, Monitor, Moon, Plug, Route, ScrollText,
+  Search, Settings, ShieldCheck, MessageSquare, Sun, UserRound, Users, Wallet, X, Clock, Check, ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -15,7 +15,7 @@ import { ArcherLogo } from './ArcherLogo';
 
 const ICONS: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboard, route: Route, 'calendar-check': CalendarCheck, users: Users,
-  'clipboard-list': ClipboardList, 'user-round': UserRound, 'shield-check': ShieldCheck, car: Car,
+  'clipboard-list': ClipboardList, 'user-round': UserRound, 'shield-check': ShieldCheck, 'message-square': MessageSquare, car: Car,
   'calendar-clock': CalendarClock, 'credit-card': CreditCard, 'circle-check-big': CircleCheckBig, wallet: Wallet,
   'file-text': FileText, image: ImageIcon, menu: Menu, search: Search, 'scroll-text': ScrollText, plug: Plug, settings: Settings,
 };
@@ -103,16 +103,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <div className="page-title">{current?.item.label ?? 'Admin'}</div>
           </div>
           <div className="header-actions">
-            <a
-              href={process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition border border-border header-live-link"
-              title="Open public website in new tab"
-            >
-              <ExternalLink size={14} className="text-muted-foreground" />
-              <span>Live Website</span>
-            </a>
             <ThemeMenu />
             <NotificationsMenu />
             <ProfileMenu name={me?.name ?? ''} roles={me?.roles ?? []} email={me?.email ?? ''} onLogout={logout} />

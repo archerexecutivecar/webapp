@@ -95,4 +95,32 @@ class AdminCustomerTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
     }
+
+    public function test_dispatcher_can_reset_customer_credentials_and_it_signs_them_out(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        [, $h] = $this->actingAsRole('dispatcher');
+        $this->book('ada@example.com');
+        $customer = User::where('email', 'ada@example.com')->firstOrFail();
+        $customer->forceFill(['password' => 'Sup3rSecretPass', 'password_set_at' => now()])->save();
+        [$plain] = \App\Models\ApiToken::issueFor($customer);
+        $this->getJson('/api/v1/customer/me', ['Authorization' => 'Bearer '.$plain])->assertOk();
+
+        $this->postJson("/api/v1/admin/customers/{$customer->id}/reset-credentials", [], $h)->assertOk()->assertJsonPath('data.has_password', false);
+
+        $this->assertNull($customer->fresh()->password_set_at);
+        $this->assertFalse(\Illuminate\Support\Facades\Hash::check('Sup3rSecretPass', $customer->fresh()->password));
+        $this->app['auth']->forgetGuards();
+        $this->getJson('/api/v1/customer/me', ['Authorization' => 'Bearer '.$plain])->assertUnauthorized();
+        $this->assertDatabaseHas('audit_logs', ['event' => 'customer.credentials_reset']);
+    }
+
+    public function test_reset_is_forbidden_without_permission_and_never_targets_staff(): void
+    {
+        [$staff, $h] = $this->actingAsRole('dispatcher');
+        $this->postJson("/api/v1/admin/customers/{$staff->id}/reset-credentials", [], $h)->assertNotFound();
+
+        [, $viewer] = $this->actingAsRole('customer');
+        $this->postJson("/api/v1/admin/customers/{$staff->id}/reset-credentials", [], $viewer)->assertForbidden();
+    }
 }

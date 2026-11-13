@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { DISPATCH_PHONE_TEL } from "@/lib/archer-data";
+import { useSiteSettings } from "@/lib/site-settings";
 import { D, EYEBROW, ghost, HEAD, PHONE, primary, WRAP } from "@/components/archer/v2/tokens";
 
 export { D, EYEBROW, ghost, HEAD, PHONE, primary, WRAP };
@@ -20,15 +21,35 @@ export function PhoneIcon() {
 }
 
 export function AppStores() {
-  const cls = "flex min-h-12 items-center gap-3 rounded-md bg-[#F4F1EC] px-[18px] py-2.5 text-left text-[#121212]";
+  const st = useSiteSettings();
+  const portal = process.env.NEXT_PUBLIC_CUSTOMER_PORTAL_URL || "https://app.archerexecutivecar.com";
+  const live = !st.apps_coming_soon && (st.app_store_url || st.play_store_url);
+  const cls = "flex min-h-12 items-center gap-3 rounded-md border border-white/25 bg-[#1E1E1E] px-[18px] py-2.5 text-left text-[#F4F1EC]";
+  const badge = (top: string, name: string) => (<span className="flex flex-col leading-[1.1]"><span className="text-[11px]">{top}</span><span className="text-[17px] font-semibold">{name}</span></span>);
   return (
     <div className="mt-1.5 flex flex-col items-center gap-3">
-      <span className="text-[15px] text-[#B3ADA5]">Book rides, track your chauffeur live, and keep your profile and receipts in one place.</span>
+      {live ? (
+        <span className="text-center text-[15px] text-[#B3ADA5]">Book rides, track your chauffeur live, and keep your profile and receipts in one place.</span>
+      ) : (
+        <>
+          <span className="rounded-full border border-[#E87722] px-3 py-1 text-[12px] font-semibold tracking-[0.14em] text-[#E87722]">COMING SOON</span>
+          <span className="text-center text-[15px] text-[#B3ADA5]">Our iOS and Android apps are on the way. Until then, book on this website and track your ride in the customer portal.</span>
+        </>
+      )}
       <div className="flex flex-wrap justify-center gap-3">
-        <a href="#" className={cls}><span className="flex flex-col leading-[1.1]"><span className="text-[11px]">Download on the</span><span className="text-[17px] font-semibold">App Store</span></span></a>
-        <a href="#" className={cls}><span className="flex flex-col leading-[1.1]"><span className="text-[11px]">Get it on</span><span className="text-[17px] font-semibold">Google Play</span></span></a>
+        {live ? (
+          <>
+            {st.app_store_url && <a href={st.app_store_url} className={cls}>{badge("Download on the", "App Store")}</a>}
+            {st.play_store_url && <a href={st.play_store_url} className={cls}>{badge("Get it on", "Google Play")}</a>}
+          </>
+        ) : (
+          <>
+            <div className={`${cls} cursor-default opacity-90`}>{badge("Coming soon to the", "App Store")}</div>
+            <div className={`${cls} cursor-default opacity-90`}>{badge("Coming soon to", "Google Play")}</div>
+          </>
+        )}
       </div>
-      <span className="text-[12px] text-[#8E8880]">Store links: [ARCHER TO ADD AT APP LAUNCH]</span>
+      <a href={portal} target="_blank" rel="noopener noreferrer" className="text-[14px] font-medium text-[#E87722] underline">Open the customer portal</a>
     </div>
   );
 }
@@ -40,7 +61,7 @@ export function SiteMenu({ active = "" }: { active?: string }) {
   return (
     <div className="relative z-50 flex shrink-0 items-center justify-end gap-2 sm:gap-3">
       <button type="button" aria-label="Get the app" aria-expanded={app} onClick={() => { setApp(!app); setOpen(false); }} className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 border border-[#E87722] bg-[#E87722] px-3 py-2.5 text-[13px] font-semibold tracking-[0.08em] text-[#121212] sm:px-5">
-        <PhoneIcon /><span className="hidden sm:inline">GET THE APP</span>
+        <PhoneIcon /><span className="hidden sm:inline">APPS · SOON</span>
       </button>
       <button type="button" aria-expanded={open} aria-label="Menu" onClick={() => { setOpen(!open); setApp(false); }} className="inline-flex min-h-11 cursor-pointer items-center gap-2 border border-white/45 bg-[#121212]/60 px-3 py-2.5 text-[13px] font-medium tracking-[0.14em] text-[#F4F1EC] sm:gap-2.5 sm:px-4">
         <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={open ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"} /></svg>
@@ -140,12 +161,25 @@ export function Segmented({ options, value, onChange, label, pad = "px-8" }: { o
   );
 }
 
+export const LEGAL_LINKS: [string, string][] = [["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Cancellation Policy", "/cancellation"], ["Cookie Policy", "/cookies"], ["Accessibility", "/accessibility"]];
+
+export function LegalLinks() {
+  return (
+    <nav aria-label="Legal" className="flex w-full flex-wrap gap-x-5 gap-y-2 text-[12px]">
+      {LEGAL_LINKS.map(([l, h]) => (<a key={h} href={h} className="text-[#B3ADA5] hover:text-[#E87722]">{l}</a>))}
+      <button type="button" onClick={() => window.dispatchEvent(new Event("archer:cookie-settings"))} className="cursor-pointer border-0 bg-transparent p-0 text-[#B3ADA5] hover:text-[#E87722]">Cookie settings</button>
+    </nav>
+  );
+}
+
 export function MiniFooter() {
+  const st = useSiteSettings();
   return (
     <footer className="border-t border-[#2E2E2E] bg-[#0A0A0A] text-[13px] text-[#B3ADA5]">
       <div className={`${WRAP} flex flex-wrap justify-between gap-x-8 gap-y-3 py-7`}>
         <span>© 2026 Archer Enterprises LLC · SORA-certified</span>
-        <span>(848) 231-9997 · info@archerexecutivecar.com</span>
+        <span>{st.phone} · {st.email}</span>
+        <LegalLinks />
       </div>
     </footer>
   );

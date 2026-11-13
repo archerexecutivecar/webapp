@@ -1,0 +1,264 @@
+{
+ "fleet": {
+  "slides": [
+   {
+    "tag": "TWO CLASSES",
+    "photo": "Black Archer SUV at night, warm city lights",
+    "img": "f7595ba478f4ad203e322519215810fc.jpg",
+    "head": "Two classes. Three sizes. One standard.",
+    "line": "Executive Class and 1st Class, each in a mid-size SUV, a full-size SUV and a Sprinter."
+   },
+   {
+    "tag": "1ST CLASS",
+    "photo": "Archer's own black Cadillac Escalade",
+    "img": "5c3d16f0aa316485e13e25e61f6c0bae.jpg",
+    "head": "Arrive in Archer's signature ride.",
+    "line": "The Cadillac Escalade and Lincoln Aviator, for VIPs, special occasions and clients who want the very best."
+   },
+   {
+    "tag": "EXECUTIVE CLASS",
+    "photo": "Black SUV on a city street at night",
+    "img": "1b4961ff296cae8343dcbc40a67cfd31.png",
+    "head": "Polished, quiet and ready to work.",
+    "line": "The Chevrolet Suburban and Traverse, the everyday choice for business travel, airports and nights out."
+   },
+   {
+    "tag": "GROUPS",
+    "photo": "Luxury Sprinter interior with leather captain chairs",
+    "img": "2a4f84e626719d7a9ed962aeed34a938.jpg",
+    "head": "The whole party, together.",
+    "line": "Sprinters for roadshows, weddings and events, so everyone arrives at the same time."
+   },
+   {
+    "tag": "THE ARCHER STANDARD",
+    "photo": "Executive reviewing papers in a leather back seat",
+    "img": "72e6311af4a7e6ecb122e7ebaee78671.jpg",
+    "head": "Detailed, stocked and waiting.",
+    "line": "Every vehicle is late-model, black and prepared before pickup, with water and chargers on board."
+   }
+  ],
+  "standard": [
+   [
+    "Late-model and black",
+    "Every vehicle is current, clean and unmarked."
+   ],
+   [
+    "Ready before you are",
+    "Detailed, climate set and stocked before pickup."
+   ],
+   [
+    "Comfort on board",
+    "Bottled water and phone chargers. Wi-Fi [ARCHER TO CONFIRM]."
+   ],
+   [
+    "Your own car instead?",
+    "With Client Car Service, an Archer chauffeur drives your vehicle."
+   ]
+  ]
+ },
+ "tiers": {
+  "slides": [
+   {
+    "tag": "PROTECTION TEAM",
+    "photo": "A team of protection specialists in dark suits, ready for an assignment",
+    "img": "b90f07856bf1873770491a2f20ac628e.jpg",
+    "head": "Choose your level of protection.",
+    "line": "Every Archer booking starts with who is protecting you, from a vetted chauffeur to a senior protection specialist."
+   },
+   {
+    "tag": "PROFESSIONAL CHAUFFEURS",
+    "photo": "Chauffeur in a tuxedo standing by a black car",
+    "img": "d8d2b875637ee0d164e71cc6a675061e.jpg",
+    "head": "Vetted and SORA-certified, every tier.",
+    "line": "Every chauffeur is background-checked and trained in safe driving and discreet, courteous service."
+   },
+   {
+    "tag": "EXECUTIVE PROTECTION",
+    "photo": "Two protection specialists escorting a client away from a black sedan",
+    "img": "19fb607144bc78c78e4952d8797d3666.jpg",
+    "head": "Discreet protection, every mile.",
+    "line": "Tier 3 and Tier 4 specialists are certified in executive protection for VIPs and sensitive itineraries."
+   },
+   {
+    "tag": "EVENT SECURITY",
+    "photo": "Security team in dark suits watching over a red-carpet event",
+    "img": "8ab1180afd87825f9b852577bf117773.jpg",
+    "head": "Eyes on every entrance.",
+    "line": "Licensed security professionals for galas, red carpets, corporate events and private gatherings."
+   },
+   {
+    "tag": "SECURE TRANSPORT",
+    "photo": "Protection specialist standing by as a client steps into a black car",
+    "img": "4eb59227c993845b81028da3486edea0.jpg",
+    "head": "Military and law-enforcement trained.",
+    "line": "Pair any tier with any vehicle in the fleet. Choose your tier, choose your vehicle, and we take care of the rest."
+   }
+  ]
+ },
+ "home": {
+  "slides": [
+   {
+    "photo": "Executive reviewing papers in a leather back seat",
+    "img": "72e6311af4a7e6ecb122e7ebaee78671.jpg",
+    "bg": "#1E1E1E",
+    "head": "Your office, on the move.",
+    "line": "Arrive prepared for every meeting."
+   },
+   {
+    "photo": "Black SUV parked beside a private jet on the runway",
+    "img": "0d189b9e03a329217ef4ed07c8edfaab.jpg",
+    "bg": "#1B1D20",
+    "head": "Wheels down. We're already there.",
+    "line": "Flight tracking on every airport pickup."
+   },
+   {
+    "photo": "New York City skyline at night across the river",
+    "img": "c94c04deb2217c75ac89561507a734bc.jpg",
+    "bg": "#1D1B1A",
+    "head": "New Jersey, New York's five boroughs and Pennsylvania.",
+    "line": "One standard, wherever the day takes you."
+   },
+   {
+    "photo": "Long candlelit banquet table set for a gala",
+    "img": "3b4c2b9aa422ed0d88baba08204acf79.jpg",
+    "bg": "#201D1B",
+    "head": "Make the entrance.",
+    "line": "Weddings, galas, concerts and celebrations."
+   },
+   {
+    "photo": "Protection team in dark suits and sunglasses",
+    "img": "0e87229d9ea8e61e3283c09e66546535.jpg",
+    "bg": "#1A1C1C",
+    "pos": "center top",
+    "head": "Discreet protection, every mile.",
+    "line": "SORA-certified, military and law-enforcement trained."
+   }
+  ],
+  "services": [
+   {
+    "name": "Hourly Service",
+    "blurb": "Your chauffeur and vehicle for as long as your day needs.",
+    "photo": "Chauffeur holding the door as a client steps into a black sedan",
+    "img": "081914a303ca7784c4908a84598db02d.jpg",
+    "href": "/services/hourly"
+   },
+   {
+    "name": "Airport Transportation",
+    "blurb": "All airports and FBO's, with flight tracking on every pickup.",
+    "photo": "Black car on the tarmac beside a private jet at night",
+    "img": "1e801f10e10a1f511b4d8e355c084c32.jpg",
+    "href": "/services/airport"
+   },
+   {
+    "name": "Point to Point",
+    "blurb": "Direct, door-to-door rides across NJ, NY and PA.",
+    "photo": "Executive on the phone stepping out of a black car",
+    "img": "90084a5d10192831bb082b0793f99927.jpg",
+    "href": "/services/point-to-point"
+   },
+   {
+    "name": "Client Car Service",
+    "blurb": "Your car. Our chauffeur. A SORA-certified Archer chauffeur behind your wheel.",
+    "photo": "Archer chauffeur in white gloves handing over car keys",
+    "img": "227c6dcb5a895c21f476d52af51ee082.png",
+    "href": "/services/client-car"
+   },
+   {
+    "name": "Concierge Services",
+    "blurb": "Tell us the occasion. Our event planner plans the rest, and we get you there.",
+    "photo": "Waiter serving champagne at an elegant venue",
+    "img": "178a6855b2eeef6c6aed317b2aefc086.jpg",
+    "href": "/services/concierge"
+   }
+  ],
+  "tiles": [
+   {
+    "id": "assistants",
+    "title": "For Executive & Personal Assistants.",
+    "line": "Plan their week. We'll handle every mile, from the first airport pickup to the last dinner.",
+    "photo": "Executive working on a laptop in the back seat",
+    "img": "e590ac6009ccd68effdacfa781d3c7cc.jpg",
+    "href": "/services/assistants",
+    "cta": "PLAN YOUR WEEK →",
+    "pos": "center 30%"
+   },
+   {
+    "id": "fleet",
+    "title": "Archer's Fleet.",
+    "line": "Executive Class and 1st Class, each in three sizes, ready for business and comfort.",
+    "photo": "Black Archer SUV at night, warm city lights",
+    "img": "f7595ba478f4ad203e322519215810fc.jpg",
+    "href": "/fleet",
+    "cta": "EXPLORE →",
+    "pos": "center center"
+   },
+   {
+    "id": "tiers",
+    "title": "Archer Tiers of Service.",
+    "line": "Choose the level of chauffeur and protection you want to hire.",
+    "photo": "Protection team in dark suits beside black vehicles",
+    "img": "5b6f121a83f2a1cb6e82e55aa98b8549.jpg",
+    "href": "/tiers",
+    "cta": "EXPLORE →",
+    "pos": "center 8%"
+   }
+  ],
+  "security": [
+   {
+    "name": "Executive Protection",
+    "photo": "Two protection specialists escorting a client away from a black sedan",
+    "img": "19fb607144bc78c78e4952d8797d3666.jpg"
+   },
+   {
+    "name": "Secure Transportation",
+    "photo": "Protection specialist standing by as a client steps into a black sedan",
+    "img": "4eb59227c993845b81028da3486edea0.jpg"
+   },
+   {
+    "name": "Event Security",
+    "photo": "Security team in dark suits watching over a red-carpet event",
+    "img": "8ab1180afd87825f9b852577bf117773.jpg"
+   },
+   {
+    "name": "Security Staffing",
+    "photo": "Uniformed security team on duty at an outdoor event",
+    "img": "1614ea4dc391d8cb0a5f7d19c5423f4f.jpg"
+   }
+  ],
+  "steps": [
+   {
+    "n": "01",
+    "title": "Choose your service",
+    "text": "Hourly, airport, point to point, Client Car or Concierge."
+   },
+   {
+    "n": "02",
+    "title": "Choose your tier",
+    "text": "From a professional chauffeur to a senior protection specialist."
+   },
+   {
+    "n": "03",
+    "title": "Choose your vehicle",
+    "text": "Executive Class or 1st Class. Then let us take care of the rest."
+   }
+  ],
+  "trust": [
+   [
+    "SORA-certified",
+    "Every chauffeur"
+   ],
+   [
+    "Military & law-enforcement chauffeurs",
+    "Vetted and background-checked"
+   ],
+   [
+    "NJ · NY & All 5 Boroughs · PA",
+    "All Airports and FBO's"
+   ],
+   [
+    "24/7 dispatch",
+    "Fort Monmouth operations desk"
+   ]
+  ]
+ }
+}

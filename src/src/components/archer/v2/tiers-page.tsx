@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { series, type SiteData } from "@/lib/site-api";
 import { DISPATCH_PHONE_TEL } from "@/lib/archer-data";
 import { EYEBROW, ghost, HEAD, MiniFooter, PageHero, PageShell, primary, Segmented, SiteHeader, WRAP, type HeroSlide } from "@/components/archer/v2/shared";
 
-const SLIDES: HeroSlide[] = [
+const SLIDES_DEFAULT: HeroSlide[] = [
   { tag: "PROTECTION TEAM", photo: "A team of protection specialists in dark suits, ready for an assignment", img: "b90f07856bf1873770491a2f20ac628e.jpg", head: "Choose your level of protection.", line: "Every Archer booking starts with who is protecting you, from a vetted chauffeur to a senior protection specialist." },
   { tag: "PROFESSIONAL CHAUFFEURS", photo: "Chauffeur in a tuxedo standing by a black car", img: "d8d2b875637ee0d164e71cc6a675061e.jpg", head: "Vetted and SORA-certified, every tier.", line: "Every chauffeur is background-checked and trained in safe driving and discreet, courteous service." },
   { tag: "EXECUTIVE PROTECTION", photo: "Two protection specialists escorting a client away from a black sedan", img: "19fb607144bc78c78e4952d8797d3666.jpg", head: "Discreet protection, every mile.", line: "Tier 3 and Tier 4 specialists are certified in executive protection for VIPs and sensitive itineraries." },
@@ -16,19 +17,19 @@ const SLIDES: HeroSlide[] = [
 type Tier = { label: string; title: string; price?: string; call?: boolean; creds: string[]; quals: string[] };
 
 // Display copy and prices come straight from the approved design. Authoritative pricing lives in Laravel.
-const DRIVER: Tier[] = [
+const DRIVER_DEFAULT: Tier[] = [
   { label: "TIER 1 · ESSENTIAL", title: "Professional Chauffeur", price: "$70", creds: ["Vetted, professional chauffeur", "Cleared criminal background check", "SORA-certified"], quals: ["Airport runs", "Everyday business travel", "Nights out and events"] },
   { label: "TIER 2 · EXECUTIVE", title: "Military & Law-Enforcement Chauffeur", price: "$90", creds: ["Everything in Tier 1", "Verified military or law-enforcement service", "NJ SORA security officer registration"], quals: ["Executives and corporate clients", "Roadshows and multi-stop days", "Rides needing a security-minded chauffeur"] },
   { label: "TIER 3 · ELITE", title: "Executive Protection Specialist", price: "$130", creds: ["Everything in Tier 2", "Certified in personal or executive protection", "Commendations earned in the line of duty"], quals: ["VIPs and public figures", "Sensitive itineraries", "Private aviation and FBO transfers"] },
   { label: "TIER 4", title: "Senior Protection Specialist", price: "$190", call: true, creds: ["Everything in Tier 3", "Archer's highest level of credentials"], quals: ["Dignitaries", "Elevated-risk details", "Private aviation"] },
 ];
-const SECURITY: Tier[] = [
+const SECURITY_DEFAULT: Tier[] = [
   { label: "TIER 1 · ESSENTIAL", title: "Security Officer", price: "$45", creds: ["Licensed, background-checked officer", "NJ SORA registration"], quals: ["Front desk and access control", "Office and residential coverage"] },
   { label: "TIER 2 · EXECUTIVE", title: "Security Specialist", price: "$60", creds: ["Everything in Tier 1", "Verified military or law-enforcement service"], quals: ["Corporate events", "Venue and crowd management"] },
   { label: "TIER 3 · ELITE", title: "Executive Protection Specialist", price: "$75", creds: ["Everything in Tier 2", "Certified in executive protection"], quals: ["Executive protection details", "Red carpets, galas and VIP events"] },
   { label: "TIER 4", title: "Senior Protection Specialist", price: "$125", call: true, creds: ["Everything in Tier 3", "Archer's highest level of credentials"], quals: ["Dignitaries", "Elevated-risk assignments"] },
 ];
-const RATES = [[80, 100], [100, 120], [140, 160], [190, 210]];
+const RATES_DEFAULT = [[80, 100], [100, 120], [140, 160], [190, 210]];
 
 const th = "border-b border-[#2E2E2E] p-4 text-left text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]";
 const td = "border-b border-[#2E2E2E] px-4 py-[18px]";
@@ -39,7 +40,21 @@ function Check({ children }: { children: string }) {
   );
 }
 
-export function TiersPage() {
+function fromSite(site?: SiteData | null) {
+  if (!site || !site.tiers || site.tier_list.length === 0) return null;
+  const driverHourly = series(site.rates, "hourly", "exec", "sedan");
+  const sec = series(site.rates, "security_hourly", null, null);
+  const execSuv = series(site.rates, "hourly", "exec", "suv");
+  const firstSuv = series(site.rates, "hourly", "first", "suv");
+  if (!driverHourly || !sec || !execSuv || !firstSuv) return null;
+  const build = (kind: "driver" | "security", prices: number[]): Tier[] =>
+    site.tier_list.filter((t) => t.kind === kind).map((t) => ({ label: t.label, title: t.title, price: "$" + prices[t.tier - 1], call: t.call_only, creds: t.credentials, quals: t.suited_for }));
+  return { SLIDES: site.tiers.slides, DRIVER: build("driver", driverHourly), SECURITY: build("security", sec), RATES: [0, 1, 2, 3].map((i) => [execSuv[i], firstSuv[i]]) };
+}
+
+export function TiersPage({ site }: { site?: SiteData | null } = {}) {
+  const live = fromSite(site);
+  const { SLIDES, DRIVER, SECURITY, RATES } = live ?? { SLIDES: SLIDES_DEFAULT, DRIVER: DRIVER_DEFAULT, SECURITY: SECURITY_DEFAULT, RATES: RATES_DEFAULT };
   const [mode, setMode] = useState("driver");
   const driver = mode === "driver";
   const list = driver ? DRIVER : SECURITY;

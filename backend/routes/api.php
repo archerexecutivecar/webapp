@@ -10,6 +10,11 @@ use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\RideDispatchController;
 use App\Http\Controllers\Admin\SecurityAddonController;
 use App\Http\Controllers\Admin\ServiceTypeController;
+use App\Http\Controllers\Admin\RateCardController;
+use App\Http\Controllers\Admin\SiteContentController;
+use App\Http\Controllers\Admin\SiteTierController;
+use App\Http\Controllers\Admin\SiteVehicleController;
+use App\Http\Controllers\Admin\TestimonialController;
 use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Customer\CustomerAuthController;
@@ -17,6 +22,7 @@ use App\Http\Controllers\Customer\CustomerPortalController;
 use App\Http\Controllers\Driver\DriverPortalController;
 use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\PublicContentController;
+use App\Http\Controllers\PublicSiteController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -35,6 +41,7 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/assistant-profiles', [PublicBookingController::class, 'storeAssistantProfile'])->middleware('throttle:public-submissions');
     Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
     Route::get('/testimonials', [PublicContentController::class, 'testimonials']);
+    Route::get('/site', [PublicSiteController::class, 'show']);
     Route::get('/faqs', [PublicContentController::class, 'faqs']);
 
     // Customer account: sign in with an emailed code (no password) or with email + password via /auth/login.
@@ -80,6 +87,9 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/customers/{id}', [CustomerController::class, 'show'])->whereNumber('id');
         });
 
+        Route::post('/customers/{id}/reset-credentials', [CustomerController::class, 'resetCredentials'])
+            ->whereNumber('id')->middleware(['permission:rides.manage', 'throttle:30,1']);
+
         // CMS & Services Management (Protected by content.edit / content.publish permissions)
         Route::middleware('permission:content.edit')->group(function (): void {
             // Service Types
@@ -97,12 +107,41 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/security-addons/{id}', [SecurityAddonController::class, 'update']);
             Route::delete('/security-addons/{id}', [SecurityAddonController::class, 'destroy']);
 
+            // Client testimonials (website shows the section only when an active one exists)
+            Route::get('/testimonials', [TestimonialController::class, 'index']);
+            Route::post('/testimonials', [TestimonialController::class, 'store']);
+            Route::put('/testimonials/{id}', [TestimonialController::class, 'update']);
+            Route::delete('/testimonials/{id}', [TestimonialController::class, 'destroy']);
+
             // CMS Pages & Sections
             Route::get('/cms-pages', [CmsPageController::class, 'index']);
             Route::post('/cms-pages', [CmsPageController::class, 'store']);
             Route::get('/cms-pages/{id}', [CmsPageController::class, 'show']);
             Route::put('/cms-pages/{id}', [CmsPageController::class, 'update']);
             Route::post('/cms-pages/{id}/sections', [CmsPageController::class, 'saveSection']);
+        });
+
+        // Public-website content owned by Admin
+        Route::middleware('permission:content.edit')->group(function (): void {
+            Route::get('/site-content', [SiteContentController::class, 'index']);
+            Route::get('/site-content/{key}', [SiteContentController::class, 'show']);
+            Route::put('/site-content/{key}', [SiteContentController::class, 'update']);
+        });
+        Route::middleware('permission:tiers.manage')->group(function (): void {
+            Route::get('/site-tiers', [SiteTierController::class, 'index']);
+            Route::post('/site-tiers', [SiteTierController::class, 'store']);
+            Route::put('/site-tiers/{id}', [SiteTierController::class, 'update']);
+            Route::delete('/site-tiers/{id}', [SiteTierController::class, 'destroy']);
+        });
+        Route::middleware('permission:fleet.manage')->group(function (): void {
+            Route::get('/site-vehicles', [SiteVehicleController::class, 'index']);
+            Route::post('/site-vehicles', [SiteVehicleController::class, 'store']);
+            Route::put('/site-vehicles/{id}', [SiteVehicleController::class, 'update']);
+            Route::delete('/site-vehicles/{id}', [SiteVehicleController::class, 'destroy']);
+        });
+        Route::middleware('permission:pricing.manage')->group(function (): void {
+            Route::get('/rates', [RateCardController::class, 'index']);
+            Route::put('/rates', [RateCardController::class, 'update']);
         });
 
         // Driver Tiers & Drivers (Protected by tiers.manage & drivers.manage permissions)

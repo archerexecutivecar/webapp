@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AssistantProfile;
 use App\Models\AuditLog;
+use App\Models\LoginCode;
 use App\Models\RideRequest;
 use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -71,6 +73,36 @@ class CustomerController extends Controller
         AuditLog::record('customer.viewed', $request->user()->getKey(), ['customer_id' => $user->id], $user);
 
         return ApiResponse::data(['customer' => $this->summary($user) + ['rides' => $rides, 'assistant_profiles' => $profiles]]);
+    }
+
+    /**
+     * POST /admin/customers/{id}/reset-credentials
+     * Removes the customer's password, signs out every session and voids pending sign-in codes, then emails
+     * them. Staff never see or set a customer's password; the customer signs in with an emailed code and
+     * chooses a new password themselves.
+     */
+    public function resetCredentials(Request $request, int $id): JsonResponse
+    {
+        $user = $this->customers()->findOrFail($id);
+
+        $user->forceFill(['password' => Str::random(48), 'password_set_at' => null])->save();
+        $user->apiTokens()->delete();
+        LoginCode::where('email', Str::lower($user->email))->whereNull('consumed_at')->update(['consumed_at' => now()]);
+
+        AuditLog::record('customer.credentials_reset', $request->user()->getKey(), ['customer_id' => $user->id], $user);
+
+        Mail::raw(
+            "Hello {$user->name},
+
+Archer has reset your sign-in details at your request. Any previous password has been removed and you have been signed out of all devices.
+
+To sign in, open the Archer customer portal, enter your email address and use the one-time code we email you. You can then set a new password from your account.
+
+If you did not ask for this, please call Archer dispatch.",
+            fn ($m) => $m->to($user->email)->subject('Your Archer sign-in has been reset')
+        );
+
+        return ApiResponse::data(['message' => 'Credentials reset. The customer was emailed and can sign in with an emailed code.', 'has_password' => false]);
     }
 
     /** Users whose only role is customer. */

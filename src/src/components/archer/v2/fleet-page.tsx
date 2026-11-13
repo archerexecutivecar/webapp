@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { series, type SiteData } from "@/lib/site-api";
 import { D, EYEBROW, ghost, HEAD, MiniFooter, PageHero, PageShell, primary, Segmented, SiteHeader, WRAP, type HeroSlide } from "@/components/archer/v2/shared";
 
-const SLIDES: HeroSlide[] = [
+const SLIDES_DEFAULT: HeroSlide[] = [
   { tag: "TWO CLASSES", photo: "Black Archer SUV at night, warm city lights", img: "f7595ba478f4ad203e322519215810fc.jpg", head: "Two classes. Three sizes. One standard.", line: "Executive Class and 1st Class, each in a mid-size SUV, a full-size SUV and a Sprinter." },
   { tag: "1ST CLASS", photo: "Archer's own black Cadillac Escalade", img: "5c3d16f0aa316485e13e25e61f6c0bae.jpg", head: "Arrive in Archer's signature ride.", line: "The Cadillac Escalade and Lincoln Aviator, for VIPs, special occasions and clients who want the very best." },
   { tag: "EXECUTIVE CLASS", photo: "Black SUV on a city street at night", img: "1b4961ff296cae8343dcbc40a67cfd31.png", head: "Polished, quiet and ready to work.", line: "The Chevrolet Suburban and Traverse, the everyday choice for business travel, airports and nights out." },
@@ -16,18 +17,18 @@ type Z = "sedan" | "suv" | "van";
 type Key = "exec" | "first";
 
 // Display figures come straight from the approved design. Authoritative pricing lives in Laravel.
-const HR: Record<Key, Record<Z, number[]>> = {
+const HR_DEFAULT: Record<Key, Record<Z, number[]>> = {
   exec: { sedan: [70, 90, 130, 215], suv: [80, 100, 140, 190], van: [175, 195, 235, 390] },
   first: { sedan: [80, 100, 140, 235], suv: [100, 120, 160, 210], van: [225, 245, 285, 475] },
 };
-const PP: Record<Key, Record<Z, number[] | null>> = {
+const PP_DEFAULT: Record<Key, Record<Z, number[] | null>> = {
   exec: { sedan: [145, 170, 215, 270], suv: [155, 180, 225, 280], van: null },
   first: { sedan: [155, 180, 225, 280], suv: [200, 220, 260, 310], van: null },
 };
 const money = (n: number) => "$" + n.toLocaleString("en-US");
 
 type Vehicle = { z: Z; size: string; model: string; good: string; img?: string; alt?: string };
-const VEHICLES: Record<Key, Vehicle[]> = {
+const VEHICLES_DEFAULT: Record<Key, Vehicle[]> = {
   exec: [
     { z: "sedan", size: "MID-SIZE SUV", model: "Chevrolet Traverse", good: "Solo travelers and small groups." },
     { z: "suv", size: "FULL-SIZE SUV", model: "Chevrolet Suburban", good: "Room for the team and the luggage.", img: "1b4961ff296cae8343dcbc40a67cfd31.png", alt: "Black SUV on a city street at night" },
@@ -44,7 +45,7 @@ const CLASSES: { id: string; key: Key; tag: string; name: string; text: string; 
   { id: "first-class", key: "first", tag: "1ST CLASS", name: "1st Class", text: "Our flagship vehicles, for VIPs, special occasions and clients who want the very best.", from: "$80", pad: "pt-12 pb-6" },
 ];
 const TIERS = [["Tier 1", "Professional Chauffeur"], ["Tier 2", "Military & Law-Enforcement Chauffeur"], ["Tier 3", "Executive Protection Specialist"], ["Tier 4", "Senior Protection Specialist"]];
-const STANDARD = [
+const STANDARD_DEFAULT = [
   ["Late-model and black", "Every vehicle is current, clean and unmarked."],
   ["Ready before you are", "Detailed, climate set and stocked before pickup."],
   ["Comfort on board", "Bottled water and phone chargers. Wi-Fi [ARCHER TO CONFIRM]."],
@@ -54,7 +55,27 @@ const STANDARD = [
 const th = "border-b border-[#2E2E2E] px-3 py-3.5 text-left text-[11px] font-medium tracking-[0.16em] text-[#B3ADA5]";
 const td = "border-b border-[#2E2E2E] px-3 py-4";
 
-export function FleetPage() {
+function fromSite(site?: SiteData | null) {
+  if (!site || !site.vehicles.length || !site.fleet) return null;
+  const HR = { exec: {} as Record<Z, number[]>, first: {} as Record<Z, number[]> };
+  const PP = { exec: {} as Record<Z, number[] | null>, first: {} as Record<Z, number[] | null> };
+  for (const c of ["exec", "first"] as Key[]) {
+    for (const z of ["sedan", "suv", "van"] as Z[]) {
+      const h = series(site.rates, "hourly", c, z);
+      if (!h) return null;
+      HR[c][z] = h;
+      PP[c][z] = series(site.rates, "point_to_point", c, z);
+    }
+  }
+  const VEHICLES = { exec: [] as Vehicle[], first: [] as Vehicle[] };
+  for (const v of site.vehicles) VEHICLES[v.vehicle_class].push({ z: v.size, size: v.size_label, model: v.model, good: v.blurb, img: v.image_url ?? undefined, alt: v.image_alt ?? undefined });
+  return { SLIDES: site.fleet.slides, STANDARD: site.fleet.standard, HR, PP, VEHICLES };
+}
+
+export function FleetPage({ site }: { site?: SiteData | null } = {}) {
+  const live = fromSite(site);
+  const { SLIDES, STANDARD, HR, PP, VEHICLES } = live ?? { SLIDES: SLIDES_DEFAULT, STANDARD: STANDARD_DEFAULT, HR: HR_DEFAULT, PP: PP_DEFAULT, VEHICLES: VEHICLES_DEFAULT };
+  const fromPrice = (k: Key) => money(Math.min(...(["sedan", "suv", "van"] as Z[]).map((z) => HR[k][z][0])));
   const [mode, setMode] = useState("hourly");
   const hourly = mode === "hourly";
   const cell = (c: Key, z: Z, i: number) => (hourly ? money(HR[c][z][i]) + "/hr" : PP[c][z] ? money(PP[c][z]![i]) : "Hourly only");
@@ -69,11 +90,11 @@ export function FleetPage() {
           <span className={EYEBROW}>{c.tag}</span>
           <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3">
             <h2 className="m-0 text-[38px] leading-[1.08]" style={HEAD}>{c.name}</h2>
-            <span className="text-[20px] font-semibold" style={HEAD}>From {c.from}/hr</span>
+            <span className="text-[20px] font-semibold" style={HEAD}>From {fromPrice(c.key)}/hr</span>
           </div>
           <p className="mb-0 mt-3 max-w-[720px] text-[17px] text-[#C9C3BB]">{c.text}</p>
           <div className="mt-8 grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))]">
-            {VEHICLES[c.key].map((v) => (
+            {VEHICLES[c.key].length === 0 ? null : VEHICLES[c.key].map((v) => (
               <div key={v.model} className="flex flex-col bg-[#1E1E1E]">
                 {v.img ? (
                   // eslint-disable-next-line @next/next/no-img-element

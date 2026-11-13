@@ -63,6 +63,25 @@ export default function CustomersPage() {
 
   const [selected, setSelected] = useState<CustomerDetail | null>(null);
   const [opening, setOpening] = useState<number | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const resetCredentials = async (c: CustomerDetail) => {
+    if (!confirm(`Reset sign-in for ${c.name}?
+
+Their password will be removed, all their devices signed out, and an email sent so they can sign in with a one-time code and choose a new password.`)) return;
+    try {
+      setResetting(true);
+      setError(null);
+      const res = await api<{ message: string }>(`/admin/customers/${c.id}/reset-credentials`, { method: 'POST', auth: true });
+      setSelected({ ...c, has_password: false });
+      setNotice(res.message);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not reset the customer sign-in.');
+    } finally {
+      setResetting(false);
+    }
+  };
 
   // Server-side search, debounced so typing does not hit the API on every keystroke.
   useEffect(() => {
@@ -162,7 +181,7 @@ export default function CustomersPage() {
       </div>
 
       {selected && (
-        <div className="zoho-drawer-backdrop" onClick={() => setSelected(null)}>
+        <div className="zoho-drawer-backdrop" onClick={() => { setSelected(null); setNotice(null); }}>
           <aside className="zoho-drawer" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Customer ${selected.name}`}>
             <div className="zoho-drawer-form">
               <div className="zoho-drawer-header">
@@ -170,7 +189,7 @@ export default function CustomersPage() {
                   <span className="drawer-pretitle">Customer #{selected.id}</span>
                   <h2>{selected.name}</h2>
                 </div>
-                <button type="button" onClick={() => setSelected(null)} className="zoho-close-btn" aria-label="Close"><X size={18} /></button>
+                <button type="button" onClick={() => { setSelected(null); setNotice(null); }} className="zoho-close-btn" aria-label="Close"><X size={18} /></button>
               </div>
 
               <div className="zoho-drawer-body">
@@ -190,6 +209,13 @@ export default function CustomersPage() {
                     <div className="detail-item">
                       <span className="detail-label">Sign-in</span>
                       <span className="detail-value"><KeyRound size={13} style={{ display: 'inline', marginRight: 4 }} />{selected.has_password ? 'Email code or password' : 'Email code only'}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Password / access</span>
+                      <button type="button" className="secondary" disabled={resetting} onClick={() => resetCredentials(selected)}>
+                        {resetting ? 'Resetting…' : 'Reset password & sign out'}
+                      </button>
+                      {notice && <span className="row-desc" role="status">{notice}</span>}
                     </div>
                     <div className="detail-item">
                       <span className="detail-label">Email verified</span>

@@ -181,13 +181,19 @@ export function EstimateAside({ lines, total, note, label = "YOUR ESTIMATE" }: {
   );
 }
 
+const CUSTOMER_PORTAL_URL = process.env.NEXT_PUBLIC_CUSTOMER_PORTAL_URL || "https://app.archerexecutivecar.com";
+
 export function Done({ title, children, backHref, backLabel, extra }: { title: string; children: ReactNode; backHref: string; backLabel: string; extra?: ReactNode }) {
   return (
     <div className="mx-auto my-12 flex max-w-[640px] flex-col items-center gap-4 text-center">
       <svg aria-hidden width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#E87722" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><path d="M7.5 12.5l3 3 6-6" /></svg>
       <h1 className="m-0 text-[40px]" style={HEAD}>{title}</h1>
       {children}
+      <p className="m-0 text-[16px] text-[#C9C3BB]">
+        Sign in to the Archer customer portal to track this ride, view your booking history and manage your trips.
+      </p>
       <div className="mt-4 flex flex-wrap justify-center gap-3">
+        <a href={CUSTOMER_PORTAL_URL} target="_blank" rel="noopener noreferrer" className="rounded-sm bg-[#E87722] px-7 py-3.5 font-semibold text-white">Sign in to the portal</a>
         <Link href={backHref} className="rounded-sm border border-white/35 px-7 py-3.5 text-white">{backLabel}</Link>
         {extra}
       </div>
