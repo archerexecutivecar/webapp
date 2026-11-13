@@ -6,9 +6,9 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export const THEME_KEY = 'archer_admin_theme';
 
 /** Runs before first paint (inlined in <head>) so the wrong theme never flashes. */
-export const NO_FLASH_SCRIPT = `(function(){try{var m=localStorage.getItem('${THEME_KEY}')||'system';var d=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
+export const NO_FLASH_SCRIPT = `(function(){try{var m=localStorage.getItem('${THEME_KEY}')||'dark';var d=m==='dark'||(m==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
 
-const Ctx = createContext<{ mode: ThemeMode; setMode: (m: ThemeMode) => void }>({ mode: 'system', setMode: () => {} });
+const Ctx = createContext<{ mode: ThemeMode; setMode: (m: ThemeMode) => void }>({ mode: 'dark', setMode: () => {} });
 export const useTheme = () => useContext(Ctx);
 
 function apply(mode: ThemeMode) {
@@ -17,7 +17,7 @@ function apply(mode: ThemeMode) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [mode, setModeState] = useState<ThemeMode>('dark');
 
   useEffect(() => {
     let saved: string | null = null;

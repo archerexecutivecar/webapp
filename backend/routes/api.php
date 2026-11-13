@@ -1,10 +1,21 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\CmsPageController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DriverController;
+use App\Http\Controllers\Admin\DriverTierController;
 use App\Http\Controllers\Admin\NavigationController;
+use App\Http\Controllers\Admin\RideDispatchController;
+use App\Http\Controllers\Admin\SecurityAddonController;
 use App\Http\Controllers\Admin\ServiceTypeController;
+use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Customer\CustomerAuthController;
+use App\Http\Controllers\Customer\CustomerPortalController;
+use App\Http\Controllers\Driver\DriverPortalController;
+use App\Http\Controllers\PublicBookingController;
 use App\Http\Controllers\PublicContentController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,9 +29,26 @@ Route::prefix('v1')->group(function (): void {
 
     // Public CMS & Service Type Endpoints
     Route::get('/services', [PublicContentController::class, 'services']);
+    Route::get('/booking-options', [PublicContentController::class, 'bookingOptions']);
+    Route::post('/ride-requests', [PublicContentController::class, 'submitRideRequest']);
+    Route::post('/booking-requests', [PublicBookingController::class, 'store'])->middleware('throttle:public-submissions');
+    Route::post('/assistant-profiles', [PublicBookingController::class, 'storeAssistantProfile'])->middleware('throttle:public-submissions');
     Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
     Route::get('/testimonials', [PublicContentController::class, 'testimonials']);
     Route::get('/faqs', [PublicContentController::class, 'faqs']);
+
+    // Customer account: sign in with an emailed code (no password) or with email + password via /auth/login.
+    Route::prefix('customer')->group(function (): void {
+        Route::post('/auth/code', [CustomerAuthController::class, 'requestCode'])->middleware('throttle:customer-code');
+        Route::post('/auth/code/verify', [CustomerAuthController::class, 'verifyCode'])->middleware('throttle:customer-code-verify');
+
+        Route::middleware(['auth:api', 'permission:self.profile'])->group(function (): void {
+            Route::get('/me', [CustomerPortalController::class, 'me']);
+            Route::get('/rides', [CustomerPortalController::class, 'rides']);
+            Route::get('/rides/{id}', [CustomerPortalController::class, 'show']);
+            Route::put('/password', [CustomerAuthController::class, 'setPassword']);
+        });
+    });
 
     Route::prefix('auth')->group(function (): void {
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
@@ -37,6 +65,21 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/navigation', [NavigationController::class, 'show']);
         Route::get('/dashboard', [DashboardController::class, 'show'])->middleware('permission:dashboard.view');
 
+        // Admin Real-Time Notifications
+        Route::get('/notifications', [AdminNotificationController::class, 'index']);
+        Route::put('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+
+        // Rides & Dispatch Management
+        Route::middleware('permission:rides.view')->group(function (): void {
+            Route::get('/rides', [RideDispatchController::class, 'index']);
+            Route::get('/rides/{id}', [RideDispatchController::class, 'show']);
+            Route::put('/rides/{id}', [RideDispatchController::class, 'update']);
+
+            // Customer directory (read-only; opening a customer is audited)
+            Route::get('/customers', [CustomerController::class, 'index']);
+            Route::get('/customers/{id}', [CustomerController::class, 'show'])->whereNumber('id');
+        });
+
         // CMS & Services Management (Protected by content.edit / content.publish permissions)
         Route::middleware('permission:content.edit')->group(function (): void {
             // Service Types
@@ -47,6 +90,13 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/services/{id}', [ServiceTypeController::class, 'destroy']);
             Route::post('/services/reorder', [ServiceTypeController::class, 'reorder']);
 
+            // Security Add-ons
+            Route::get('/security-addons', [SecurityAddonController::class, 'index']);
+            Route::post('/security-addons', [SecurityAddonController::class, 'store']);
+            Route::get('/security-addons/{id}', [SecurityAddonController::class, 'show']);
+            Route::put('/security-addons/{id}', [SecurityAddonController::class, 'update']);
+            Route::delete('/security-addons/{id}', [SecurityAddonController::class, 'destroy']);
+
             // CMS Pages & Sections
             Route::get('/cms-pages', [CmsPageController::class, 'index']);
             Route::post('/cms-pages', [CmsPageController::class, 'store']);
@@ -54,5 +104,40 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/cms-pages/{id}', [CmsPageController::class, 'update']);
             Route::post('/cms-pages/{id}/sections', [CmsPageController::class, 'saveSection']);
         });
+
+        // Driver Tiers & Drivers (Protected by tiers.manage & drivers.manage permissions)
+        Route::middleware('permission:tiers.manage')->group(function (): void {
+            Route::get('/tiers', [DriverTierController::class, 'index']);
+            Route::post('/tiers', [DriverTierController::class, 'store']);
+            Route::get('/tiers/{id}', [DriverTierController::class, 'show']);
+            Route::put('/tiers/{id}', [DriverTierController::class, 'update']);
+            Route::delete('/tiers/{id}', [DriverTierController::class, 'destroy']);
+        });
+
+        Route::middleware('permission:drivers.manage')->group(function (): void {
+            Route::get('/drivers', [DriverController::class, 'index']);
+            Route::post('/drivers', [DriverController::class, 'store']);
+            Route::get('/drivers/{id}', [DriverController::class, 'show']);
+            Route::put('/drivers/{id}', [DriverController::class, 'update']);
+            Route::delete('/drivers/{id}', [DriverController::class, 'destroy']);
+        });
+
+        // Fleet / Vehicles (Protected by fleet.manage permission)
+        Route::middleware('permission:fleet.manage')->group(function (): void {
+            Route::get('/vehicles', [VehicleController::class, 'index']);
+            Route::post('/vehicles', [VehicleController::class, 'store']);
+            Route::get('/vehicles/{id}', [VehicleController::class, 'show']);
+            Route::put('/vehicles/{id}', [VehicleController::class, 'update']);
+            Route::delete('/vehicles/{id}', [VehicleController::class, 'destroy']);
+        });
+    });
+
+    // Driver Portal APIs (Authenticated Driver)
+    Route::prefix('driver')->middleware('auth:api')->group(function (): void {
+        Route::get('/profile', [DriverPortalController::class, 'profile']);
+        Route::get('/rides', [DriverPortalController::class, 'myRides']);
+        Route::put('/rides/{rideId}/status', [DriverPortalController::class, 'updateRideStatus']);
+        Route::get('/notifications', [DriverPortalController::class, 'notifications']);
+        Route::put('/notifications/{id}/read', [DriverPortalController::class, 'markNotificationRead']);
     });
 });

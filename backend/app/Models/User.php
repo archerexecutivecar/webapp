@@ -37,6 +37,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'password_set_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -44,6 +45,11 @@ class User extends Authenticatable
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class);
+    }
+
+    public function rideRequests(): HasMany
+    {
+        return $this->hasMany(RideRequest::class, 'customer_id');
     }
 
     public function apiTokens(): HasMany

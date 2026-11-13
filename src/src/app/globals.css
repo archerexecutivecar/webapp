@@ -1,0 +1,272 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-zoho-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ─── ARCHER BRAND ─────────────────────────────── */
+  --color-archer-black: #0a0a0a;
+  --color-archer-surface: #151515;
+  --color-archer-elevated: #1b1b1b;
+  --color-archer-line: #2a2a2a;
+  --color-archer-orange: #e87722;
+  --color-archer-orange-deep: #c25f14;
+  --color-archer-silver: #c0c0c0;
+  --color-archer-gray: #8a8a8a;
+  --font-display: var(--font-zoho-heading), var(--font-zoho-sans), sans-serif;
+  --font-heading: var(--font-zoho-heading), "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  --radius: 0.2rem;
+  --background: #0a0a0a;
+  --foreground: #f4f4f2;
+  --card: #151515;
+  --card-foreground: #f4f4f2;
+  --popover: #141414;
+  --popover-foreground: #f4f4f2;
+  --primary: #e87722;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1b1b1b;
+  --secondary-foreground: #f4f4f2;
+  --muted: #1b1b1b;
+  --muted-foreground: #8a8a8a;
+  --accent: #232323;
+  --accent-foreground: #f4f4f2;
+  --destructive: #c0453a;
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #e87722;
+  --chart-1: #e87722;
+  --chart-2: #c0c0c0;
+  --chart-3: #8a8a8a;
+  --chart-4: #5a5a5a;
+  --chart-5: #2a2a2a;
+  --sidebar: #151515;
+  --sidebar-foreground: #f4f4f2;
+  --sidebar-primary: #e87722;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #232323;
+  --sidebar-accent-foreground: #f4f4f2;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-ring: #e87722;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #f4f4f2;
+  --card: #151515;
+  --card-foreground: #f4f4f2;
+  --popover: #141414;
+  --popover-foreground: #f4f4f2;
+  --primary: #e87722;
+  --primary-foreground: #0a0a0a;
+  --secondary: #1b1b1b;
+  --secondary-foreground: #f4f4f2;
+  --muted: #1b1b1b;
+  --muted-foreground: #8a8a8a;
+  --accent: #232323;
+  --accent-foreground: #f4f4f2;
+  --destructive: #c0453a;
+  --border: rgba(255, 255, 255, 0.09);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #e87722;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-lato), "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: #e87722;
+    color: #0a0a0a;
+  }
+  /* Keyboard users always get a visible orange focus ring */
+  :focus-visible {
+    outline: 2px solid #e87722;
+    outline-offset: 2px;
+  }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .hero-drift,
+  .shimmer,
+  .status-pulse {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.15s !important;
+  }
+}
+
+@layer components {
+  /* Layout container */
+  .archer-container {
+    @apply mx-auto w-full max-w-[1320px] px-5 sm:px-8;
+  }
+
+  /* Uppercase micro label used across the site */
+  .archer-label {
+    @apply font-heading text-[11px] font-extrabold uppercase tracking-[0.35em] text-archer-gray;
+  }
+
+  /* Editorial headline */
+  .archer-h2 {
+    @apply font-display text-4xl leading-[1.06] font-bold text-white sm:text-5xl lg:text-[3.4rem];
+  }
+
+  /* Dark premium input */
+  .archer-input {
+    @apply h-11 w-full border border-white/12 bg-black/40 px-4 text-sm text-white transition-colors placeholder:text-archer-gray/70 hover:border-white/25 focus:border-archer-orange focus:outline-none;
+  }
+
+  /* Primary CTA */
+  .btn-archer {
+    @apply inline-flex h-12 items-center justify-center gap-2.5 bg-archer-orange px-7 font-heading text-[12px] font-extrabold tracking-[0.22em] text-black uppercase transition-all duration-300 hover:bg-archer-orange/90 hover:shadow-[0_0_32px_rgba(232,119,34,0.35)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Outline CTA */
+  .btn-archer-outline {
+    @apply inline-flex h-12 items-center justify-center gap-2.5 border border-white/25 bg-transparent px-7 font-heading text-[12px] font-extrabold tracking-[0.22em] text-white uppercase transition-all duration-300 hover:border-archer-orange hover:text-archer-orange active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  /* Card surface */
+  .archer-card {
+    @apply border border-white/8 bg-archer-surface transition-colors duration-300;
+  }
+}
+
+/* Scrollbars — thin, dark, orange on hover */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #2e2e2e;
+  border: 2px solid #0a0a0a;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e87722;
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 5px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  border: none;
+}
+
+/* Native date/time pickers render dark */
+input[type="date"],
+input[type="time"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="time"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+/* Flight status pulse */
+@keyframes archer-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 119, 34, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(232, 119, 34, 0);
+  }
+}
+.status-pulse {
+  animation: archer-pulse 2s ease-in-out infinite;
+}
+
+/* Slow subtle zoom for hero imagery */
+@keyframes archer-drift {
+  from {
+    transform: scale(1.08) translateY(0);
+  }
+  to {
+    transform: scale(1) translateY(0);
+  }
+}
+.hero-drift {
+  animation: archer-drift 8s ease-out forwards;
+}
+
+/* Progress shimmer */
+@keyframes archer-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1b1b1b 25%, #262626 50%, #1b1b1b 75%);
+  background-size: 800px 100%;
+  animation: archer-shimmer 1.6s infinite linear;
+}

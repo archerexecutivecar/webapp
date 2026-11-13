@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  reference     String   @unique
+  serviceType   String // one-way | hourly | airport | special
+  service       String
+  vehicleClass  String
+  pickup        String
+  destination   String?
+  date          String
+  time          String
+  hours         Int?
+  passengers    Int
+  luggage       Int
+  flightNumber  String?
+  name          String
+  email         String?
+  phone         String
+  notes         String?
+  estimateTotal Float?
+  status        String   @default("pending") // pending -> confirmed -> completed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

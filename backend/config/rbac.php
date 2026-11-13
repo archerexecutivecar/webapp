@@ -10,7 +10,7 @@ $all = [
     'dispatch.manage', 'drivers.view', 'drivers.manage', 'drivers.switches', 'tiers.manage',
     'fleet.manage', 'pricing.manage', 'payments.view', 'payments.manage', 'payroll.view',
     'payroll.manage', 'reports.view', 'audit.view', 'settings.manage', 'content.edit',
-    'content.publish', 'self.profile',
+    'content.publish', 'self.profile', 'driver.portal',
 ];
 
 return [
@@ -35,7 +35,7 @@ return [
         ]],
         'content_editor' => ['name' => 'Content Editor', 'permissions' => ['content.edit']],
         'content_publisher' => ['name' => 'Content Publisher', 'permissions' => ['content.edit', 'content.publish']],
-        'driver' => ['name' => 'Driver', 'permissions' => ['self.profile']],
+        'driver' => ['name' => 'Driver', 'permissions' => ['self.profile', 'driver.portal']],
         'customer' => ['name' => 'Customer', 'permissions' => ['self.profile']],
     ],
 

@@ -10,5 +10,9 @@ build/
 *.key
 *.tar
 *.log
+*.tsbuildinfo
+deploy/
+*.zip
+.claude/
 storage/*.key
 .DS_Store

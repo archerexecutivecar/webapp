@@ -3,13 +3,15 @@
 import {
   Bell, CalendarCheck, CalendarClock, Car, ChevronsLeft, ChevronsRight, CircleCheckBig, ClipboardList, CreditCard,
   ExternalLink, FileText, Image as ImageIcon, LayoutDashboard, LogOut, type LucideIcon, Menu, Monitor, Moon, Plug, Route, ScrollText,
-  Search, Settings, ShieldCheck, Sun, UserRound, Users, Wallet, X,
+  Search, Settings, ShieldCheck, Sun, UserRound, Users, Wallet, X, Clock, Check, ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { ThemeMode, useTheme } from '@/lib/theme';
+import { ArcherLogo } from './ArcherLogo';
 
 const ICONS: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboard, route: Route, 'calendar-check': CalendarCheck, users: Users,
@@ -52,8 +54,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <aside className="sidebar" id="sidebar" aria-label="Main navigation">
         <div className="sb-head">
           <Link href="/" className="wordmark" aria-label="Archer Admin home">
-            <span className="wm-a">A</span><span className="wm-rest">RCHER</span>
-            <span className="wm-sub">Executive Services</span>
+            <ArcherLogo size={34} />
+            <div className="wm-text-group">
+              <span className="wm-rest">ARCHER</span>
+              <span className="wm-sub">Executive Black Car</span>
+            </div>
           </Link>
           <button className="icon-btn sb-close" onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
@@ -70,7 +75,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     <li key={i.key}>
                       <Link href={i.href} className={`sb-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined} data-tip={i.label}>
                         <Icon size={18} aria-hidden /><span className="sb-text">{i.label}</span>
-                        {!i.available && <span className="soon sb-text">Soon</span>}
                       </Link>
                     </li>
                   );
@@ -103,7 +107,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               href={process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition border border-border"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition border border-border header-live-link"
               title="Open public website in new tab"
             >
               <ExternalLink size={14} className="text-muted-foreground" />
@@ -156,18 +160,172 @@ function ThemeMenu() {
   );
 }
 
+export interface AdminNotification {
+  id: string;
+  ride_request_id?: string | null;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 function NotificationsMenu() {
   const { open, setOpen, ref } = usePopover();
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [latestToast, setLatestToast] = useState<AdminNotification | null>(null);
+  const router = useRouter();
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api<{ notifications: AdminNotification[]; unread_count: number }>('/admin/notifications', { auth: true });
+      
+      // If a brand new notification arrived, show floating popup toast
+      if (res.unread_count > unreadCount && res.notifications.length > 0) {
+        const newest = res.notifications[0];
+        if (!newest.is_read) {
+          setLatestToast(newest);
+          setTimeout(() => setLatestToast(null), 8000);
+        }
+      }
+
+      setNotifications(res.notifications);
+      setUnreadCount(res.unread_count);
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 12000);
+    return () => clearInterval(interval);
+  }, [unreadCount]);
+
+  const markAllRead = async () => {
+    try {
+      await api('/admin/notifications/all/read', { method: 'PUT', auth: true });
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setUnreadCount(0);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleNotificationClick = (n: AdminNotification) => {
+    setOpen(false);
+    setLatestToast(null);
+    router.push('/rides');
+  };
+
   return (
-    <div className="pop-wrap" ref={ref}>
-      <button className="icon-btn" aria-label="Notifications" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><Bell size={18} /></button>
-      {open && (
-        <div className="popover wide" role="dialog" aria-label="Notifications">
-          <div className="pop-title">Notifications</div>
-          <p className="empty-text">You&apos;re all caught up. Operational alerts will appear here once the notifications module is live.</p>
+    <>
+      <div className="pop-wrap" ref={ref}>
+        <button
+          className="icon-btn notif-bell-btn"
+          aria-label="Notifications"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <Bell size={18} />
+          {unreadCount > 0 && (
+            <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+          )}
+        </button>
+
+        {open && (
+          <div className="popover wide notif-popover" role="dialog" aria-label="Notifications">
+            <div className="notif-header">
+              <div className="pop-title" style={{ margin: 0 }}>
+                Operational Alerts {unreadCount > 0 && <span className="unread-dot"></span>}
+              </div>
+              {unreadCount > 0 && (
+                <button type="button" onClick={markAllRead} className="mark-read-btn">
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            <div className="notif-list">
+              {notifications.length === 0 ? (
+                <p className="empty-text" style={{ padding: '24px 12px', textAlign: 'center' }}>
+                  No notifications yet. New customer bookings will appear here instantly.
+                </p>
+              ) : (
+                notifications.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    className={`notif-item ${n.is_read ? 'read' : 'unread'}`}
+                  >
+                    <div className="notif-indicator">
+                      <div className="notif-icon-circle">
+                        <Car size={13} />
+                      </div>
+                    </div>
+                    <div className="notif-content">
+                      <div className="notif-title-row">
+                        <span className="notif-title">{n.title}</span>
+                        {!n.is_read && <span className="new-badge">NEW</span>}
+                      </div>
+                      <p className="notif-message">{n.message}</p>
+                      <span className="notif-time">
+                        {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {notifications.length > 0 && (
+              <div className="notif-footer">
+                <Link href="/rides" onClick={() => setOpen(false)} className="view-all-link">
+                  Open Rides & Dispatch Center →
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Real-Time Floating Popup Toast for Admin */}
+      {latestToast && (
+        <div className="floating-booking-toast">
+          <div className="toast-left">
+            <div className="toast-icon-box">
+              <Bell size={18} className="toast-bell-icon" />
+            </div>
+            <div>
+              <div className="toast-title">
+                {latestToast.title}
+                <span className="toast-live-badge">Live Booking</span>
+              </div>
+              <p className="toast-message">{latestToast.message}</p>
+            </div>
+          </div>
+          <div className="toast-actions">
+            <button
+              onClick={() => {
+                setLatestToast(null);
+                router.push('/rides');
+              }}
+              className="toast-dispatch-btn"
+            >
+              Dispatch Now
+            </button>
+            <button
+              onClick={() => setLatestToast(null)}
+              className="toast-close-btn"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

@@ -1,0 +1,55 @@
+name: Deploy Customer App PWA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/client/**'
+      - 'tools/package-next-app.mjs'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Customer App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install & Package Client App
+        run: |
+          cd apps/client && npm ci
+          cd ../..
+          node tools/package-next-app.mjs client --api=https://api.archerexecutivecar.com/api/v1 --site=https://staging.archerexecutivecar.com
+
+      - name: Copy Package to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          source: "deploy/archer-client.zip"
+          target: "/tmp/"
+
+      - name: Unzip & Restart Customer App on Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: |
+            TARGET_DIR=${{ secrets.CLIENT_DEPLOY_PATH || '/var/www/archer-client' }}
+            mkdir -p "$TARGET_DIR"
+            unzip -o /tmp/deploy/archer-client.zip -d "$TARGET_DIR"
+            rm -rf /tmp/deploy
+            cd "$TARGET_DIR"
+            pm2 restart archer-client || pm2 start npm --name "archer-client" -- start

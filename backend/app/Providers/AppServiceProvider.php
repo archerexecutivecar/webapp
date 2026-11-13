@@ -45,6 +45,13 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)
             ->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
 
+        RateLimiter::for('public-submissions', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
+
+        RateLimiter::for('customer-code', fn (Request $request) => Limit::perMinutes(10, 5)
+            ->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
+
+        RateLimiter::for('customer-code-verify', fn (Request $request) => Limit::perMinutes(10, 10)->by($request->ip()));
+
         RateLimiter::for('password-recovery', fn (Request $request) => Limit::perMinute(3)
             ->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
 

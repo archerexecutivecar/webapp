@@ -1,0 +1,798 @@
+     1→     1→/* ─────────────────────────────────────────────────────────────
+     2→     2→   ARCHER — central content library
+     3→     3→   NOTE: All coverage / pricing / availability data here is
+     4→     4→   clearly-labeled SAMPLE content for the prototype. The backend
+     5→     5→   remains authoritative for pricing, availability, eligibility
+     6→     6→   and vehicle assignment.
+     7→     7→   ───────────────────────────────────────────────────────────── */
+     8→     8→
+     9→     9→export const WHATSAPP_NUMBER = "15550100777";
+    10→    10→export const WHATSAPP_DISPLAY = "+1 (555) 010-0777";
+    11→    11→export const DISPATCH_PHONE_DISPLAY = "+1 (555) 010-0777";
+    12→    12→export const DISPATCH_PHONE_TEL = "+15550100777";
+    13→    13→export const DISPATCH_EMAIL = "dispatch@arrivewitharcher.com";
+    14→    14→
+    15→    15→export function whatsappLink(message: string) {
+    16→    16→  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+    17→    17→}
+    18→    18→
+    19→    19→/* ─── Services ─────────────────────────────────────────────── */
+    20→    20→
+    21→    21→export interface Service {
+    22→    22→  id: string;
+    23→    23→  label: string;
+    24→    24→  tag: string;
+    25→    25→  description: string;
+    26→    26→  image: string;
+    27→    27→}
+    28→    28→
+    29→    29→export const SERVICES: Service[] = [
+    30→    30→  {
+    31→    31→    id: "executive-chauffeur",
+    32→    32→    label: "Executive Chauffeur",
+    33→    33→    tag: "01 — Chauffeur",
+    34→    34→    description:
+    35→    35→      "Professional chauffeur-driven transportation for executives, private clients and important journeys.",
+    36→    36→    image: "/images/archer/svc-executive.png",
+    37→    37→  },
+    38→    38→  {
+    39→    39→    id: "airport-transfers",
+    40→    40→    label: "Airport Transfers",
+    41→    41→    tag: "02 — Airport",
+    42→    42→    description:
+    43→    43→      "Reliable, flight-aware transportation for arrivals and departures — commercial and private aviation.",
+    44→    44→    image: "/images/archer/svc-airport.png",
+    45→    45→  },
+    46→    46→  {
+    47→    47→    id: "hourly-chauffeur",
+    48→    48→    label: "Hourly Chauffeur",
+    49→    49→    tag: "03 — Hourly",
+    50→    50→    description:
+    51→    51→      "A dedicated chauffeur and vehicle available around your itinerary, for as long as you need.",
+    52→    52→    image: "/images/archer/svc-hourly.png",
+    53→    53→  },
+    54→    54→  {
+    55→    55→    id: "client-car",
+    56→    56→    label: "Client Car Service",
+    57→    57→    tag: "04 — Client Car",
+    58→    58→    description:
+    59→    59→      "Archer operates your own vehicle with a professional driver — your vehicle, our professional.",
+    60→    60→    image: "/images/archer/svc-client-car.png",
+    61→    61→  },
+    62→    62→  {
+    63→    63→    id: "security",
+    64→    64→    label: "Security Services",
+    65→    65→    tag: "05 — Security",
+    66→    66→    description:
+    67→    67→      "Security-aware transportation and approved security-related services, coordinated with discretion.",
+    68→    68→    image: "/images/archer/svc-security.png",
+    69→    69→  },
+    70→    70→  {
+    71→    71→    id: "special-events",
+    72→    72→    label: "Special Events",
+    73→    73→    tag: "06 — Events",
+    74→    74→    description:
+    75→    75→      "Coordinated executive transportation for important events, productions and occasions.",
+    76→    76→    image: "/images/archer/svc-events.png",
+    77→    77→  },
+    78→    78→];
+    79→    79→
+    80→    80→/* ─── Fleet ────────────────────────────────────────────────── */
+    81→    81→
+    82→    82→export type FleetClassId = "EXECUTIVE" | "FIRST_CLASS" | "GROUP";
+    83→    83→
+    84→    84→export const FLEET_CLASSES: {
+    85→    85→  id: FleetClassId;
+    86→    86→  label: string;
+    87→    87→  subtitle: string;
+    88→    88→  description: string;
+    89→    89→}[] = [
+    90→    90→  {
+    91→    91→    id: "EXECUTIVE",
+    92→    92→    label: "Executive",
+    93→    93→    subtitle: "Sedan / Compact SUV",
+    94→    94→    description: "Refined, understated travel for individuals and small parties.",
+    95→    95→  },
+    96→    96→  {
+    97→    97→    id: "FIRST_CLASS",
+    98→    98→    label: "1st Class",
+    99→    99→    subtitle: "Full-Size SUV",
+   100→   100→    description: "Commanding presence, generous space, first-class comfort.",
+   101→   101→  },
+   102→   102→  {
+   103→   103→    id: "GROUP",
+   104→   104→    label: "Group",
+   105→   105→    subtitle: "Sprinter",
+   106→   106→    description: "Coordinated group movement without compromising the experience.",
+   107→   107→  },
+   108→   108→];
+   109→   109→
+   110→   110→export interface FleetVehicle {
+   111→   111→  id: string;
+   112→   112→  name: string;
+   113→   113→  category: string;
+   114→   114→  classId: FleetClassId;
+   115→   115→  passengers: number;
+   116→   116→  luggage: number;
+   117→   117→  image: string;
+   118→   118→  availability: "confirmed" | "request";
+   119→   119→  availabilityLabel: string;
+   120→   120→  suitability: string[];
+   121→   121→}
+   122→   122→
+   123→   123→export const FLEET: FleetVehicle[] = [
+   124→   124→  {
+   125→   125→    id: "traverse",
+   126→   126→    name: "Chevrolet Traverse",
+   127→   127→    category: "Compact SUV",
+   128→   128→    classId: "EXECUTIVE",
+   129→   129→    passengers: 3,
+   130→   130→    luggage: 3,
+   131→   131→    image: "/images/archer/fleet-traverse.png",
+   132→   132→    availability: "request",
+   133→   133→    availabilityLabel: "Subject to availability",
+   134→   134→    suitability: ["Point-to-point transfers", "Executive travel", "Airport journeys"],
+   135→   135→  },
+   136→   136→  {
+   137→   137→    id: "aviator",
+   138→   138→    name: "Lincoln Aviator",
+   139→   139→    category: "Luxury SUV",
+   140→   140→    classId: "EXECUTIVE",
+   141→   141→    passengers: 3,
+   142→   142→    luggage: 4,
+   143→   143→    image: "/images/archer/fleet-aviator.png",
+   144→   144→    availability: "request",
+   145→   145→    availabilityLabel: "Special request",
+   146→   146→    suitability: ["Executive travel", "Business meetings", "Evening occasions"],
+   147→   147→  },
+   148→   148→  {
+   149→   149→    id: "escalade",
+   150→   150→    name: "Cadillac Escalade",
+   151→   151→    category: "Full-Size SUV",
+   152→   152→    classId: "FIRST_CLASS",
+   153→   153→    passengers: 6,
+   154→   154→    luggage: 5,
+   155→   155→    image: "/images/archer/fleet-escalade.png",
+   156→   156→    availability: "confirmed",
+   157→   157→    availabilityLabel: "Available by request",
+   158→   158→    suitability: ["Executive travel", "Client hospitality", "Airport transfers"],
+   159→   159→  },
+   160→   160→  {
+   161→   161→    id: "suburban",
+   162→   162→    name: "Chevrolet Suburban",
+   163→   163→    category: "Full-Size SUV",
+   164→   164→    classId: "FIRST_CLASS",
+   165→   165→    passengers: 6,
+   166→   166→    luggage: 6,
+   167→   167→    image: "/images/archer/fleet-suburban.png",
+   168→   168→    availability: "confirmed",
+   169→   169→    availabilityLabel: "Available by request",
+   170→   170→    suitability: ["Long-distance journeys", "Group executives", "Luggage-heavy trips"],
+   171→   171→  },
+   172→   172→  {
+   173→   173→    id: "sprinter",
+   174→   174→    name: "Mercedes-Benz Sprinter",
+   175→   175→    category: "Group Van",
+   176→   176→    classId: "GROUP",
+   177→   177→    passengers: 12,
+   178→   178→    luggage: 12,
+   179→   179→    image: "/images/archer/fleet-sprinter.png",
+   180→   180→    availability: "request",
+   181→   181→    availabilityLabel: "Special request",
+   182→   182→    suitability: ["Group movement", "Event transportation", "Production crews"],
+   183→   183→  },
+   184→   184→];
+   185→   185→
+   186→   186→export const FLEET_NOTE =
+   187→   187→  "Vehicle images are representative. Final vehicle assignment is confirmed by Archer dispatch at booking.";
+   188→   188→
+   189→   189→/* ─── Airports (sample coverage) ───────────────────────────── */
+   190→   190→
+   191→   191→export interface Airport {
+   192→   192→  code: string;
+   193→   193→  name: string;
+   194→   194→  city: string;
+   195→   195→  country: string;
+   196→   196→  region: string;
+   197→   197→  service: string;
+   198→   198→}
+   199→   199→
+   200→   200→export const AIRPORT_REGIONS = [
+   201→   201→  "North America",
+   202→   202→  "Europe",
+   203→   203→  "Middle East & Africa",
+   204→   204→  "Asia-Pacific",
+   205→   205→] as const;
+   206→   206→
+   207→   207→export const AIRPORTS: Airport[] = [
+   208→   208→  { code: "JFK", name: "John F. Kennedy International", city: "New York", country: "United States", region: "North America", service: "Executive · Airport · Hourly" },
+   209→   209→  { code: "EWR", name: "Newark Liberty International", city: "Newark", country: "United States", region: "North America", service: "Executive · Airport" },
+   210→   210→  { code: "LAX", name: "Los Angeles International", city: "Los Angeles", country: "United States", region: "North America", service: "Executive · Airport · Hourly" },
+   211→   211→  { code: "SFO", name: "San Francisco International", city: "San Francisco", country: "United States", region: "North America", service: "Executive · Airport · Hourly" },
+   212→   212→  { code: "ORD", name: "O'Hare International", city: "Chicago", country: "United States", region: "North America", service: "Executive · Airport" },
+   213→   213→  { code: "MIA", name: "Miami International", city: "Miami", country: "United States", region: "North America", service: "Executive · Airport · Private Aviation" },
+   214→   214→  { code: "YYZ", name: "Toronto Pearson International", city: "Toronto", country: "Canada", region: "North America", service: "Executive · Airport" },
+   215→   215→  { code: "LHR", name: "London Heathrow", city: "London", country: "United Kingdom", region: "Europe", service: "Executive · Airport · Hourly" },
+   216→   216→  { code: "LGW", name: "London Gatwick", city: "London", country: "United Kingdom", region: "Europe", service: "Executive · Airport" },
+   217→   217→  { code: "CDG", name: "Paris Charles de Gaulle", city: "Paris", country: "France", region: "Europe", service: "Executive · Airport" },
+   218→   218→  { code: "FRA", name: "Frankfurt am Main", city: "Frankfurt", country: "Germany", region: "Europe", service: "Executive · Airport" },
+   219→   219→  { code: "ZRH", name: "Zurich Airport", city: "Zurich", country: "Switzerland", region: "Europe", service: "Executive · Airport" },
+   220→   220→  { code: "MAD", name: "Adolfo Suárez Madrid–Barajas", city: "Madrid", country: "Spain", region: "Europe", service: "Executive · Airport" },
+   221→   221→  { code: "FCO", name: "Leonardo da Vinci–Fiumicino", city: "Rome", country: "Italy", region: "Europe", service: "Executive · Airport" },
+   222→   222→  { code: "DXB", name: "Dubai International", city: "Dubai", country: "United Arab Emirates", region: "Middle East & Africa", service: "Executive · Airport · Private Aviation" },
+   223→   223→  { code: "DWC", name: "Al Maktoum International", city: "Dubai", country: "United Arab Emirates", region: "Middle East & Africa", service: "Private Aviation" },
+   224→   224→  { code: "DOH", name: "Hamad International", city: "Doha", country: "Qatar", region: "Middle East & Africa", service: "Executive · Airport" },
+   225→   225→  { code: "RUH", name: "King Khalid International", city: "Riyadh", country: "Saudi Arabia", region: "Middle East & Africa", service: "Executive · Airport" },
+   226→   226→  { code: "JNB", name: "O. R. Tambo International", city: "Johannesburg", country: "South Africa", region: "Middle East & Africa", service: "Executive · Airport" },
+   227→   227→  { code: "HKG", name: "Hong Kong International", city: "Hong Kong", country: "Hong Kong SAR", region: "Asia-Pacific", service: "Executive · Airport" },
+   228→   228→  { code: "NRT", name: "Tokyo Narita International", city: "Tokyo", country: "Japan", region: "Asia-Pacific", service: "Executive · Airport · Hourly" },
+   229→   229→  { code: "SIN", name: "Singapore Changi", city: "Singapore", country: "Singapore", region: "Asia-Pacific", service: "Executive · Airport" },
+   230→   230→  { code: "SYD", name: "Sydney Kingsford Smith", city: "Sydney", country: "Australia", region: "Asia-Pacific", service: "Executive · Airport" },
+   231→   231→];
+   232→   232→
+   233→   233→export const AIRPORT_SAMPLE_NOTE =
+   234→   234→  "Sample coverage for the prototype. Confirmed airport availability is provided at booking.";
+   235→   235→
+   236→   236→/* ─── Cities (sample) ──────────────────────────────────────── */
+   237→   237→
+   238→   238→export interface City {
+   239→   239→  name: string;
+   240→   240→  services: string[];
+   241→   241→  airports: string[];
+   242→   242→  note: string;
+   243→   243→}
+   244→   244→
+   245→   245→export const CITIES: City[] = [
+   246→   246→  {
+   247→   247→    name: "New York",
+   248→   248→    services: ["Executive Chauffeur", "Airport Transfers", "Hourly Service"],
+   249→   249→    airports: ["JFK", "LGA", "EWR"],
+   250→   250→    note: "Primary service city",
+   251→   251→  },
+   252→   252→  {
+   253→   253→    name: "London",
+   254→   254→    services: ["Executive Chauffeur", "Airport Transfers"],
+   255→   255→    airports: ["LHR", "LGW"],
+   256→   256→    note: "Sample city",
+   257→   257→  },
+   258→   258→  {
+   259→   259→    name: "Dubai",
+   260→   260→    services: ["Executive Chauffeur", "Airport Transfers", "Private Aviation"],
+   261→   261→    airports: ["DXB", "DWC"],
+   262→   262→    note: "Sample city",
+   263→   263→  },
+   264→   264→  {
+   265→   265→    name: "Los Angeles",
+   266→   266→    services: ["Executive Chauffeur", "Airport Transfers", "Special Events"],
+   267→   267→    airports: ["LAX", "BUR"],
+   268→   268→    note: "Sample city",
+   269→   269→  },
+   270→   270→  {
+   271→   271→    name: "Paris",
+   272→   272→    services: ["Executive Chauffeur", "Airport Transfers"],
+   273→   273→    airports: ["CDG", "ORY"],
+   274→   274→    note: "Sample city",
+   275→   275→  },
+   276→   276→  {
+   277→   277→    name: "Miami",
+   278→   278→    services: ["Executive Chauffeur", "Airport Transfers", "Private Aviation"],
+   279→   279→    airports: ["MIA", "OPF"],
+   280→   280→    note: "Sample city",
+   281→   281→  },
+   282→   282→];
+   283→   283→
+   284→   284→export const CITY_SAMPLE_NOTE =
+   285→   285→  "City listings are sample content. Archer service in each city is confirmed by dispatch at booking.";
+   286→   286→
+   287→   287→/* ─── Sample flight data (clearly labeled sample) ──────────── */
+   288→   288→
+   289→   289→export interface FlightEndpoint {
+   290→   290→  airport: string;
+   291→   291→  code: string;
+   292→   292→  city: string;
+   293→   293→  terminal: string;
+   294→   294→  gate: string;
+   295→   295→  scheduled: string;
+   296→   296→  estimated: string;
+   297→   297→}
+   298→   298→
+   299→   299→export interface FlightInfo {
+   300→   300→  airline: string;
+   301→   301→  flightNumber: string;
+   302→   302→  aircraft: string;
+   303→   303→  from: FlightEndpoint;
+   304→   304→  to: FlightEndpoint;
+   305→   305→  status: string;
+   306→   306→  statusTone: "enroute" | "scheduled" | "boarding" | "landed";
+   307→   307→  progress: number;
+   308→   308→}
+   309→   309→
+   310→   310→export const SAMPLE_FLIGHTS: Record<string, FlightInfo> = {
+   311→   311→  UA837: {
+   312→   312→    airline: "United Airlines",
+   313→   313→    flightNumber: "UA837",
+   314→   314→    aircraft: "Boeing 777-300ER",
+   315→   315→    from: {
+   316→   316→      airport: "San Francisco International",
+   317→   317→      code: "SFO",
+   318→   318→      city: "San Francisco",
+   319→   319→      terminal: "International G",
+   320→   320→      gate: "G98",
+   321→   321→      scheduled: "13:15",
+   322→   322→      estimated: "13:22",
+   323→   323→    },
+   324→   324→    to: {
+   325→   325→      airport: "Shanghai Pudong International",
+   326→   326→      code: "PVG",
+   327→   327→      city: "Shanghai",
+   328→   328→      terminal: "T2",
+   329→   329→      gate: "—",
+   330→   330→      scheduled: "17:05 +1",
+   331→   331→      estimated: "16:58 +1",
+   332→   332→    },
+   333→   333→    status: "En route",
+   334→   334→    statusTone: "enroute",
+   335→   335→    progress: 42,
+   336→   336→  },
+   337→   337→  N628QS: {
+   338→   338→    airline: "Private Charter",
+   339→   339→    flightNumber: "N628QS",
+   340→   340→    aircraft: "Gulfstream G450 · Private",
+   341→   341→    from: {
+   342→   342→      airport: "Teterboro",
+   343→   343→      code: "TEB",
+   344→   344→      city: "Teterboro, NJ",
+   345→   345→      terminal: "FBO",
+   346→   346→      gate: "—",
+   347→   347→      scheduled: "09:40",
+   348→   348→      estimated: "09:45",
+   349→   349→    },
+   350→   350→    to: {
+   351→   351→      airport: "Miami Opa-Locka Executive",
+   352→   352→      code: "OPF",
+   353→   353→      city: "Miami, FL",
+   354→   354→      terminal: "FBO",
+   355→   355→      gate: "—",
+   356→   356→      scheduled: "12:35",
+   357→   357→      estimated: "12:29",
+   358→   358→    },
+   359→   359→    status: "Scheduled",
+   360→   360→    statusTone: "scheduled",
+   361→   361→    progress: 0,
+   362→   362→  },
+   363→   363→  BA286: {
+   364→   364→    airline: "British Airways",
+   365→   365→    flightNumber: "BA286",
+   366→   366→    aircraft: "Airbus A380-800",
+   367→   367→    from: {
+   368→   368→      airport: "San Francisco International",
+   369→   369→      code: "SFO",
+   370→   370→      city: "San Francisco",
+   371→   371→      terminal: "International A",
+   372→   372→      gate: "A6",
+   373→   373→      scheduled: "20:30",
+   374→   374→      estimated: "20:38",
+   375→   375→    },
+   376→   376→    to: {
+   377→   377→      airport: "London Heathrow",
+   378→   378→      code: "LHR",
+   379→   379→      city: "London",
+   380→   380→      terminal: "T5",
+   381→   381→      gate: "—",
+   382→   382→      scheduled: "14:35 +1",
+   383→   383→      estimated: "14:20 +1",
+   384→   384→    },
+   385→   385→    status: "En route",
+   386→   386→    statusTone: "enroute",
+   387→   387→    progress: 71,
+   388→   388→  },
+   389→   389→  DL432: {
+   390→   390→    airline: "Delta Air Lines",
+   391→   391→    flightNumber: "DL432",
+   392→   392→    aircraft: "Airbus A321neo",
+   393→   393→    from: {
+   394→   394→      airport: "John F. Kennedy International",
+   395→   395→      code: "JFK",
+   396→   396→      city: "New York",
+   397→   397→      terminal: "T4",
+   398→   398→      gate: "B37",
+   399→   399→      scheduled: "08:00",
+   400→   400→      estimated: "08:00",
+   401→   401→    },
+   402→   402→    to: {
+   403→   403→      airport: "Los Angeles International",
+   404→   404→      code: "LAX",
+   405→   405→      city: "Los Angeles",
+   406→   406→      terminal: "T3",
+   407→   407→      gate: "—",
+   408→   408→      scheduled: "11:20",
+   409→   409→      estimated: "11:14",
+   410→   410→    },
+   411→   411→    status: "On time",
+   412→   412→    statusTone: "scheduled",
+   413→   413→    progress: 0,
+   414→   414→  },
+   415→   415→  EK202: {
+   416→   416→    airline: "Emirates",
+   417→   417→    flightNumber: "EK202",
+   418→   418→    aircraft: "Boeing 777-300ER",
+   419→   419→    from: {
+   420→   420→      airport: "Dubai International",
+   421→   421→      code: "DXB",
+   422→   422→      city: "Dubai",
+   423→   423→      terminal: "T3",
+   424→   424→      gate: "A12",
+   425→   425→      scheduled: "03:00",
+   426→   426→      estimated: "03:00",
+   427→   427→    },
+   428→   428→    to: {
+   429→   429→      airport: "John F. Kennedy International",
+   430→   430→      code: "JFK",
+   431→   431→      city: "New York",
+   432→   432→      terminal: "T4",
+   433→   433→      gate: "—",
+   434→   434→      scheduled: "08:55",
+   435→   435→      estimated: "08:41",
+   436→   436→    },
+   437→   437→    status: "Boarding",
+   438→   438→    statusTone: "boarding",
+   439→   439→    progress: 0,
+   440→   440→  },
+   441→   441→};
+   442→   442→
+   443→   443→/* ─── Editorial content ────────────────────────────────────── */
+   444→   444→
+   445→   445→export const PRINCIPLES = [
+   446→   446→  {
+   447→   447→    title: "Precision",
+   448→   448→    description:
+   449→   449→      "Every journey is coordinated around the details that matter — timing, routing, and readiness.",
+   450→   450→  },
+   451→   451→  {
+   452→   452→    title: "Discretion",
+   453→   453→    description:
+   454→   454→      "Professional service with respect for privacy and personal space, at every step of the journey.",
+   455→   455→  },
+   456→   456→  {
+   457→   457→    title: "Professionalism",
+   458→   458→    description:
+   459→   459→      "A polished experience from booking through arrival — presented, prepared, and accountable.",
+   460→   460→  },
+   461→   461→  {
+   462→   462→    title: "Control",
+   463→   463→    description:
+   464→   464→      "A managed journey rather than an unpredictable ride. Coordinated, monitored, confirmed.",
+   465→   465→  },
+   466→   466→];
+   467→   467→
+   468→   468→export const CHAUFFEUR_STEPS = [
+   469→   469→  {
+   470→   470→    step: "01",
+   471→   471→    title: "Book",
+   472→   472→    description:
+   473→   473→      "Tell us where and when. Your journey enters the Archer operation — confirmed, coordinated, tracked.",
+   474→   474→  },
+   475→   475→  {
+   476→   476→    step: "02",
+   477→   477→    title: "Prepare",
+   478→   478→    description:
+   479→   479→      "Your chauffeur is briefed, your vehicle is prepared, and every detail is checked before you step outside.",
+   480→   480→  },
+   481→   481→  {
+   482→   482→    step: "03",
+   483→   483→    title: "Arrive",
+   484→   484→    description:
+   485→   485→      "Your chauffeur arrives ahead of schedule — positioned, presented, and ready when you are.",
+   486→   486→  },
+   487→   487→  {
+   488→   488→    step: "04",
+   489→   489→    title: "Ride",
+   490→   490→    description:
+   491→   491→      "Settle into a quiet, prepared cabin. The journey is managed for you, start to finish.",
+   492→   492→  },
+   493→   493→  {
+   494→   494→    step: "05",
+   495→   495→    title: "Arrive",
+   496→   496→    description:
+   497→   497→      "You arrive composed and on time — every time. That is the Archer standard.",
+   498→   498→  },
+   499→   499→];
+   500→   500→
+   501→   501→export const AVIATION_POINTS = [
+   502→   502→  {
+   503→   503→    title: "Airport transfers",
+   504→   504→    description: "Reliable pickups and drop-offs for arrivals and departures.",
+   505→   505→  },
+   506→   506→  {
+   507→   507→    title: "Flight-aware planning",
+   508→   508→    description: "Journey coordination informed by your flight details.",
+   509→   509→  },
+   510→   510→  {
+   511→   511→    title: "Meet & greet",
+   512→   512→    description: "A professional welcome and a smooth handoff to your vehicle.",
+   513→   513→  },
+   514→   514→  {
+   515→   515→    title: "Passenger coordination",
+   516→   516→    description: "Clear communication for you and those traveling with you.",
+   517→   517→  },
+   518→   518→  {
+   519→   519→    title: "Private aviation support",
+   520→   520→    description: "Chauffeur service coordinated around private aviation journeys, where supported.",
+   521→   521→  },
+   522→   522→];
+   523→   523→
+   524→   524→export const CLIENT_CAR_STEPS = [
+   525→   525→  {
+   526→   526→    step: "01",
+   527→   527→    title: "Vehicle handoff",
+   528→   528→    description:
+   529→   529→      "Your vehicle is entrusted to an Archer professional under a clear service agreement.",
+   530→   530→  },
+   531→   531→  {
+   532→   532→    step: "02",
+   533→   533→    title: "Pre-service check",
+   534→   534→    description:
+   535→   535→      "Condition, cleanliness and readiness are documented before every journey.",
+   536→   536→  },
+   537→   537→  {
+   538→   538→    step: "03",
+   539→   539→    title: "Drive",
+   540→   540→    description:
+   541→   541→      "Your vehicle is operated with the same standard as the Archer fleet — discreet and precise.",
+   542→   542→  },
+   543→   543→  {
+   544→   544→    step: "04",
+   545→   545→    title: "Drop-off",
+   546→   546→    description:
+   547→   547→      "Passengers and vehicle arrive where they need to be, on your schedule.",
+   548→   548→  },
+   549→   549→  {
+   550→   550→    step: "05",
+   551→   551→    title: "Closeout",
+   552→   552→    description:
+   553→   553→      "A structured close of service — documentation, feedback and next steps.",
+   554→   554→  },
+   555→   555→];
+   556→   556→
+   557→   557→export const AUDIENCES = [
+   558→   558→  {
+   559→   559→    title: "Executives",
+   560→   560→    description: "Board-level schedules that cannot tolerate uncertainty.",
+   561→   561→    icon: "briefcase",
+   562→   562→  },
+   563→   563→  {
+   564→   564→    title: "Private Clients",
+   565→   565→    description: "Discreet, personal service for individuals and families.",
+   566→   566→    icon: "shield",
+   567→   567→  },
+   568→   568→  {
+   569→   569→    title: "Executive Assistants",
+   570→   570→    description: "Reliable execution for the people who keep calendars moving.",
+   571→   571→    icon: "calendar",
+   572→   572→  },
+   573→   573→  {
+   574→   574→    title: "Corporate Teams",
+   575→   575→    description: "Consistent ground transportation across people and places.",
+   576→   576→    icon: "building",
+   577→   577→  },
+   578→   578→  {
+   579→   579→    title: "Families",
+   580→   580→    description: "Comfort, space and care for the journeys that matter most.",
+   581→   581→    icon: "users",
+   582→   582→  },
+   583→   583→  {
+   584→   584→    title: "Events & Productions",
+   585→   585→    description: "Coordinated movement for casts, crews and guests.",
+   586→   586→    icon: "clapperboard",
+   587→   587→  },
+   588→   588→  {
+   589→   589→    title: "Travel & Hospitality Partners",
+   590→   590→    description: "A ground-transportation partner your guests can rely on.",
+   591→   591→    icon: "globe",
+   592→   592→  },
+   593→   593→];
+   594→   594→
+   595→   595→export const HOW_IT_WORKS = [
+   596→   596→  {
+   597→   597→    step: "01",
+   598→   598→    title: "Book",
+   599→   599→    description: "Tell us where and when — online, or through WhatsApp dispatch.",
+   600→   600→  },
+   601→   601→  {
+   602→   602→    step: "02",
+   603→   603→    title: "Match",
+   604→   604→    description: "Archer coordinates the appropriate service and vehicle for the journey.",
+   605→   605→  },
+   606→   606→  {
+   607→   607→    step: "03",
+   608→   608→    title: "Ride",
+   609→   609→    description: "Your journey is professionally managed from pickup to destination.",
+   610→   610→  },
+   611→   611→  {
+   612→   612→    step: "04",
+   613→   613→    title: "Arrive",
+   614→   614→    description: "Get there comfortably, confidently — on time, in style, every time.",
+   615→   615→  },
+   616→   616→];
+   617→   617→
+   618→   618→export const SECURITY_POINTS = [
+   619→   619→  {
+   620→   620→    title: "Professional coordination",
+   621→   621→    description: "Journeys planned and communicated with operational discipline.",
+   622→   622→  },
+   623→   623→  {
+   624→   624→    title: "Security-aware transportation",
+   625→   625→    description: "Routing and service delivered with security awareness in mind.",
+   626→   626→  },
+   627→   627→  {
+   628→   628→    title: "Discreet service",
+   629→   629→    description: "Low-profile, respectful and private — by default.",
+   630→   630→  },
+   631→   631→  {
+   632→   632→    title: "Executive-focused mobility",
+   633→   633→    description: "Built around the movement needs of executives and principals.",
+   634→   634→  },
+   635→   635→  {
+   636→   636→    title: "Approved security services",
+   637→   637→    description: "Security-related services provided per applicable agreements.",
+   638→   638→  },
+   639→   639→];
+   640→   640→
+   641→   641→/* ─── FAQ ──────────────────────────────────────────────────── */
+   642→   642→
+   643→   643→export interface FaqCategory {
+   644→   644→  category: string;
+   645→   645→  items: { question: string; answer: string }[];
+   646→   646→}
+   647→   647→
+   648→   648→export const FAQS: FaqCategory[] = [
+   649→   649→  {
+   650→   650→    category: "Booking",
+   651→   651→    items: [
+   652→   652→      {
+   653→   653→        question: "How do I book an Archer ride?",
+   654→   654→        answer:
+   655→   655→          "You can book through the booking experience on this site, or message our 24/7 dispatch directly on WhatsApp. Tell us where and when — Archer coordinates the rest.",
+   656→   656→      },
+   657→   657→      {
+   658→   658→        question: "Can I request a quote?",
+   659→   659→        answer:
+   660→   660→          "Yes. Use the booking panel to receive an example estimate instantly, or contact dispatch for a confirmed quote. All final pricing, taxes and fees are confirmed by our team before your booking is finalized.",
+   661→   661→      },
+   662→   662→      {
+   663→   663→        question: "Can I book through WhatsApp?",
+   664→   664→        answer:
+   665→   665→          "Absolutely. WhatsApp is a first-class booking channel at Archer — message dispatch with your journey details and we will coordinate your ride conversationally.",
+   666→   666→      },
+   667→   667→      {
+   668→   668→        question: "Can I request an hourly chauffeur?",
+   669→   669→        answer:
+   670→   670→          "Yes. Choose the HOURLY tab in the booking panel and set your pickup, date, time and duration. A dedicated chauffeur and vehicle stay with your itinerary.",
+   671→   671→      },
+   672→   672→    ],
+   673→   673→  },
+   674→   674→  {
+   675→   675→    category: "Airport",
+   676→   676→    items: [
+   677→   677→      {
+   678→   678→        question: "Can Archer handle airport transfers?",
+   679→   679→        answer:
+   680→   680→          "Yes — airport transfers are a core Archer service for arrivals and departures, commercial and private aviation.",
+   681→   681→      },
+   682→   682→      {
+   683→   683→        question: "Can I add my flight number?",
+   684→   684→        answer:
+   685→   685→          "Yes. Add your flight number during booking so your journey can be coordinated with your flight details.",
+   686→   686→      },
+   687→   687→      {
+   688→   688→        question: "How does flight tracking work?",
+   689→   689→        answer:
+   690→   690→          "Our flight tracker lets you look up flights by flight number or tail number. For booked journeys, dispatch uses your flight details to coordinate pickup timing — you will receive a confirmation of your coordinated pickup.",
+   691→   691→      },
+   692→   692→      {
+   693→   693→        question: "Can Archer support private aviation / FBO journeys?",
+   694→   694→        answer:
+   695→   695→          "Yes, where supported. Archer coordinates chauffeur service around private aviation journeys. Specific access and permissions depend on the airport and operator — dispatch will confirm the details for your journey.",
+   696→   696→      },
+   697→   697→    ],
+   698→   698→  },
+   699→   699→  {
+   700→   700→    category: "Vehicles",
+   701→   701→    items: [
+   702→   702→      {
+   703→   703→        question: "What vehicles are available?",
+   704→   704→        answer:
+   705→   705→          "The Archer fleet is organized by service class — Executive (sedan / compact SUV), 1st Class (full-size SUV) and Group (Sprinter). Explore the fleet section for representative vehicles and specifications.",
+   706→   706→      },
+   707→   707→      {
+   708→   708→        question: "Can I request a specific vehicle?",
+   709→   709→        answer:
+   710→   710→          "You may request a preferred vehicle or class. Final vehicle assignment is confirmed by dispatch at booking, based on availability and journey requirements.",
+   711→   711→      },
+   712→   712→      {
+   713→   713→        question: "How many passengers can each vehicle accommodate?",
+   714→   714→        answer:
+   715→   715→          "Executive class typically seats up to 3 passengers, 1st Class SUVs up to 6, and the Sprinter up to 12. Passenger and luggage capacity is confirmed with your booking.",
+   716→   716→      },
+   717→   717→    ],
+   718→   718→  },
+   719→   719→  {
+   720→   720→    category: "Client Car",
+   721→   721→    items: [
+   722→   722→      {
+   723→   723→        question: "Can Archer drive my own vehicle?",
+   724→   724→        answer:
+   725→   725→          "Yes — Client Car Service is an Archer differentiator. We provide a professional driver to operate your own vehicle, held to the same standard as our fleet.",
+   726→   726→      },
+   727→   727→      {
+   728→   728→        question: "What is required before dispatch?",
+   729→   729→        answer:
+   730→   730→          "Required agreements and operational requirements — including insurance, vehicle documentation and service terms — must be completed before dispatch. Our team will guide you through setup.",
+   731→   731→      },
+   732→   732→    ],
+   733→   733→  },
+   734→   734→  {
+   735→   735→    category: "Security",
+   736→   736→    items: [
+   737→   737→      {
+   738→   738→        question: "What security-related services does Archer provide?",
+   739→   739→        answer:
+   740→   740→          "Archer provides security-aware transportation, professional coordination and approved security-related services for executive-focused mobility. Specific capabilities are confirmed per agreement — contact dispatch to discuss your requirements.",
+   741→   741→      },
+   742→   742→    ],
+   743→   743→  },
+   744→   744→  {
+   745→   745→    category: "Changes & Cancellation",
+   746→   746→    items: [
+   747→   747→      {
+   748→   748→        question: "How do I modify a booking?",
+   749→   749→        answer:
+   750→   750→          "Message dispatch on WhatsApp or contact your booking confirmation channel with your booking reference. Changes are confirmed by our team based on availability.",
+   751→   751→      },
+   752→   752→      {
+   753→   753→        question: "What happens if my plans change?",
+   754→   754→        answer:
+   755→   755→          "Contact dispatch as soon as possible. We will work to adjust your journey. Cancellation terms that apply to your booking are shown with your quote and confirmed at booking.",
+   756→   756→      },
+   757→   757→    ],
+   758→   758→  },
+   759→   759→  {
+   760→   760→    category: "Service Areas",
+   761→   761→    items: [
+   762→   762→      {
+   763→   763→        question: "Where does Archer operate?",
+   764→   764→        answer:
+   765→   765→          "Archer provides premium executive transportation across supported cities and airports. Coverage is confirmed by dispatch at booking — the directories on this page show sample coverage for illustration.",
+   766→   766→      },
+   767→   767→      {
+   768→   768→        question: "How do I check airport or city availability?",
+   769→   769→        answer:
+   770→   770→          "Use the airport directory and city selector on this page to explore coverage, then confirm your journey with dispatch. Availability is always confirmed at booking.",
+   771→   771→      },
+   772→   772→    ],
+   773→   773→  },
+   774→   774→];
+   775→   775→
+   776→   776→/* ─── Booking options ──────────────────────────────────────── */
+   777→   777→
+   778→   778→export const VEHICLE_CLASS_OPTIONS = [
+   779→   779→  { value: "EXECUTIVE", label: "Executive — Sedan / Compact SUV" },
+   780→   780→  { value: "FIRST_CLASS", label: "1st Class — Full-Size SUV" },
+   781→   781→  { value: "GROUP", label: "Group — Sprinter" },
+   782→   782→  { value: "DISPATCH", label: "Let dispatch recommend" },
+   783→   783→];
+   784→   784→
+   785→   785→export const SERVICE_OPTIONS = SERVICES.map((s) => ({
+   786→   786→  value: s.id,
+   787→   787→  label: s.label,
+   788→   788→}));
+   789→   789→
+   790→   790→export const BOOKING_TABS = [
+   791→   791→  { id: "one-way", label: "One Way" },
+   792→   792→  { id: "hourly", label: "Hourly" },
+   793→   793→  { id: "airport", label: "Airport" },
+   794→   794→  { id: "special", label: "Special Request" },
+   795→   795→] as const;
+   796→   796→
+   797→   797→export type BookingTabId = (typeof BOOKING_TABS)[number]["id"];
+   798→   798→

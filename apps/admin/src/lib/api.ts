@@ -1,4 +1,9 @@
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+const BASE = 
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? 'https://api.archerexecutivecar.com/api/v1'
+    : 'http://localhost:8000/api/v1');
 const TOKEN_KEY = 'archer_admin_token';
 
 export class ApiError extends Error {

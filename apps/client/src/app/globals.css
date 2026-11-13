@@ -1,0 +1,118 @@
+:root {
+  --bg: #121212; --panel: #1E1E1E; --panel2: #171717; --line: rgba(255,255,255,0.1); --text: #F4F1EC; --muted: #B3ADA5;
+  --accent: #E87722; --accent-hover: #F59A52; --ok: #4CAF7A; --danger: #E5604D;
+  --head: var(--font-epilogue), sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: var(--font-roboto), Arial, sans-serif; font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+a { color: var(--accent); text-decoration: none; }
+h1, h2, h3 { font-family: var(--head); margin: 0; }
+input, select, textarea, button { font: inherit; }
+
+.shell { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(88px + env(safe-area-inset-bottom)); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0 20px; }
+.brand { display: flex; flex-direction: column; line-height: 1; }
+.brand b { font-family: var(--head); font-weight: 800; font-size: 19px; letter-spacing: 0.1em; color: var(--accent); }
+.brand span { font-size: 9px; letter-spacing: 0.26em; color: #E6E1DA; margin-top: 5px; }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; background: rgba(18,18,18,0.96); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); backdrop-filter: blur(8px); }
+.tabbar nav { display: flex; width: 100%; max-width: 720px; }
+.tabbar a { flex: 1; text-align: center; padding: 14px 8px; min-height: 56px; color: var(--muted); font-size: 12px; letter-spacing: 0.12em; font-weight: 500; }
+.tabbar a[aria-current="page"] { color: var(--accent); box-shadow: inset 0 2px 0 var(--accent); }
+
+.eyebrow { font-size: 12px; letter-spacing: 0.24em; color: var(--accent); font-weight: 500; }
+.title { font-size: 30px; line-height: 1.1; margin: 6px 0 4px; }
+.muted { color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 12px 22px; background: var(--accent); color: #121212; border: 0; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; border-radius: 2px; }
+.btn:hover { background: var(--accent-hover); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+.btn.ghost { background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.35); }
+.btn.block { width: 100%; }
+.link-btn { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 6px 0; min-height: 44px; }
+
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: #C9C3BB; }
+.input { background: var(--panel); border: 1px solid rgba(255,255,255,0.18); color: var(--text); padding: 13px 14px; border-radius: 2px; font-size: 16px; }
+.input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.code { letter-spacing: 0.5em; font-size: 24px; text-align: center; font-family: var(--head); }
+
+.seg { display: inline-flex; border: 1px solid #444; width: 100%; }
+.seg button { flex: 1; min-height: 46px; background: transparent; color: var(--muted); border: 0; font-size: 13px; letter-spacing: 0.1em; font-weight: 500; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #121212; }
+
+.card { background: var(--panel); border: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+a.card { color: var(--text); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.ref { font-size: 12px; letter-spacing: 0.16em; color: var(--muted); }
+.route { display: flex; flex-direction: column; gap: 2px; font-size: 15px; }
+.badge { display: inline-block; font-size: 11px; letter-spacing: 0.14em; font-weight: 600; padding: 4px 10px; border: 1px solid var(--accent); color: var(--accent); white-space: nowrap; }
+.badge.done { border-color: var(--ok); color: var(--ok); }
+.badge.cancelled { border-color: var(--danger); color: var(--danger); }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.timeline li { display: flex; gap: 14px; position: relative; padding-bottom: 22px; }
+.timeline li:last-child { padding-bottom: 0; }
+.timeline li::before { content: ""; position: absolute; left: 9px; top: 22px; bottom: 0; width: 2px; background: #333; }
+.timeline li:last-child::before { display: none; }
+.timeline li.reached::before { background: var(--accent); }
+.dot { flex: 0 0 20px; height: 20px; border-radius: 50%; border: 2px solid #444; background: var(--bg); margin-top: 2px; z-index: 1; }
+.reached .dot { background: var(--accent); border-color: var(--accent); }
+.current .dot { box-shadow: 0 0 0 5px rgba(232,119,34,0.25); }
+.timeline .lbl { font-weight: 500; }
+.timeline li:not(.reached) .lbl { color: var(--muted); }
+
+.kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 14px; font-size: 15px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; word-break: break-word; }
+.alert { border: 1px solid var(--accent); background: var(--panel); padding: 12px 14px; font-size: 14px; }
+.alert.ok { border-color: var(--ok); }
+.empty { text-align: center; padding: 48px 16px; border: 1px dashed #444; color: var(--muted); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; background: #333 center/cover; display: grid; place-items: center; font-family: var(--head); font-weight: 700; color: var(--accent); }
+.center { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.auth { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 18px; }
+
+/* ---------- Responsive layout ---------- */
+.cards { display: grid; gap: 14px; grid-template-columns: 1fr; }
+.detail { display: flex; flex-direction: column; gap: 14px; }
+.account-grid { display: flex; flex-direction: column; gap: 14px; }
+.ride-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Small phones (320 to 380): tighter gutters and type, shorter label column. */
+@media (max-width: 380px) {
+  .shell { padding-left: 12px; padding-right: 12px; }
+  .title { font-size: 26px; }
+  .card { padding: 14px; }
+  .kv { grid-template-columns: 84px 1fr; gap: 6px 10px; font-size: 14px; }
+  .btn { padding: 12px 16px; letter-spacing: 0.03em; }
+  .seg button { font-size: 12px; letter-spacing: 0.06em; }
+  .code { letter-spacing: 0.35em; font-size: 22px; }
+}
+
+/* Tablets and up: wider column, ride cards in a grid, ride detail in two columns. */
+@media (min-width: 768px) {
+  .shell { max-width: 960px; padding: 88px 28px 48px; }
+  .title { font-size: 36px; }
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .seg { width: auto; min-width: 320px; }
+  .account-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .account-grid .wide { grid-column: 1 / -1; }
+  /* Navigation moves from the bottom bar to the top. */
+  .tabbar { top: 0; bottom: auto; border-top: 0; border-bottom: 1px solid var(--line); padding-bottom: 0; }
+  .tabbar nav { max-width: 960px; padding: 0 28px; justify-content: flex-start; gap: 4px; }
+  .tabbar a { flex: 0 0 auto; padding: 0 22px; min-height: 60px; display: inline-flex; align-items: center; box-shadow: none; }
+  .tabbar a[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--accent); }
+}
+@media (min-width: 900px) {
+  .detail { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .detail > :nth-child(-n + 2), .detail > :last-child { grid-column: 1 / -1; }
+  .detail .span2 { grid-column: 1 / -1; }
+}
+@media (min-width: 1200px) {
+  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shell { max-width: 1120px; }
+  .tabbar nav { max-width: 1120px; }
+}
+
+/* Respect reduced motion and landscape phones (short viewports). */
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-height: 480px) and (orientation: landscape) { .center { align-items: start; padding-top: 16px; } .tabbar a { min-height: 44px; padding: 10px 8px; } }
