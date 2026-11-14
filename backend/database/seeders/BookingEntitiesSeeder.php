@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Driver;
 use App\Models\DriverTier;
 use App\Models\SecurityAddon;
-use App\Models\Vehicle;
 use Illuminate\Database\Seeder;
 
 class BookingEntitiesSeeder extends Seeder
@@ -154,9 +153,8 @@ class BookingEntitiesSeeder extends Seeder
             ],
         ];
 
-        foreach ($vehicles as $v) {
-            Vehicle::updateOrCreate(['slug' => $v['slug']], $v);
-        }
+        // Retired 2026-11-14: Website Fleet (site_vehicles) is the only fleet list. Rows are no longer seeded.
+        unset($vehicles);
 
         // 3. Security Add-ons
         $securityAddons = [

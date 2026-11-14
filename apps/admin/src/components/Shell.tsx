@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Calculator,
   Bell, CalendarCheck, CalendarClock, Car, ChevronsLeft, ChevronsRight, CircleCheckBig, ClipboardList, CreditCard,
   FileText, Image as ImageIcon, LayoutDashboard, LogOut, type LucideIcon, Menu, Monitor, Moon, Plug, Route, ScrollText,
   Search, Settings, ShieldCheck, MessageSquare, Sun, UserRound, Users, Wallet, X, Clock, Check, ChevronRight,
@@ -16,7 +17,7 @@ import { ArcherLogo } from './ArcherLogo';
 const ICONS: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboard, route: Route, 'calendar-check': CalendarCheck, users: Users,
   'clipboard-list': ClipboardList, 'user-round': UserRound, 'shield-check': ShieldCheck, 'message-square': MessageSquare, car: Car,
-  'calendar-clock': CalendarClock, 'credit-card': CreditCard, 'circle-check-big': CircleCheckBig, wallet: Wallet,
+  'calendar-clock': CalendarClock, 'credit-card': CreditCard, 'circle-check-big': CircleCheckBig, wallet: Wallet, calculator: Calculator,
   'file-text': FileText, image: ImageIcon, menu: Menu, search: Search, 'scroll-text': ScrollText, plug: Plug, settings: Settings,
 };
 const COLLAPSE_KEY = 'archer_admin_sidebar_collapsed';

@@ -1,5 +1,7 @@
 'use client';
 
+import { DetailsView } from '@/components/DetailsView';
+
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { 
@@ -48,6 +50,7 @@ export interface RideRequest {
   assigned_driver?: Driver | null;
   status: 'pending' | 'dispatched' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_notes: string | null;
+  details?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -398,6 +401,13 @@ export default function RidesPage() {
                       </span>
                     </div>
                   </div>
+
+                  {selectedRide.details && Object.keys(selectedRide.details).length > 0 && (
+                    <div style={{ marginTop: 16 }}>
+                      <span className="card-section-title">Everything the customer sent</span>
+                      <DetailsView data={selectedRide.details} />
+                    </div>
+                  )}
 
                   {selectedRide.driver_preference && (
                     <div className="preference-banner">

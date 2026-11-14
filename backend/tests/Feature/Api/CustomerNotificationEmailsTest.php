@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use Database\Seeders\SiteContentSeeder;
 use App\Models\Driver;
 use App\Models\RideRequest;
 use Database\Seeders\DatabaseSeeder;
@@ -18,6 +19,7 @@ class CustomerNotificationEmailsTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+        $this->seed(SiteContentSeeder::class);
     }
 
     private function sentMessages(): Collection

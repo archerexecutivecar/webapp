@@ -8,7 +8,7 @@ use App\Models\Driver;
 use App\Models\RideRequest;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\Vehicle;
+use App\Models\SiteVehicle;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,8 +31,8 @@ class DashboardController extends Controller
         // 2. Chauffeur & Fleet Readiness
         $totalDrivers = Driver::count();
         $activeDrivers = Driver::where('is_active', true)->count();
-        $totalVehicles = Vehicle::count();
-        $activeVehicles = Vehicle::where('is_active', true)->count();
+        $totalVehicles = SiteVehicle::count();
+        $activeVehicles = SiteVehicle::where('is_active', true)->count();
 
         // 3. Today & Weekly Trend
         $todayDate = now()->toDateString();

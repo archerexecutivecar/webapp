@@ -6,7 +6,7 @@ import { DISPATCH_PHONE_TEL } from "@/lib/archer-data";
 import { useSiteSettings } from "@/lib/site-settings";
 import type { SiteData } from "@/lib/site-api";
 import { ClientReviews } from "@/components/archer/v2/client-reviews";
-import { AppStores, D, EYEBROW, ghost, HEAD, LegalLinks, PHONE, PhoneIcon, primary, SiteHeader, WRAP } from "@/components/archer/v2/shared";
+import { AppStores, D, EYEBROW, ghost, HEAD, LegalLinks, PHONE, PhoneIcon, primary, SiteHeader, SocialLinks, WRAP } from "@/components/archer/v2/shared";
 
 
 const SLIDES_DEFAULT = [
@@ -51,6 +51,13 @@ const TRUST_DEFAULT = [
   ["24/7 dispatch", "Fort Monmouth operations desk"],
 ];
 
+/** Line icons for the trust strip, by position: certified badge, shield, map pin, clock. */
+const TRUST_ICONS = [
+  "M12 3l2.4 1.8 3-.2.9 2.9 2.5 1.7-1 2.8 1 2.8-2.5 1.7-.9 2.9-3-.2L12 21l-2.4-1.8-3 .2-.9-2.9-2.5-1.7 1-2.8-1-2.8 2.5-1.7.9-2.9 3 .2L12 3zm-3 9l2 2 4-4",
+  "M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6l8-3zm-3 9l2 2 4-4",
+  "M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zm0-9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+  "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm0-13v4.5l3 2",
+];
 
 export function HomeV2({ site }: { site?: SiteData | null } = {}) {
   const h = site?.home;
@@ -108,14 +115,22 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
       </section>
 
       <section aria-label="Why Archer" className="border-b border-[#2E2E2E] bg-[#1A1A1A]">
-        <div className={`${WRAP} grid !py-0 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]`}>
-          {TRUST.map(([a, b]) => (
-            <div key={a} className="flex flex-col px-4 py-7 text-center">
-              <strong className="text-[16px]" style={HEAD}>{a}</strong>
-              <span className="text-[13px] text-[#B3ADA5]">{b}</span>
-            </div>
+        <ul className={`${WRAP} grid grid-cols-2 !py-0 lg:grid-cols-4`}>
+          {TRUST.map(([a, b], i) => (
+            <li
+              key={a}
+              className={`flex flex-col items-start gap-2 py-5 pr-3 sm:flex-row sm:items-center sm:gap-4 sm:py-7 lg:px-6 lg:first:pl-0 ${i % 2 ? "pl-4 border-l border-[#2E2E2E]" : ""} ${i > 1 ? "border-t border-[#2E2E2E] lg:border-t-0" : ""} ${i === 2 ? "lg:border-l lg:pl-6" : ""}`}
+            >
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#E87722]/40 bg-[#E87722]/10 text-[#E87722]" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={TRUST_ICONS[i % TRUST_ICONS.length]} /></svg>
+              </span>
+              <span className="flex min-w-0 flex-col leading-snug">
+                <strong className="text-[14px] text-[#F4F1EC] sm:text-[15px]" style={HEAD}>{a}</strong>
+                <span className="text-[12px] text-[#B3ADA5] sm:text-[13px]">{b}</span>
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
       <section id="services" className={`${WRAP} py-14 md:py-[110px]`}>
@@ -210,7 +225,8 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
             <div className="flex flex-col gap-3">
               <span className="text-[18px] font-extrabold tracking-[0.1em] text-[#E87722]" style={HEAD}>ARCHER EXECUTIVE</span>
               <span>{st.address.map((l, i) => (<span key={l}>{i > 0 && <br />}{l}</span>))}</span>
-              <span>{st.phone}<br />{st.email}</span>
+              <span>{st.phone}{st.phone_secondary && <><br />{st.phone_secondary}</>}<br />{st.email}</span>
+              <SocialLinks />
             </div>
             <FooterCol title="SERVICES" links={[["Hourly", "/services/hourly"], ["Airport", "/services/airport"], ["Point to Point", "/services/point-to-point"], ["Client Car Service", "/services/client-car"], ["Concierge", "/services/concierge"]]} />
             <FooterCol title="ARCHER" links={[["Tiers of Service", "/tiers"], ["Fleet", "/fleet"], ["Security", "#security"], ["For EA's & PA's", "/services/assistants"]]} />

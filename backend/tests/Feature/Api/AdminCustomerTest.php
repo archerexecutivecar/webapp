@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use Database\Seeders\SiteContentSeeder;
 use App\Models\Driver;
 use App\Models\RideRequest;
 use App\Models\User;
@@ -94,6 +95,7 @@ class AdminCustomerTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+        $this->seed(SiteContentSeeder::class);
     }
 
     public function test_dispatcher_can_reset_customer_credentials_and_it_signs_them_out(): void

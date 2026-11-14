@@ -1,5 +1,7 @@
 'use client';
 
+import { DetailsView } from '@/components/DetailsView';
+
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
@@ -257,20 +259,10 @@ Their password will be removed, all their devices signed out, and an email sent 
                     <span className="card-section-title">EA/PA Profile {p.reference}</span>
                     <div className="detail-grid">
                       <div className="detail-item"><span className="detail-label">Company</span><span className="detail-value">{p.company ?? '—'}</span></div>
-                      <div className="detail-item"><span className="detail-label">Role</span><span className="detail-value">{p.data.about?.title ?? '—'}</span></div>
-                      <div className="detail-item"><span className="detail-label">Billing</span><span className="detail-value">{[p.data.billing?.payer, p.data.billing?.method].filter(Boolean).join(' · ') || '—'}</span></div>
-                      <div className="detail-item"><span className="detail-label">Billing contact</span><span className="detail-value">{[p.data.billing?.contact, p.data.billing?.email].filter(Boolean).join(' · ') || '—'}</span></div>
+                      <div className="detail-item"><span className="detail-label">Mobile</span><span className="detail-value">{p.mobile}</span></div>
+                      <div className="detail-item"><span className="detail-label">Saved</span><span className="detail-value">{dateOnly(p.created_at)}</span></div>
                     </div>
-                    <span className="card-section-title" style={{ marginTop: 12 }}>People they book for ({p.data.people?.length ?? 0})</span>
-                    {(p.data.people ?? []).map((person, i) => (
-                      <div key={i} style={{ padding: '8px 0', borderTop: '1px solid var(--border, rgba(128,128,128,.2))' }}>
-                        <span className="row-title">{person.name}{person.relationship ? ` · ${person.relationship}` : ''}</span>
-                        <span className="row-desc" style={{ display: 'block' }}>
-                          {[person.mobile, person.tier, person.vehicle?.replace('|', ' • ')].filter(Boolean).join(' · ')}
-                        </span>
-                        {person.preferences && <span className="row-desc" style={{ display: 'block' }}>Preferences: {person.preferences}</span>}
-                      </div>
-                    ))}
+                    <DetailsView data={p.data as Record<string, unknown>} />
                   </div>
                 ))}
               </div>

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use Database\Seeders\SiteContentSeeder;
 use App\Models\Driver;
 use App\Models\LoginCode;
 use App\Models\RideRequest;
@@ -46,6 +47,7 @@ class CustomerAccountTest extends TestCase
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
+        $this->seed(SiteContentSeeder::class);
     }
 
     public function test_booking_creates_a_customer_account_and_links_the_ride(): void
@@ -210,6 +212,61 @@ class CustomerAccountTest extends TestCase
 
         $mine = $list->json('data.rides.0.id');
         $this->getJson("/api/v1/customer/rides/{$mine}", $h)->assertOk()->assertJsonCount(4, 'data.ride.timeline');
+    }
+
+    public function test_a_customer_sees_only_their_own_assistant_profile(): void
+    {
+        $profile = fn (string $email, string $person) => $this->postJson('/api/v1/assistant-profiles', [
+            'first_name' => 'Pat', 'last_name' => 'Lee', 'email' => $email, 'mobile' => '(732) 555-0101', 'company' => 'Acme',
+            'terms_accepted' => true, 'about' => ['title' => 'EA to the CEO', 'backup_name' => 'Sam'],
+            'people' => [['name' => $person, 'airports' => 'EWR', 'preferences' => 'Quiet ride']],
+            'billing' => ['payer' => 'Company account', 'po' => 'PO-77'],
+        ])->assertCreated();
+        $profile('pat@example.com', 'Jane CEO');
+        $profile('other@example.com', 'Someone Else');
+
+        $this->getJson('/api/v1/customer/assistant-profiles')->assertUnauthorized();
+
+        $h = $this->signedIn('pat@example.com');
+        $res = $this->getJson('/api/v1/customer/assistant-profiles', $h)->assertOk();
+        $this->assertCount(1, $res->json('data.profiles'));
+        $res->assertJsonPath('data.profiles.0.data.people.0.name', 'Jane CEO')
+            ->assertJsonPath('data.profiles.0.data.people.0.airports', 'EWR')
+            ->assertJsonPath('data.profiles.0.data.about.backup_name', 'Sam')
+            ->assertJsonPath('data.profiles.0.data.billing.po', 'PO-77');
+        $this->assertStringNotContainsString('Someone Else', $res->getContent());
+    }
+
+    public function test_a_customer_can_edit_only_their_own_assistant_profile(): void
+    {
+        $make = fn (string $email) => $this->postJson('/api/v1/assistant-profiles', [
+            'first_name' => 'Pat', 'last_name' => 'Lee', 'email' => $email, 'mobile' => '(732) 555-0101', 'terms_accepted' => true,
+            'about' => ['title' => 'EA'], 'people' => [['name' => 'Jane CEO']], 'billing' => ['po' => 'PO-1'],
+        ])->json('data.reference');
+        $mine = $make('pat@example.com');
+        $theirs = $make('other@example.com');
+        $h = $this->signedIn('pat@example.com');
+        $url = fn (string $ref) => "/api/v1/customer/assistant-profiles/{$ref}";
+
+        $this->putJson($url($mine), ['company' => 'X'])->assertUnauthorized();
+        $this->putJson($url($theirs), ['company' => 'Hijack'], $h)->assertNotFound();
+        $this->putJson($url($mine), ['people' => [['airports' => 'EWR']]], $h)->assertUnprocessable(); // a person needs a name
+        $this->putJson($url($mine), ['billing' => ['email' => 'not-an-email']], $h)->assertUnprocessable();
+
+        $res = $this->putJson($url($mine), [
+            'company' => 'Acme', 'email' => 'attacker@example.com',
+            'people' => [['name' => 'Jane CEO', 'airports' => 'EWR'], ['name' => 'John CFO']],
+        ], $h)->assertOk();
+
+        $res->assertJsonPath('data.profiles.0.company', 'Acme')
+            ->assertJsonPath('data.profiles.0.email', 'pat@example.com')         // email can't be changed
+            ->assertJsonPath('data.profiles.0.data.people.1.name', 'John CFO')
+            ->assertJsonPath('data.profiles.0.data.about.title', 'EA')           // sections not sent are kept
+            ->assertJsonPath('data.profiles.0.data.billing.po', 'PO-1');
+        $this->assertSame('PO-1', \App\Models\AssistantProfile::where('reference', $theirs)->first()->data['billing']['po']);
+
+        $log = \App\Models\AuditLog::where('event', 'assistant_profile.updated_by_customer')->firstOrFail();
+        $this->assertStringNotContainsString('Jane', json_encode($log->toArray()));  // no personal details in the audit row
     }
 
     public function test_ride_output_never_includes_dispatch_notes_and_shows_the_assigned_chauffeur(): void

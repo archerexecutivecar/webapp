@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use Database\Seeders\SiteContentSeeder;
 use App\Models\AssistantProfile;
 use App\Models\AuditLog;
 use App\Models\RideRequest;
@@ -11,6 +12,13 @@ use Tests\TestCase;
 class PublicBookingTest extends TestCase
 {
     use RefreshDatabase;
+
+    // Bookings are validated against the Admin website catalog (tiers + fleet).
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(SiteContentSeeder::class);
+    }
 
     private const URL = '/api/v1/booking-requests';
 
@@ -35,6 +43,24 @@ class PublicBookingTest extends TestCase
             'date' => $this->future(), 'time' => '09:30', 'passengers' => 2, 'bags' => 1,
             'tier' => 2, 'vehicle_class' => 'exec', 'vehicle_size' => 'suv',
         ]);
+    }
+
+    public function test_tier_must_be_an_active_website_tier(): void
+    {
+        \App\Models\SiteTier::where('kind', 'driver')->where('tier', 2)->update(['is_active' => false]);
+
+        $this->postJson(self::URL, $this->p2p())->assertStatus(422)->assertJsonStructure(['error' => ['details' => ['tier']]]);
+        $this->postJson(self::URL, $this->p2p(['tier' => 9]))->assertStatus(422)->assertJsonStructure(['error' => ['details' => ['tier']]]);
+        $this->postJson(self::URL, $this->p2p(['tier' => 1]))->assertStatus(201);
+    }
+
+    public function test_vehicle_must_be_an_active_website_fleet_entry(): void
+    {
+        \App\Models\SiteVehicle::where('vehicle_class', 'exec')->where('size', 'suv')->update(['is_active' => false]);
+
+        $this->postJson(self::URL, $this->p2p())->assertStatus(422)->assertJsonStructure(['error' => ['details' => ['vehicle_size']]]);
+        $this->postJson(self::URL, $this->p2p(['vehicle_class' => 'first']))->assertStatus(201);
+        $this->assertSame(1, RideRequest::count());
     }
 
     public function test_point_to_point_request_is_stored_pending_with_reference_audit_and_notification(): void
