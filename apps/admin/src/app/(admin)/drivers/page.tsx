@@ -9,8 +9,8 @@ export interface Driver {
   name: string;
   email: string | null;
   phone: string | null;
-  tier_id: string | null;
-  tier?: { id: string; name: string } | null;
+  service_tier: number | null;
+  tier?: { tier: number; name: string } | null;
   user_id?: string | null;
   user?: { id: number; name: string; email: string } | null;
   avatar_url: string | null;
@@ -19,9 +19,12 @@ export interface Driver {
   is_active: boolean;
 }
 
+/** A driver tier from Admin → Website Tiers (kind = driver). */
 export interface DriverTier {
-  id: string;
-  name: string;
+  kind: string;
+  tier: number;
+  label: string;
+  is_active: boolean;
 }
 
 export default function DriversPage() {
@@ -45,10 +48,10 @@ export default function DriversPage() {
       setError(null);
       const [driversRes, tiersRes] = await Promise.all([
         api<{ drivers: Driver[] }>('/admin/drivers', { auth: true }),
-        api<{ tiers: DriverTier[] }>('/admin/tiers', { auth: true }).catch(() => ({ tiers: [] })),
+        api<{ tiers: DriverTier[] }>('/admin/site-tiers', { auth: true }).catch(() => ({ tiers: [] })),
       ]);
       setDrivers(driversRes.drivers);
-      setTiers(tiersRes.tiers);
+      setTiers((tiersRes.tiers ?? []).filter((t) => t.kind === 'driver'));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load drivers.');
     } finally {
@@ -65,7 +68,7 @@ export default function DriversPage() {
       name: '',
       email: '',
       phone: '',
-      tier_id: tiers[0]?.id || '',
+      service_tier: tiers[0]?.tier ?? null,
       bio: '',
       sort_order: drivers.length + 1,
       is_active: true,
@@ -297,13 +300,13 @@ export default function DriversPage() {
                 <div className="form-group">
                   <label className="zoho-label">Assigned Qualification Tier</label>
                   <select
-                    value={editing.tier_id || ''}
-                    onChange={(e) => setEditing({ ...editing, tier_id: e.target.value || null })}
+                    value={editing.service_tier ?? ''}
+                    onChange={(e) => setEditing({ ...editing, service_tier: e.target.value ? Number(e.target.value) : null })}
                   >
                     <option value="">No Tier Selected</option>
                     {tiers.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
+                      <option key={t.tier} value={t.tier}>
+                        {t.label}{t.is_active ? '' : ' (hidden on website)'}
                       </option>
                     ))}
                   </select>

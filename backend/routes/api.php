@@ -5,11 +5,8 @@ use App\Http\Controllers\Admin\CmsPageController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DriverController;
-use App\Http\Controllers\Admin\DriverTierController;
 use App\Http\Controllers\Admin\NavigationController;
 use App\Http\Controllers\Admin\RideDispatchController;
-use App\Http\Controllers\Admin\SecurityAddonController;
-use App\Http\Controllers\Admin\ServiceTypeController;
 use App\Http\Controllers\Admin\RateCardController;
 use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Admin\SiteTierController;
@@ -33,7 +30,6 @@ Route::prefix('v1')->group(function (): void {
     ]));
 
     // Public CMS & Service Type Endpoints
-    Route::get('/services', [PublicContentController::class, 'services']);
     Route::get('/booking-options', [PublicContentController::class, 'bookingOptions']);
     Route::post('/quotes', [\App\Http\Controllers\QuoteController::class, 'store'])->middleware('throttle:60,1');
     Route::post('/ride-requests', [PublicContentController::class, 'submitRideRequest']);
@@ -96,19 +92,8 @@ Route::prefix('v1')->group(function (): void {
         // CMS & Services Management (Protected by content.edit / content.publish permissions)
         Route::middleware('permission:content.edit')->group(function (): void {
             // Service Types
-            Route::get('/services', [ServiceTypeController::class, 'index']);
-            Route::post('/services', [ServiceTypeController::class, 'store']);
-            Route::get('/services/{id}', [ServiceTypeController::class, 'show']);
-            Route::put('/services/{id}', [ServiceTypeController::class, 'update']);
-            Route::delete('/services/{id}', [ServiceTypeController::class, 'destroy']);
-            Route::post('/services/reorder', [ServiceTypeController::class, 'reorder']);
 
             // Security Add-ons
-            Route::get('/security-addons', [SecurityAddonController::class, 'index']);
-            Route::post('/security-addons', [SecurityAddonController::class, 'store']);
-            Route::get('/security-addons/{id}', [SecurityAddonController::class, 'show']);
-            Route::put('/security-addons/{id}', [SecurityAddonController::class, 'update']);
-            Route::delete('/security-addons/{id}', [SecurityAddonController::class, 'destroy']);
 
             // Client testimonials (website shows the section only when an active one exists)
             Route::get('/testimonials', [TestimonialController::class, 'index']);
@@ -150,14 +135,6 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/pricing/simulate', [\App\Http\Controllers\QuoteController::class, 'store']);
         });
 
-        // Driver Tiers & Drivers (Protected by tiers.manage & drivers.manage permissions)
-        Route::middleware('permission:tiers.manage')->group(function (): void {
-            Route::get('/tiers', [DriverTierController::class, 'index']);
-            Route::post('/tiers', [DriverTierController::class, 'store']);
-            Route::get('/tiers/{id}', [DriverTierController::class, 'show']);
-            Route::put('/tiers/{id}', [DriverTierController::class, 'update']);
-            Route::delete('/tiers/{id}', [DriverTierController::class, 'destroy']);
-        });
 
         Route::middleware('permission:drivers.manage')->group(function (): void {
             Route::get('/drivers', [DriverController::class, 'index']);
@@ -167,9 +144,6 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/drivers/{id}', [DriverController::class, 'destroy']);
         });
 
-        // Fleet / Vehicles (Protected by fleet.manage permission)
-        Route::middleware('permission:fleet.manage')->group(function (): void {
-        });
     });
 
     // Driver Portal APIs (Authenticated Driver)

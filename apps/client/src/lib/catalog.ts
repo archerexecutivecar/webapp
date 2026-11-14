@@ -38,12 +38,12 @@ export type Catalog = {
   live: boolean;
 };
 
-/** Admin service slug for each booking flow the app supports. */
+/** Service key (Admin → Pricing & Simulator) for each booking flow the app supports. */
 export const SERVICE_SLUGS: Record<Exclude<AppService, "security">, string> = {
-  hourly: "hourly-chauffeur",
-  airport: "airport-transfer",
-  p2p: "intercity-point-to-point",
-  client: "client-car",
+  hourly: "hourly",
+  airport: "airport",
+  p2p: "p2p",
+  client: "client",
 };
 
 const FALLBACK: Catalog = {
@@ -135,7 +135,7 @@ export function buildCatalog(site: Record<string, unknown> | null, options: Reco
         const s = list.find((x) => x.slug === slug);
         if (s) services[id] = { name: s.name, tagline: s.tagline ?? null };
       }
-      if (addons.length) services.security = { name: "Protection", tagline: null };
+      if (addons.length && list.some((x) => x.slug === "security")) services.security = { name: "Protection", tagline: null };
       c.services = services;
     }
   }

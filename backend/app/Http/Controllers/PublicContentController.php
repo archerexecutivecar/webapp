@@ -7,10 +7,9 @@ use App\Models\AdminNotification;
 use App\Models\CmsPage;
 use App\Models\CmsTestimonial;
 use App\Models\Driver;
-use App\Models\DriverTier;
+use App\Models\PricingSetting;
 use App\Models\RideRequest;
-use App\Models\SecurityAddon;
-use App\Models\ServiceType;
+use App\Models\SiteTier;
 use App\Support\ApiResponse;
 use App\Support\CustomerMailer;
 use Illuminate\Http\JsonResponse;
@@ -18,26 +17,28 @@ use Illuminate\Http\Request;
 
 class PublicContentController extends Controller
 {
-    /** Returns public active services for website & client apps */
-    public function services(): JsonResponse
-    {
-        $services = ServiceType::active()->get();
+    private const SERVICE_NAMES = [
+        'hourly' => 'Hourly Service', 'airport' => 'Airport Transportation', 'p2p' => 'Point to Point',
+        'client' => 'Client Car Service', 'security' => 'Executive Protection / Security',
+    ];
 
-        return ApiResponse::data(['services' => $services]);
-    }
-
-    /** Returns public options for the request ride form */
+    /**
+     * Public options for booking forms, from the Admin website catalog: services switched on in
+     * Pricing & Simulator, Website Tiers (driver and security) and active drivers.
+     */
     public function bookingOptions(): JsonResponse
     {
-        $services = ServiceType::active()->get(['id', 'slug', 'name', 'tagline', 'badge', 'min_hours']);
-        $tiers = DriverTier::where('is_active', true)->orderBy('sort_order', 'asc')->get();
-        $securityAddons = SecurityAddon::where('is_active', true)->orderBy('sort_order', 'asc')->get();
+        $services = PricingSetting::where('is_active', true)->get(['service'])
+            ->map(fn (PricingSetting $s) => ['slug' => $s->service, 'name' => self::SERVICE_NAMES[$s->service] ?? $s->service, 'tagline' => null])
+            ->values();
+        $tiers = SiteTier::where('kind', 'driver')->where('is_active', true)->orderBy('sort_order')->get(['tier', 'label', 'title', 'call_only']);
+        $security = SiteTier::where('kind', 'security')->where('is_active', true)->orderBy('sort_order')->get(['tier', 'label', 'title', 'call_only']);
         $drivers = Driver::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'avatar_url', 'bio']);
 
         return ApiResponse::data([
             'services' => $services,
             'tiers' => $tiers,
-            'security_addons' => $securityAddons,
+            'security_addons' => $security,
             'drivers' => $drivers,
         ]);
     }
