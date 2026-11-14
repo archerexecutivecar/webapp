@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { api, errorText, SITE_URL } from "@/lib/api";
 import { Shell, useCustomer } from "@/components/Shell";
+import { AssistantProfileCard } from "@/components/AssistantProfileCard";
 
 function Account() {
   const { me, refresh, signOut } = useCustomer();
@@ -45,6 +46,8 @@ function Account() {
           <dt>Sign-in</dt><dd>Email code{me.has_password ? " or password" : ""}</dd>
         </dl>
       </section>
+
+      <AssistantProfileCard />
 
       <section className="card" aria-label="Password">
         <h2 style={{ fontSize: 20 }}>{me.has_password ? "Change password" : "Add a password (optional)"}</h2>

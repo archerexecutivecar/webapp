@@ -11,7 +11,6 @@ use App\Models\DriverTier;
 use App\Models\RideRequest;
 use App\Models\SecurityAddon;
 use App\Models\ServiceType;
-use App\Models\Vehicle;
 use App\Support\ApiResponse;
 use App\Support\CustomerMailer;
 use Illuminate\Http\JsonResponse;
@@ -32,14 +31,12 @@ class PublicContentController extends Controller
     {
         $services = ServiceType::active()->get(['id', 'slug', 'name', 'tagline', 'badge', 'min_hours']);
         $tiers = DriverTier::where('is_active', true)->orderBy('sort_order', 'asc')->get();
-        $vehicles = Vehicle::where('is_active', true)->orderBy('sort_order', 'asc')->get();
         $securityAddons = SecurityAddon::where('is_active', true)->orderBy('sort_order', 'asc')->get();
         $drivers = Driver::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'avatar_url', 'bio']);
 
         return ApiResponse::data([
             'services' => $services,
             'tiers' => $tiers,
-            'vehicles' => $vehicles,
             'security_addons' => $securityAddons,
             'drivers' => $drivers,
         ]);

@@ -21,7 +21,6 @@ return [
             ['key' => 'tiers', 'label' => 'Driver Tiers', 'href' => '/tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],
         ]],
         ['key' => 'fleet', 'label' => 'Fleet', 'items' => [
-            ['key' => 'vehicles', 'label' => 'Vehicles', 'href' => '/vehicles', 'icon' => 'car', 'permissions' => ['fleet.manage'], 'available' => true],
         ]],
         ['key' => 'website', 'label' => 'Website & Catalog', 'items' => [
             ['key' => 'services', 'label' => 'Service Types', 'href' => '/services', 'icon' => 'route', 'permissions' => ['content.edit'], 'available' => true],
@@ -31,6 +30,7 @@ return [
             ['key' => 'site-tiers', 'label' => 'Website Tiers', 'href' => '/site-tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],
             ['key' => 'site-vehicles', 'label' => 'Website Fleet', 'href' => '/site-vehicles', 'icon' => 'car', 'permissions' => ['fleet.manage'], 'available' => true],
             ['key' => 'site-rates', 'label' => 'Rates', 'href' => '/site-rates', 'icon' => 'wallet', 'permissions' => ['pricing.manage'], 'available' => true],
+            ['key' => 'pricing', 'label' => 'Pricing & Simulator', 'href' => '/pricing', 'icon' => 'calculator', 'permissions' => ['pricing.manage'], 'available' => true],
         ]],
     ],
 ];

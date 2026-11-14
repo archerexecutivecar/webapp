@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api';
 
 interface Rate { id: string; kind: string; vehicle_class: string | null; size: string | null; tier: number; amount_cents: number; is_active: boolean }
 
-const KINDS: Record<string, string> = { hourly: 'Hourly (per hour)', point_to_point: 'Point to point (flat)', security_hourly: 'Security staffing (per hour)', client_car_hourly: 'Client Car — your vehicle (per hour)' };
+const KINDS: Record<string, string> = { hourly: 'Hourly (per hour)', point_to_point: 'Point to point (flat)', per_mile: 'Per mile (Airport / Point to point)', security_hourly: 'Security staffing (per hour)', client_car_hourly: 'Client Car — your vehicle (per hour)' };
 const CLASS: Record<string, string> = { exec: 'Executive Class', first: '1st Class' };
 const SIZE: Record<string, string> = { sedan: 'Mid-size SUV', suv: 'Full-size SUV', van: 'Sprinter' };
 

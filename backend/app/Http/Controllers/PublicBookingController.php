@@ -6,7 +6,10 @@ use App\Models\AdminNotification;
 use App\Models\AssistantProfile;
 use App\Models\AuditLog;
 use App\Models\RideRequest;
+use App\Models\SiteTier;
+use App\Models\SiteVehicle;
 use App\Support\ApiResponse;
+use App\Support\AssistantProfileRules;
 use App\Support\CustomerAccounts;
 use App\Support\CustomerMailer;
 use Illuminate\Database\QueryException;
@@ -15,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Public booking-request intake for the website forms.
@@ -52,6 +56,7 @@ class PublicBookingController extends Controller
         }
 
         $data = $request->validate($this->rules($type));
+        $this->assertVehicleInCatalog($data);
 
         $columns = $this->columns($type, $data);
         $details = Arr::except($data, ['request_type', 'first_name', 'last_name', 'email', 'phone', 'terms_accepted']);
@@ -103,7 +108,6 @@ class PublicBookingController extends Controller
         }
 
         $short = ['nullable', 'string', 'max:150'];
-        $long = ['nullable', 'string', 'max:2000'];
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
@@ -111,24 +115,7 @@ class PublicBookingController extends Controller
             'mobile' => ['required', 'string', 'max:50'],
             'company' => $short,
             'terms_accepted' => ['accepted'],
-            'about' => ['nullable', 'array'],
-            'about.title' => $short, 'about.office' => $short, 'about.hours' => $short, 'about.contact_method' => $short,
-            'about.backup_name' => $short, 'about.backup_phone' => $short, 'about.backup_email' => ['nullable', 'email', 'max:150'],
-            'company_info' => ['nullable', 'array'],
-            'company_info.industry' => $short, 'company_info.phone' => $short, 'company_info.address' => $short, 'company_info.city' => $short,
-            'company_info.website' => $short, 'company_info.arrival' => $long, 'company_info.booking_for' => $short,
-            'people' => ['nullable', 'array', 'max:10'],
-            'people.*.name' => ['required', 'string', 'max:150'],
-            'people.*.title' => $short, 'people.*.relationship' => $short, 'people.*.mobile' => $short,
-            'people.*.email' => ['nullable', 'email', 'max:150'],
-            'people.*.home' => $short, 'people.*.airports' => $short, 'people.*.airlines' => $short, 'people.*.companions' => $short,
-            'people.*.vehicle' => $short, 'people.*.tier' => $short, 'people.*.preferences' => $long, 'people.*.notes' => $long,
-            'people.*.notify' => $short, 'people.*.security' => $short,
-            'billing' => ['nullable', 'array'],
-            'billing.payer' => $short, 'billing.method' => $short, 'billing.contact' => $short,
-            'billing.email' => ['nullable', 'email', 'max:150'], 'billing.phone' => $short, 'billing.address' => $short,
-            'billing.po' => $short, 'billing.receipts' => $short, 'billing.approval' => $short,
-        ]);
+        ] + AssistantProfileRules::sections());
 
         // The assistant gets a customer account too, so they can sign in and see their rides.
         CustomerAccounts::forBooking($data['email'], trim($data['first_name'].' '.$data['last_name']), $data['mobile']);
@@ -175,6 +162,25 @@ class PublicBookingController extends Controller
         $key = $request->header('Idempotency-Key');
 
         return is_string($key) && $key !== '' && strlen($key) <= 100 && preg_match('/^[A-Za-z0-9._-]+$/', $key) ? $key : null;
+    }
+
+    /** The requested class + size must be an active Website Fleet entry. */
+    private function assertVehicleInCatalog(array $data): void
+    {
+        $pairs = [];
+        if (! empty($data['vehicle_class']) && ! empty($data['vehicle_size'])) {
+            $pairs['vehicle_size'] = [$data['vehicle_class'], $data['vehicle_size']];
+        }
+        if (isset($data['vehicle']) && preg_match('/^(exec|first)\|(sedan|suv|van)$/', $data['vehicle'], $m)) {
+            $pairs['vehicle'] = [$m[1], $m[2]];
+        }
+
+        foreach ($pairs as $field => [$class, $size]) {
+            $offered = SiteVehicle::where('vehicle_class', $class)->where('size', $size)->where('is_active', true)->exists();
+            if (! $offered) {
+                throw ValidationException::withMessages([$field => ['This vehicle is not currently offered.']]);
+            }
+        }
     }
 
     private function reference(string $prefix, callable $exists): string
@@ -243,7 +249,8 @@ class PublicBookingController extends Controller
         $short = ['nullable', 'string', 'max:150'];
         $date = ['required', 'date_format:Y-m-d', 'after_or_equal:today'];
         $time = ['required', 'date_format:H:i'];
-        $tier = ['required', 'integer', 'between:1,4'];
+        // The Admin website catalog (Website Tiers / Website Fleet) is the source of truth for what can be booked.
+        $tier = ['required', 'integer', Rule::in(SiteTier::where('kind', 'driver')->where('is_active', true)->pluck('tier')->all())];
         $cls = ['required', Rule::in(['exec', 'first'])];
         $size = ['required', Rule::in(['sedan', 'suv', 'van'])];
         $stops = ['nullable', 'array', 'max:5'];

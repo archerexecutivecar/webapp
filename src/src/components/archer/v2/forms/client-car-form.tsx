@@ -4,27 +4,25 @@ import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
 import { useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chip, Crumbs, Done, doneP, EstimateAside, Fieldset, FormShell, Grid, Ref, Select, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
-import { FEE, money, useRates } from "@/components/archer/v2/forms/pricing";
+import { quoteLines, quoteTotal, useQuote } from "@/lib/quote";
 
 const HOURS = ["3", "4", "5", "6", "8", "10", "12"];
 
 export function ClientCarForm() {
-  const { CC } = useRates();
   const [step, setStep] = useState(1);
   const [tier, setTier] = useState(1);
   const [hours, setHours] = useState(3);
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
   const hrs = Math.max(3, hours);
-  const rate = CC[tier - 1];
+  // Price comes from the Laravel pricing engine; nothing is calculated here.
+  const q = useQuote({ service: "client", tier, hours: hrs });
 
   const lines: [string, string][] = [
     ["Service", "Client Car Service"],
     ["Tier", "Tier " + tier],
     ["Vehicle", "Your own vehicle"],
-    [`$${rate}/hr × ${hrs} hrs, round trip`, "$" + rate * hrs],
-    ["Booking fee", "$10"],
-    ["Gratuity", "20% suggested, not included"],
+    ...quoteLines(q),
   ];
 
   const send = async () => {
@@ -57,7 +55,7 @@ export function ClientCarForm() {
         <StepLabels step={step} labels={["1 · TRIP & VEHICLE", "2 · ESTIMATE & CONTACT"]} />
       </div>
       <TwoCol
-        aside={<EstimateAside lines={lines} total={"$" + (rate * hrs + FEE)} note="Estimate only. Billed round trip, until your car is back at your starting address. Dispatch confirms the final price and chauffeur." />}
+        aside={<EstimateAside lines={lines} total={quoteTotal(q)} note={(q.error ? q.error + " " : "") + "Estimate only. Billed round trip, until your car is back at your starting address. Dispatch confirms the final price and chauffeur."} />}
         main={(
           <>
             <Panel show={step === 1}>

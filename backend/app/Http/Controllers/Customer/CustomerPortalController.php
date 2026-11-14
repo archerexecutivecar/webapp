@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Support\AssistantProfileRules;
+use Illuminate\Support\Arr;
+use App\Models\AssistantProfile;
 use App\Models\RideRequest;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -36,6 +40,63 @@ class CustomerPortalController extends Controller
         $rides = $query->orderByDesc('created_at')->limit(100)->get()->map(fn (RideRequest $r) => $this->payload($r, false));
 
         return ApiResponse::data(['rides' => $rides]);
+    }
+
+    /**
+     * GET /v1/customer/assistant-profiles — the EA/PA profiles saved with this account's email
+     * (the same match Admin uses). Signing in proves the email, so customers only ever see their own.
+     */
+    public function assistantProfiles(Request $request): JsonResponse
+    {
+        $profiles = AssistantProfile::where('email', $request->user()->email)->orderByDesc('created_at')->get()
+            ->map(fn (AssistantProfile $p) => [
+                'reference' => $p->reference,
+                'first_name' => $p->first_name,
+                'last_name' => $p->last_name,
+                'email' => $p->email,
+                'mobile' => $p->mobile,
+                'company' => $p->company,
+                'created_at' => $p->created_at?->toIso8601String(),
+                'data' => $p->data ?? [],
+            ]);
+
+        return ApiResponse::data(['profiles' => $profiles]);
+    }
+
+    /**
+     * PUT /v1/customer/assistant-profiles/{reference} — the customer edits their own EA/PA profile.
+     * Same validation as sign-up. The email stays fixed (it links the profile to this account); each section sent
+     * replaces the stored one. Audited without personal details: only which sections changed.
+     */
+    public function updateAssistantProfile(Request $request, string $reference): JsonResponse
+    {
+        $profile = AssistantProfile::where('reference', $reference)
+            ->where('email', $request->user()->email)
+            ->firstOrFail(); // 404 for anyone else's profile
+
+        $data = $request->validate([
+            'first_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'last_name' => ['sometimes', 'required', 'string', 'max:100'],
+            'mobile' => ['sometimes', 'required', 'string', 'max:50'],
+            'company' => ['sometimes', 'nullable', 'string', 'max:150'],
+        ] + AssistantProfileRules::sections());
+
+        $before = $profile->data ?? [];
+        $sections = Arr::only($data, AssistantProfileRules::SECTIONS);
+        $profile->fill(Arr::only($data, ['first_name', 'last_name', 'mobile', 'company']));
+        $profile->data = array_merge($before, $sections);
+        $changed = array_keys(array_filter($sections, fn ($v, $k) => ($before[$k] ?? null) !== $v, ARRAY_FILTER_USE_BOTH));
+        $contactChanged = $profile->isDirty(['first_name', 'last_name', 'mobile', 'company']);
+        $profile->save();
+
+        if ($changed || $contactChanged) {
+            AuditLog::record('assistant_profile.updated_by_customer', $request->user()->getKey(), [
+                'reference' => $profile->reference,
+                'sections' => array_values(array_merge($changed, $contactChanged ? ['contact'] : [])),
+            ], $profile);
+        }
+
+        return $this->assistantProfiles($request);
     }
 
     /** GET /v1/customer/rides/{id} */

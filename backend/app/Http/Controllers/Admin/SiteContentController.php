@@ -32,6 +32,7 @@ class SiteContentController extends Controller
                 'data.phone' => 'required|string|max:50', 'data.phone_tel' => 'required|string|max:30',
                 'data.email' => 'required|email|max:150', 'data.address' => 'required|array|max:5',
                 'data.apps_coming_soon' => 'required|boolean',
+                'data.social' => 'nullable|array:facebook,instagram,linkedin,x', 'data.social.*' => 'nullable|url|max:500',
                 'data.app_store_url' => 'nullable|url|max:500', 'data.play_store_url' => 'nullable|url|max:500',
             ]);
         }

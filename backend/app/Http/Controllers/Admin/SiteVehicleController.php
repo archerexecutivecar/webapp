@@ -30,6 +30,18 @@ class SiteVehicleController extends Controller
         return $partial ? array_map(fn ($r) => str_starts_with($r, 'required') ? 'sometimes|'.$r : $r, $rules) : $rules;
     }
 
+    /** sort_order and is_active are NOT NULL columns with defaults; an explicit null must fall back to the default, not fail the insert. */
+    private function withoutNullDefaults(array $data): array
+    {
+        foreach (['sort_order', 'is_active'] as $key) {
+            if (array_key_exists($key, $data) && $data[$key] === null) {
+                unset($data[$key]);
+            }
+        }
+
+        return $data;
+    }
+
     public function index(): JsonResponse
     {
         return ApiResponse::data(['vehicles' => SiteVehicle::orderBy('sort_order')->get()]);
@@ -37,7 +49,7 @@ class SiteVehicleController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $row = SiteVehicle::create($request->validate($this->rules()));
+        $row = SiteVehicle::create($this->withoutNullDefaults($request->validate($this->rules())));
         AuditLog::record('site.vehicle.created', $request->user()->getKey(), ['id' => $row->id], $row);
 
         return ApiResponse::data(['item' => $row], 201);
@@ -46,7 +58,7 @@ class SiteVehicleController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $row = SiteVehicle::findOrFail($id);
-        $row->update($request->validate($this->rules(true)));
+        $row->update($this->withoutNullDefaults($request->validate($this->rules(true))));
         AuditLog::record('site.vehicle.updated', $request->user()->getKey(), ['id' => $row->id], $row);
 
         return ApiResponse::data(['item' => $row->fresh()]);

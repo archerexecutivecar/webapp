@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use Database\Seeders\SiteContentSeeder;
 use App\Models\AuditLog;
 use App\Models\RideRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,6 +11,13 @@ use Tests\TestCase;
 class BookingAuditTest extends TestCase
 {
     use RefreshDatabase;
+
+    // Bookings are validated against the Admin website catalog (tiers + fleet).
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(SiteContentSeeder::class);
+    }
 
     public function test_booking_audit_row_keeps_the_full_uuid_subject_id(): void
     {

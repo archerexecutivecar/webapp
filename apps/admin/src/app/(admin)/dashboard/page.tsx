@@ -251,9 +251,9 @@ export default function DashboardPage() {
           </div>
           <div className="kpi-bottom">
             <span className="kpi-detail">
-              <strong>{m?.active_fleet ?? 0}</strong> of {m?.total_fleet ?? 0} vehicles staged
+              <strong>{m?.active_fleet ?? 0}</strong> of {m?.total_fleet ?? 0} fleet vehicles on the website
             </span>
-            <Link href="/vehicles" className="kpi-action-link">
+            <Link href="/site-vehicles" className="kpi-action-link">
               <span>Fleet</span>
               <ArrowRight size={13} />
             </Link>

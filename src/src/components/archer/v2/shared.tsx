@@ -172,13 +172,37 @@ export function LegalLinks() {
   );
 }
 
+const SOCIAL_ICONS: Record<string, { label: string; d: string }> = {
+  facebook: { label: "Facebook", d: "M14 8h3V4h-3c-2.8 0-4.5 1.8-4.5 4.6V11H7v4h2.5v9h4v-9h3l.5-4h-3.5V9c0-.6.4-1 1-1z" },
+  instagram: { label: "Instagram", d: "M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 2a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM17.5 5.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" },
+  linkedin: { label: "LinkedIn", d: "M4 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM2.5 8.5h3V21h-3V8.5zm6 0h2.9v1.7h.1c.4-.8 1.4-1.9 3.4-1.9 3.4 0 4.1 2.3 4.1 5.2V21h-3v-6.6c0-1.5 0-3.5-2.1-3.5s-2.4 1.6-2.4 3.4V21h-3V8.5z" },
+  x: { label: "X", d: "M17.8 3h3.1l-6.8 7.8L22 21h-6.3l-4.9-6.4L5.2 21H2.1l7.3-8.3L1.8 3h6.4l4.4 5.9L17.8 3zm-1.1 16.2h1.7L7.3 4.7H5.5l11.2 14.5z" },
+};
+
+/** Social profile links from Admin site settings; hides any network without a URL. */
+export function SocialLinks() {
+  const st = useSiteSettings();
+  const links = Object.entries(st.social ?? {}).filter(([k, url]) => url && SOCIAL_ICONS[k]);
+  if (!links.length) return null;
+  return (
+    <div className="flex gap-3">
+      {links.map(([k, url]) => (
+        <a key={k} href={url as string} target="_blank" rel="noopener noreferrer" aria-label={`Archer on ${SOCIAL_ICONS[k].label}`} className="grid h-9 w-9 place-items-center rounded-full border border-[#2E2E2E] text-[#B3ADA5] hover:border-[#E87722] hover:text-[#E87722]">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d={SOCIAL_ICONS[k].d} /></svg>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export function MiniFooter() {
   const st = useSiteSettings();
   return (
     <footer className="border-t border-[#2E2E2E] bg-[#0A0A0A] text-[13px] text-[#B3ADA5]">
       <div className={`${WRAP} flex flex-wrap justify-between gap-x-8 gap-y-3 py-7`}>
         <span>© 2026 Archer Enterprises LLC · SORA-certified</span>
-        <span>{st.phone} · {st.email}</span>
+        <span>{st.phone}{st.phone_secondary ? ` · ${st.phone_secondary}` : ""} · {st.email}</span>
+        <SocialLinks />
         <LegalLinks />
       </div>
     </footer>

@@ -11,6 +11,13 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   phone_tel: "+18482319997",
   email: "info@archerexecutivecar.com",
   address: ["Russel Hall – Fort Monmouth", "1000 Sanger Avenue, Suite #500", "Oceanport, NJ 07757"],
+  phone_secondary: "(732) 757-3232",
+  social: {
+    facebook: "https://www.facebook.com/profile.php?id=61588051365237",
+    instagram: "https://www.instagram.com/archer.executive.car/",
+    linkedin: "https://www.linkedin.com/in/richard-opp-3122bb3a5/",
+    x: "https://x.com/archer_car2026",
+  },
   apps_coming_soon: true,
   app_store_url: null,
   play_store_url: null,

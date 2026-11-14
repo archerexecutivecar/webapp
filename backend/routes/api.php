@@ -15,7 +15,6 @@ use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Admin\SiteTierController;
 use App\Http\Controllers\Admin\SiteVehicleController;
 use App\Http\Controllers\Admin\TestimonialController;
-use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Customer\CustomerAuthController;
 use App\Http\Controllers\Customer\CustomerPortalController;
@@ -36,6 +35,7 @@ Route::prefix('v1')->group(function (): void {
     // Public CMS & Service Type Endpoints
     Route::get('/services', [PublicContentController::class, 'services']);
     Route::get('/booking-options', [PublicContentController::class, 'bookingOptions']);
+    Route::post('/quotes', [\App\Http\Controllers\QuoteController::class, 'store'])->middleware('throttle:60,1');
     Route::post('/ride-requests', [PublicContentController::class, 'submitRideRequest']);
     Route::post('/booking-requests', [PublicBookingController::class, 'store'])->middleware('throttle:public-submissions');
     Route::post('/assistant-profiles', [PublicBookingController::class, 'storeAssistantProfile'])->middleware('throttle:public-submissions');
@@ -54,6 +54,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/me', [CustomerPortalController::class, 'me']);
             Route::get('/rides', [CustomerPortalController::class, 'rides']);
             Route::get('/rides/{id}', [CustomerPortalController::class, 'show']);
+            Route::get('/assistant-profiles', [CustomerPortalController::class, 'assistantProfiles']);
+            Route::put('/assistant-profiles/{reference}', [CustomerPortalController::class, 'updateAssistantProfile']);
             Route::put('/password', [CustomerAuthController::class, 'setPassword']);
         });
     });
@@ -143,6 +145,9 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('permission:pricing.manage')->group(function (): void {
             Route::get('/rates', [RateCardController::class, 'index']);
             Route::put('/rates', [RateCardController::class, 'update']);
+            Route::get('/pricing-settings', [\App\Http\Controllers\Admin\PricingSettingController::class, 'index']);
+            Route::put('/pricing-settings/{service}', [\App\Http\Controllers\Admin\PricingSettingController::class, 'update']);
+            Route::post('/pricing/simulate', [\App\Http\Controllers\QuoteController::class, 'store']);
         });
 
         // Driver Tiers & Drivers (Protected by tiers.manage & drivers.manage permissions)
@@ -164,11 +169,6 @@ Route::prefix('v1')->group(function (): void {
 
         // Fleet / Vehicles (Protected by fleet.manage permission)
         Route::middleware('permission:fleet.manage')->group(function (): void {
-            Route::get('/vehicles', [VehicleController::class, 'index']);
-            Route::post('/vehicles', [VehicleController::class, 'store']);
-            Route::get('/vehicles/{id}', [VehicleController::class, 'show']);
-            Route::put('/vehicles/{id}', [VehicleController::class, 'update']);
-            Route::delete('/vehicles/{id}', [VehicleController::class, 'destroy']);
         });
     });
 

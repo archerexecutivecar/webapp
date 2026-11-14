@@ -4,7 +4,8 @@ import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
 import { useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chip, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, Select, StepLabels, Text, TierPicker, Title, TwoCol, TIER_CHIPS } from "@/components/archer/v2/forms/form-kit";
-import { CLS_NAME, FEE, money, STOP, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { CLS_NAME, money, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { quoteLines, quoteTotal, stopsNote, useQuote } from "@/lib/quote";
 
 type Svc = "hourly" | "airport" | "p2p" | "client" | "security";
 const SVC_NAMES: Record<Svc, string> = { hourly: "Hourly Service", airport: "Airport Transportation", p2p: "Point to Point", client: "Client Car Service", security: "Executive Protection / Security" };
@@ -12,7 +13,7 @@ const SERVICES: { id: Svc; label: string }[] = [{ id: "hourly", label: "Hourly" 
 const HOURS = ["3", "4", "5", "6", "8", "10", "12"];
 
 export function BookForm() {
-  const { HR, PP, CC, GUARD, M } = useRates();
+  const { HR, PP, GUARD, M } = useRates();
   const [step, setStep] = useState(1);
   const [service, setService] = useState<Svc>("hourly");
   const [tier, setTier] = useState(1);
@@ -21,6 +22,8 @@ export function BookForm() {
   const [hours, setHours] = useState(4);
   const [stops, setStops] = useState(0);
   const [guards, setGuards] = useState(0);
+  const [passengers, setPassengers] = useState(1);
+  const [bags, setBags] = useState(0);
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
 
@@ -28,33 +31,28 @@ export function BookForm() {
   const isH = service === "hourly", isC = service === "client", isS = service === "security", isTrip = service === "p2p" || service === "airport";
   const minH = isC || isS ? 3 : 4;
   const hrs = Math.max(hours, minH);
-  const vanTrip = isTrip && size === "van";
-
-  let baseLabel: string, base: number;
-  if (isC) { baseLabel = `${money(CC[t])}/hr × ${hrs} hrs, round trip`; base = CC[t] * hrs; }
-  else if (isS) { const g = Math.max(1, guards); baseLabel = `${g} guard${g > 1 ? "s" : ""} × ${money(GUARD[t])}/hr × ${hrs} hrs`; base = GUARD[t] * hrs * g; }
-  else if (isH || vanTrip) { const h = vanTrip ? 4 : hrs; const r = HR[cls][size][t]; baseLabel = `${money(r)}/hr × ${h} hrs${vanTrip ? " (Sprinter, hourly only)" : ""}`; base = r * h; }
-  else { baseLabel = "Trip fare"; base = PP[cls][size]![t]; }
-  const paidStops = isTrip && !vanTrip ? Math.max(0, stops - 1) : 0;
-  const guardHours = isTrip ? (vanTrip ? 4 : 3) : hrs;
-  const guardCost = isS ? 0 : guards * GUARD[t] * guardHours;
-  const sum = base + paidStops * STOP + guardCost + FEE;
-  const total = (isTrip && !vanTrip ? "From " : "") + money(sum);
-  const priceFor = (c: Cls, z: Size) => (isH ? money(HR[c][z][t]) + "/hr" : z === "van" ? money(HR[c][z][t]) + "/hr · 4-hr min" : "From " + money(PP[c][z]![t]));
   const gList = isS ? [1, 2, 3, 4] : [0, 1, 2];
   const gSel = isS ? Math.max(1, guards) : guards;
-  const note = (isC ? "Client Car is billed round trip: your chauffeur returns your car to your starting address. " : isH ? "Stops are always free on hourly bookings. " : isTrip ? "One stop on your way is included; each additional stop is $20. " : "Security is billed per guard, per hour, with a 3-hour minimum. ") + "Estimate only. Dispatch confirms the final price.";
+
+  // Price comes from the Laravel pricing engine; nothing is calculated here.
+  const q = useQuote({
+    service, tier, stops, passengers, bags,
+    ...(isC || isS ? {} : { vehicle_class: cls, vehicle_size: size }),
+    ...(isTrip ? {} : { hours: hrs }),
+    ...(isS ? { guards: gSel } : guards ? { guards, security_tier: tier } : {}),
+  });
+  // Display rates from Admin Rates; the estimate total always comes from the server.
+  const priceFor = (c: Cls, z: Size) => (!isTrip ? money(HR[c][z][t]) + "/hr" : z === "van" || !PP[c][z] ? money(HR[c][z][t]) + "/hr · 4-hr min" : "From " + money(PP[c][z]![t]));
+  const note = (isC ? "Client Car is billed round trip: your chauffeur returns your car to your starting address. " : "")
+    + stopsNote(q) + (q.error ? q.error + " " : "") + "Estimate only. Dispatch confirms the final price.";
 
   const lines: [string, string][] = [
     ["Service", SVC_NAMES[service]],
     ["Tier", "Tier " + tier],
     ["Vehicle", isC ? "Your own vehicle" : isS ? "Not included" : `${M[cls][size]} · ${CLS_NAME[cls]}`],
-    [baseLabel, money(base)],
-    ["Stops", stops === 0 ? "None" : isTrip && !vanTrip ? `${stops} (1 included${paidStops ? `, ${paidStops} × $20` : ""})` : `${stops} (free)`],
-    ["Add-on security", isS ? "See above" : guards ? `${guards} × ${money(GUARD[t])}/hr × ${guardHours} hrs = ${money(guardCost)}` : "None"],
-    ["Booking fee", "$10"],
-    ["Gratuity", "20% suggested, not included"],
+    ...quoteLines(q),
   ];
+  const total = quoteTotal(q);
 
   const send = async () => {
     const f = collectForm();
@@ -99,8 +97,8 @@ export function BookForm() {
               <Text label="Drop-off address" placeholder="Street, city or airport" />
               <Text label="Date" type="date" />
               <Text label="Pickup time" type="time" />
-              <Text label="Passengers" type="number" min={1} defaultValue={1} />
-              <Text label="Bags" type="number" min={0} defaultValue={0} />
+              <Text label="Passengers" type="number" min={1} value={passengers} onChange={(e) => setPassengers(Math.max(1, Number(e.target.value) || 1))} />
+              <Text label="Bags" type="number" min={0} value={bags} onChange={(e) => setBags(Math.max(0, Number(e.target.value) || 0))} />
             </Grid>
             {Array.from({ length: stops }, (_, i) => <Text key={i} label={`Stop ${i + 1}`} placeholder="Street, city or venue" />)}
             <div><button type="button" onClick={() => setStops(Math.min(stops + 1, isTrip ? 3 : 5))} className="min-h-11 cursor-pointer rounded-sm border border-dashed border-white/30 bg-transparent px-[18px] py-2.5 text-[15px] text-[#E87722]">+ Add a stop</button></div>
