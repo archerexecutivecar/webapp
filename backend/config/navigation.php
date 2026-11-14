@@ -18,13 +18,10 @@ return [
         ['key' => 'people', 'label' => 'People', 'items' => [
             ['key' => 'customers', 'label' => 'Customers', 'href' => '/customers', 'icon' => 'users', 'permissions' => ['rides.view'], 'available' => true],
             ['key' => 'drivers', 'label' => 'Drivers', 'href' => '/drivers', 'icon' => 'users', 'permissions' => ['drivers.view', 'drivers.manage'], 'available' => true],
-            ['key' => 'tiers', 'label' => 'Driver Tiers', 'href' => '/tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],
         ]],
         ['key' => 'fleet', 'label' => 'Fleet', 'items' => [
         ]],
         ['key' => 'website', 'label' => 'Website & Catalog', 'items' => [
-            ['key' => 'services', 'label' => 'Service Types', 'href' => '/services', 'icon' => 'route', 'permissions' => ['content.edit'], 'available' => true],
-            ['key' => 'security-addons', 'label' => 'Add-on Security', 'href' => '/security-addons', 'icon' => 'shield-check', 'permissions' => ['content.edit'], 'available' => true],
             ['key' => 'testimonials', 'label' => 'Testimonials', 'href' => '/testimonials', 'icon' => 'message-square', 'permissions' => ['content.edit'], 'available' => true],
             ['key' => 'site-content', 'label' => 'Page Content', 'href' => '/site-content', 'icon' => 'file-text', 'permissions' => ['content.edit'], 'available' => true],
             ['key' => 'site-tiers', 'label' => 'Website Tiers', 'href' => '/site-tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],

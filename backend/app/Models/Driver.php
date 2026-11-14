@@ -16,6 +16,7 @@ class Driver extends Model
         'email',
         'phone',
         'tier_id',
+        'service_tier',
         'avatar_url',
         'bio',
         'sort_order',
@@ -23,6 +24,7 @@ class Driver extends Model
     ];
 
     protected $casts = [
+        'service_tier' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
     ];
@@ -34,7 +36,8 @@ class Driver extends Model
 
     public function tier()
     {
-        return $this->belongsTo(DriverTier::class, 'tier_id');
+        // Website Tiers (kind = driver) is the only tier list; drivers store the tier number.
+        return $this->belongsTo(SiteTier::class, 'service_tier', 'tier')->where('kind', 'driver');
     }
 
     public function rideRequests()
