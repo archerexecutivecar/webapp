@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { D, HEAD } from "@/components/archer/v2/tokens";
-import { CLS_NAME, M, SIZES, SZ, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { CLS_NAME, SIZES, SZ, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 
 export const slug = (label: string) => label.toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 
@@ -117,6 +117,7 @@ export function TierPicker({ tier, onPick, labels }: { tier: number; onPick: (n:
 }
 
 export function FleetPicker({ cls, size, onPick, priceFor, note }: { cls: Cls; size: Size; onPick: (c: Cls, z: Size) => void; priceFor: (c: Cls, z: Size) => string; note: string }) {
+  const { M } = useRates();
   return (
     <Fieldset legend="Vehicle" gap="gap-3.5" note={note}>
       <Link href="/fleet" className="text-[14px] text-[#E87722]">See the fleet →</Link>

@@ -27,7 +27,7 @@ const PP_DEFAULT: Record<Key, Record<Z, number[] | null>> = {
 };
 const money = (n: number) => "$" + n.toLocaleString("en-US");
 
-type Vehicle = { z: Z; size: string; model: string; good: string; img?: string; alt?: string };
+type Vehicle = { z: Z; size: string; model: string; good: string; img?: string; alt?: string; pax?: number | null; bags?: number | null };
 const VEHICLES_DEFAULT: Record<Key, Vehicle[]> = {
   exec: [
     { z: "sedan", size: "MID-SIZE SUV", model: "Chevrolet Traverse", good: "Solo travelers and small groups." },
@@ -68,7 +68,7 @@ function fromSite(site?: SiteData | null) {
     }
   }
   const VEHICLES = { exec: [] as Vehicle[], first: [] as Vehicle[] };
-  for (const v of site.vehicles) VEHICLES[v.vehicle_class].push({ z: v.size, size: v.size_label, model: v.model, good: v.blurb, img: v.image_url ?? undefined, alt: v.image_alt ?? undefined });
+  for (const v of site.vehicles) VEHICLES[v.vehicle_class].push({ z: v.size, size: v.size_label, model: v.model, good: v.blurb, img: v.image_url ?? undefined, alt: v.image_alt ?? undefined, pax: v.passengers ?? null, bags: v.bags ?? null });
   return { SLIDES: site.fleet.slides, STANDARD: site.fleet.standard, HR, PP, VEHICLES };
 }
 
@@ -105,14 +105,17 @@ export function FleetPage({ site }: { site?: SiteData | null } = {}) {
                 <div className="flex flex-1 flex-col gap-2.5 p-[26px]">
                   <span className="text-[12px] font-medium tracking-[0.2em] text-[#E87722]">{v.size}</span>
                   <h3 className="m-0 text-[24px]" style={HEAD}>{v.model}</h3>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] text-[#C9C3BB]">
-                    <span><strong className="text-[#F4F1EC]">[#]</strong> passengers</span>
-                    <span><strong className="text-[#F4F1EC]">[#]</strong> bags</span>
-                  </div>
+                  {/* Capacity comes from Archer via admin; never show a placeholder when it is missing (QA BUG-005). */}
+                  {(v.pax != null || v.bags != null) && (
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] text-[#C9C3BB]">
+                      {v.pax != null && <span><strong className="text-[#F4F1EC]">{v.pax}</strong> passengers</span>}
+                      {v.bags != null && <span><strong className="text-[#F4F1EC]">{v.bags}</strong> bags</span>}
+                    </div>
+                  )}
                   <p className="m-0 text-[15px] text-[#C9C3BB]">{v.good}</p>
                   <div className="mt-auto flex flex-col gap-1.5 border-t border-[#2E2E2E] pt-3.5">
                     <div className="flex items-baseline justify-between gap-3"><span className="text-[13px] text-[#B3ADA5]">Hourly, from</span><span className="text-[22px] font-bold" style={HEAD}>{money(HR[c.key][v.z][0])}/hr</span></div>
-                    <div className="flex items-baseline justify-between gap-3"><span className="text-[13px] text-[#B3ADA5]">Point to point, from</span><span className="text-[22px] font-bold" style={HEAD}>{PP[c.key][v.z] ? money(PP[c.key][v.z]![0]) : "Hourly only"}</span></div>
+                    <div className="flex items-baseline justify-between gap-3"><span className="text-[13px] text-[#B3ADA5]">{PP[c.key][v.z] ? "Point to point, from" : "Point to point"}</span><span className="text-[22px] font-bold" style={HEAD}>{PP[c.key][v.z] ? money(PP[c.key][v.z]![0]) : "Hourly only"}</span></div>
                   </div>
                   <Link href="/book" className="mt-2 bg-[#E87722] px-5 py-3.5 text-center text-[13px] font-semibold tracking-[0.06em] text-[#121212]">BOOK THIS VEHICLE</Link>
                 </div>
@@ -121,7 +124,7 @@ export function FleetPage({ site }: { site?: SiteData | null } = {}) {
           </div>
         </section>
       ))}
-      <p className={`${WRAP} m-0 pb-14 md:pb-[110px] text-[14px] text-[#B3ADA5]`}>Starting rates shown are Tier 1. Higher tiers cost more. Sprinters are hourly only, 4-hour minimum (see the table below). Passenger and bag counts: <span className="text-[#E87722]">[ARCHER TO CONFIRM]</span>.</p>
+      <p className={`${WRAP} m-0 pb-14 md:pb-[110px] text-[14px] text-[#B3ADA5]`}>Starting rates shown are Tier 1. Higher tiers cost more. Sprinters are hourly only, 4-hour minimum (see the table below).</p>
 
       <section id="pricing" className="bg-[#1A1A1A]">
         <div className={`${WRAP} py-14 md:py-[110px]`}>

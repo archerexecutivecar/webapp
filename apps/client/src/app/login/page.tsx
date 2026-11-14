@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { api, ApiError, errorText, tokenStore, type Session } from "@/lib/api";
+import { api, ApiError, errorText, safeNext, tokenStore, type Session } from "@/lib/api";
 import { Brand } from "@/components/Shell";
 
 type Mode = "code" | "password" | "register";
@@ -22,8 +22,12 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [notFoundEmail, setNotFoundEmail] = useState<string | null>(null);
 
+  const next = () => safeNext(new URLSearchParams(window.location.search).get("next"));
+
   useEffect(() => {
-    if (tokenStore.get()) router.replace("/rides");
+    if (tokenStore.get()) { router.replace(next()); return; }
+    if (new URLSearchParams(window.location.search).get("mode") === "register") setMode("register");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const run = async (fn: () => Promise<void>) => {
@@ -64,7 +68,7 @@ export default function Login() {
         auth: false,
       });
       tokenStore.set(s.token);
-      router.replace("/rides");
+      router.replace(next());
     });
   };
 
@@ -84,7 +88,7 @@ export default function Login() {
         throw new Error("This app is for Archer customers.");
       }
       tokenStore.set(s.token);
-      router.replace("/rides");
+      router.replace(next());
     });
   };
 
@@ -98,7 +102,7 @@ export default function Login() {
         auth: false,
       });
       tokenStore.set(s.token);
-      router.replace("/rides");
+      router.replace(next());
     });
   };
 

@@ -32,7 +32,7 @@ export type ServiceConfig = {
 type ReactNodeLike = string;
 
 const T = [["Tier 1", "Professional Chauffeur"], ["Tier 2", "Military & Law-Enforcement Chauffeur"], ["Tier 3", "Executive Protection Specialist"], ["Tier 4", "Senior Protection Specialist"]];
-const TL = [["Tier 1 · Essential", T[0][1]], ["Tier 2 · Executive", T[1][1]], ["Tier 3 · Elite", T[2][1]], ["Tier 4", T[3][1]]];
+const TL = [["Tier 1 · Essential", T[0][1]], ["Tier 2 · Executive", T[1][1]], ["Tier 3 · Elite", T[2][1]], ["Tier 4 · Armed", T[3][1]]];
 const step3 = (a: string, b: string, c: string, href: string): Step[] => [
   { n: "1", title: "Choose your tier", text: "Decide who you want behind the wheel, from a professional chauffeur to a senior protection specialist.", link: "Compare tiers →", href: "/tiers" },
   { n: "2", title: "Choose your vehicle", text: "Executive Class or 1st Class, in the size that fits your group and luggage.", link: "See the fleet →", href: "/fleet" },

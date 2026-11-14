@@ -38,13 +38,13 @@ class SiteContentSeeder extends Seeder
             [1, 'TIER 1 · ESSENTIAL', 'Professional Chauffeur', false, ['Vetted, professional chauffeur', 'Cleared criminal background check', 'SORA-certified'], ['Airport runs', 'Everyday business travel', 'Nights out and events']],
             [2, 'TIER 2 · EXECUTIVE', 'Military & Law-Enforcement Chauffeur', false, ['Everything in Tier 1', 'Verified military or law-enforcement service', 'NJ SORA security officer registration'], ['Executives and corporate clients', 'Roadshows and multi-stop days', 'Rides needing a security-minded chauffeur']],
             [3, 'TIER 3 · ELITE', 'Executive Protection Specialist', false, ['Everything in Tier 2', 'Certified in personal or executive protection', 'Commendations earned in the line of duty'], ['VIPs and public figures', 'Sensitive itineraries', 'Private aviation and FBO transfers']],
-            [4, 'TIER 4', 'Senior Protection Specialist', true, ['Everything in Tier 3', "Archer's highest level of credentials"], ['Dignitaries', 'Elevated-risk details', 'Private aviation']],
+            [4, 'TIER 4 · ARMED', 'Senior Protection Specialist', true, ['Everything in Tier 3', "Archer's highest level of credentials"], ['Dignitaries', 'Elevated-risk details', 'Private aviation']],
         ];
         $security = [
             [1, 'TIER 1 · ESSENTIAL', 'Security Officer', false, ['Licensed, background-checked officer', 'NJ SORA registration'], ['Front desk and access control', 'Office and residential coverage']],
             [2, 'TIER 2 · EXECUTIVE', 'Security Specialist', false, ['Everything in Tier 1', 'Verified military or law-enforcement service'], ['Corporate events', 'Venue and crowd management']],
             [3, 'TIER 3 · ELITE', 'Executive Protection Specialist', false, ['Everything in Tier 2', 'Certified in executive protection'], ['Executive protection details', 'Red carpets, galas and VIP events']],
-            [4, 'TIER 4', 'Senior Protection Specialist', true, ['Everything in Tier 3', "Archer's highest level of credentials"], ['Dignitaries', 'Elevated-risk assignments']],
+            [4, 'TIER 4 · ARMED', 'Senior Protection Specialist', true, ['Everything in Tier 3', "Archer's highest level of credentials"], ['Dignitaries', 'Elevated-risk assignments']],
         ];
         foreach (['driver' => $driver, 'security' => $security] as $kind => $rows) {
             foreach ($rows as [$tier, $label, $title, $call, $creds, $suited]) {
@@ -76,6 +76,7 @@ class SiteContentSeeder extends Seeder
             ['point_to_point', 'exec', 'sedan', [145, 170, 215, 270]], ['point_to_point', 'exec', 'suv', [155, 180, 225, 280]],
             ['point_to_point', 'first', 'sedan', [155, 180, 225, 280]], ['point_to_point', 'first', 'suv', [200, 220, 260, 310]],
             ['security_hourly', null, null, [45, 60, 75, 125]],
+            ['client_car_hourly', null, null, [45, 60, 75, 125]],
         ];
         foreach ($rates as [$kind, $class, $size, $amounts]) {
             foreach ($amounts as $i => $dollars) {

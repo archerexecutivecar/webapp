@@ -1,10 +1,10 @@
 import type { HeroSlide } from "@/components/archer/v2/shared";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 
 export type SiteRate = { kind: string; vehicle_class: string | null; size: string | null; tier: number; amount_cents: number };
 export type SiteTierRow = { kind: "driver" | "security"; tier: number; label: string; title: string; call_only: boolean; credentials: string[]; suited_for: string[] };
-export type SiteVehicleRow = { vehicle_class: "exec" | "first"; size: "sedan" | "suv" | "van"; size_label: string; model: string; blurb: string; image_url: string | null; image_alt: string | null };
+export type SiteVehicleRow = { vehicle_class: "exec" | "first"; size: "sedan" | "suv" | "van"; size_label: string; model: string; blurb: string; passengers?: number | null; bags?: number | null; image_url: string | null; image_alt: string | null };
 export type SiteData = {
   settings: { phone: string; phone_tel: string; email: string; address: string[]; apps_coming_soon: boolean; app_store_url: string | null; play_store_url: string | null } | null;
   fleet: { slides: HeroSlide[]; standard: string[][] } | null;
@@ -31,6 +31,20 @@ export async function getSite(): Promise<SiteData | null> {
 }
 
 const dollars = (r?: SiteRate) => (r ? Math.round(r.amount_cents / 100) : null);
+
+/**
+ * Lowest published amount per tier (1..4) across every class/size of a rate kind.
+ * A "starting at" price must never exceed a rate shown elsewhere on the page (QA BUG-008).
+ */
+export function tierMinimums(rates: SiteRate[], kind: string): number[] | null {
+  const out: number[] = [];
+  for (let t = 1; t <= 4; t++) {
+    const amounts = rates.filter((r) => r.kind === kind && r.tier === t).map((r) => r.amount_cents);
+    if (amounts.length === 0) return null;
+    out.push(Math.round(Math.min(...amounts) / 100));
+  }
+  return out;
+}
 
 /** tier 1..4 amounts for a rate series, or null if the series is incomplete. */
 export function series(rates: SiteRate[], kind: string, cls: string | null, size: string | null): number[] | null {

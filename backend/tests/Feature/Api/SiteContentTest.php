@@ -21,7 +21,7 @@ class SiteContentTest extends TestCase
         $this->assertCount(6, $d['services']);
         $this->assertCount(8, $d['tier_list']);
         $this->assertCount(6, $d['vehicles']);
-        $this->assertCount(44, $d["rates"]);
+        $this->assertCount(48, $d["rates"]);
         $this->assertTrue($d['settings']['apps_coming_soon']);
         $rate = collect($d['rates'])->first(fn ($r) => $r['kind'] === 'hourly' && $r['vehicle_class'] === 'exec' && $r['size'] === 'sedan' && $r['tier'] === 1);
         $this->assertSame(7000, $rate['amount_cents']);
@@ -35,6 +35,22 @@ class SiteContentTest extends TestCase
         $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['is_active' => false], $h)->assertOk();
 
         $this->assertCount(5, $this->getJson('/api/v1/site')->json('data.vehicles'));
+    }
+
+    public function test_vehicle_capacity_is_optional_validated_and_public(): void
+    {
+        $this->seed(SiteContentSeeder::class);
+        $this->assertNull($this->getJson('/api/v1/site')->json('data.vehicles.0.passengers'));
+
+        [, $h] = $this->actingAsRole('super_admin');
+        $id = $this->getJson('/api/v1/admin/site-vehicles', $h)->json('data.vehicles.0.id');
+        $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['passengers' => 0], $h)->assertUnprocessable();
+        $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['bags' => -1], $h)->assertUnprocessable();
+        $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['passengers' => 6, 'bags' => 4], $h)->assertOk();
+
+        $v = $this->getJson('/api/v1/site')->json('data.vehicles.0');
+        $this->assertSame([6, 4], [$v['passengers'], $v['bags']]);
+        $this->assertDatabaseHas('audit_logs', ['event' => 'site.vehicle.updated']);
     }
 
     public function test_rate_changes_need_pricing_permission_and_are_audited(): void

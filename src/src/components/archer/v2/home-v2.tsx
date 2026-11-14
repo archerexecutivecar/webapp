@@ -196,7 +196,7 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
           <div className="flex flex-wrap justify-center gap-3.5">
             <Link href="/book" className={`${primary} !px-8`}>BOOK A RIDE</Link>
             <button type="button" aria-expanded={app} onClick={() => setApp(!app)} className={`${primary} inline-flex cursor-pointer items-center gap-2 !px-8`}>
-              <PhoneIcon />APPS COMING SOON
+              <PhoneIcon />CLIENT APP
             </button>
             <a href={`tel:${st.phone_tel}`} className={`${ghost} !px-8`}>CALL {st.phone}</a>
           </div>

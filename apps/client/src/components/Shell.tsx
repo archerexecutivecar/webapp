@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, tokenStore, DISPATCH_TEL, SITE_URL, type Customer } from "@/lib/api";
+import { api, ApiError, dispatchTel, errorText, loginHref, tokenStore, SITE_URL, type Customer } from "@/lib/api";
+import { loadCatalog } from "@/lib/catalog";
 
 type Ctx = { me: Customer; refresh: () => Promise<void>; signOut: () => Promise<void> };
 const CustomerCtx = createContext<Ctx | null>(null);
@@ -30,19 +31,34 @@ export function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const path = usePathname();
   const [me, setMe] = useState<Customer | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Catalog (fleet names, rates, dispatch phone) loads in the background and never delays the first screen.
+  // Until it arrives, built-in fallbacks are shown; re-render once it lands so names/phone update.
+  const [, setCatalogReady] = useState(false);
+  useEffect(() => {
+    void loadCatalog().then(() => setCatalogReady(true));
+  }, []);
+  const toLogin = () => {
+    const here = typeof window !== "undefined" ? window.location.pathname + window.location.search : path;
+    router.replace(loginHref(here));
+  };
 
   const load = async () => {
+    setLoadError(null);
     try {
       setMe(await api<Customer>("/customer/me"));
     } catch (e) {
       if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
         tokenStore.clear();
-        router.replace("/login");
+        toLogin();
+        return;
       }
+      // Any other failure (network, timeout, 5xx) must surface instead of spinning forever.
+      setLoadError(errorText(e));
     }
   };
   useEffect(() => {
-    if (!tokenStore.get()) { router.replace("/login"); return; }
+    if (!tokenStore.get()) { toLogin(); return; }
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -53,6 +69,17 @@ export function Shell({ children }: { children: ReactNode }) {
     router.replace("/login");
   };
 
+  if (loadError) {
+    return (
+      <div className="center" style={{ flexDirection: "column", gap: 14, textAlign: "center", padding: 16 }}>
+        <p className="muted" role="alert" style={{ margin: 0 }}>{loadError}</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          <button className="btn" type="button" onClick={() => void load()}>Try again</button>
+          <button className="btn ghost" type="button" onClick={() => { tokenStore.clear(); toLogin(); }}>Sign in again</button>
+        </div>
+      </div>
+    );
+  }
   if (!me) return <div className="center muted">Loading Archer portal…</div>;
 
   return (
@@ -62,7 +89,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <Brand />
           <a
             className="btn ghost"
-            href={`tel:${DISPATCH_TEL}`}
+            href={`tel:${dispatchTel()}`}
             style={{ minHeight: 38, padding: "8px 14px", fontSize: 13, borderRadius: 9999 }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

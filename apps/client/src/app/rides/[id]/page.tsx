@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { ACTIVE, api, ApiError, DISPATCH_DISPLAY, DISPATCH_TEL, errorText, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
+import { ACTIVE, api, ApiError, dispatchDisplay, dispatchTel, errorText, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
 import { Shell } from "@/components/Shell";
 import { badgeClass } from "@/components/RideCard";
 import { RideCarProgress } from "@/components/RideCarProgress";
@@ -66,7 +66,7 @@ function Detail() {
       {error && <div role="alert" className="alert">{error}</div>}
 
       {ride.status === "cancelled" ? (
-        <div className="alert">This ride was cancelled. Need a new one? Call dispatch at <a href={`tel:${DISPATCH_TEL}`}>{DISPATCH_DISPLAY}</a>.</div>
+        <div className="alert">This ride was cancelled. Need a new one? Call dispatch at <a href={`tel:${dispatchTel()}`}>{dispatchDisplay()}</a>.</div>
       ) : (
         <section aria-label="Ride progress">
           <RideCarProgress
@@ -108,7 +108,7 @@ function Detail() {
         </section>
       )}
 
-      <p className="muted" style={{ fontSize: 13, margin: 0 }}>The final price is confirmed by Archer dispatch. Need to change something? <a href={`tel:${DISPATCH_TEL}`}>Call {DISPATCH_DISPLAY}</a>, day or night.</p>
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>The final price is confirmed by Archer dispatch. Need to change something? <a href={`tel:${dispatchTel()}`}>Call {dispatchDisplay()}</a>, day or night.</p>
     </div>
   );
 }

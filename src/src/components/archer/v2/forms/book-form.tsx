@@ -4,7 +4,7 @@ import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
 import { useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chip, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, Select, StepLabels, Text, TierPicker, Title, TwoCol, TIER_CHIPS } from "@/components/archer/v2/forms/form-kit";
-import { CC, CLS_NAME, FEE, HR, M, money, PP, STOP, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { CLS_NAME, FEE, money, STOP, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 
 type Svc = "hourly" | "airport" | "p2p" | "client" | "security";
 const SVC_NAMES: Record<Svc, string> = { hourly: "Hourly Service", airport: "Airport Transportation", p2p: "Point to Point", client: "Client Car Service", security: "Executive Protection / Security" };
@@ -12,6 +12,7 @@ const SERVICES: { id: Svc; label: string }[] = [{ id: "hourly", label: "Hourly" 
 const HOURS = ["3", "4", "5", "6", "8", "10", "12"];
 
 export function BookForm() {
+  const { HR, PP, CC, GUARD, M } = useRates();
   const [step, setStep] = useState(1);
   const [service, setService] = useState<Svc>("hourly");
   const [tier, setTier] = useState(1);
@@ -31,12 +32,12 @@ export function BookForm() {
 
   let baseLabel: string, base: number;
   if (isC) { baseLabel = `${money(CC[t])}/hr × ${hrs} hrs, round trip`; base = CC[t] * hrs; }
-  else if (isS) { const g = Math.max(1, guards); baseLabel = `${g} guard${g > 1 ? "s" : ""} × ${money(CC[t])}/hr × ${hrs} hrs`; base = CC[t] * hrs * g; }
+  else if (isS) { const g = Math.max(1, guards); baseLabel = `${g} guard${g > 1 ? "s" : ""} × ${money(GUARD[t])}/hr × ${hrs} hrs`; base = GUARD[t] * hrs * g; }
   else if (isH || vanTrip) { const h = vanTrip ? 4 : hrs; const r = HR[cls][size][t]; baseLabel = `${money(r)}/hr × ${h} hrs${vanTrip ? " (Sprinter, hourly only)" : ""}`; base = r * h; }
   else { baseLabel = "Trip fare"; base = PP[cls][size]![t]; }
   const paidStops = isTrip && !vanTrip ? Math.max(0, stops - 1) : 0;
   const guardHours = isTrip ? (vanTrip ? 4 : 3) : hrs;
-  const guardCost = isS ? 0 : guards * CC[t] * guardHours;
+  const guardCost = isS ? 0 : guards * GUARD[t] * guardHours;
   const sum = base + paidStops * STOP + guardCost + FEE;
   const total = (isTrip && !vanTrip ? "From " : "") + money(sum);
   const priceFor = (c: Cls, z: Size) => (isH ? money(HR[c][z][t]) + "/hr" : z === "van" ? money(HR[c][z][t]) + "/hr · 4-hr min" : "From " + money(PP[c][z]![t]));
@@ -50,7 +51,7 @@ export function BookForm() {
     ["Vehicle", isC ? "Your own vehicle" : isS ? "Not included" : `${M[cls][size]} · ${CLS_NAME[cls]}`],
     [baseLabel, money(base)],
     ["Stops", stops === 0 ? "None" : isTrip && !vanTrip ? `${stops} (1 included${paidStops ? `, ${paidStops} × $20` : ""})` : `${stops} (free)`],
-    ["Add-on security", isS ? "See above" : guards ? `${guards} × ${money(CC[t])}/hr × ${guardHours} hrs = ${money(guardCost)}` : "None"],
+    ["Add-on security", isS ? "See above" : guards ? `${guards} × ${money(GUARD[t])}/hr × ${guardHours} hrs = ${money(guardCost)}` : "None"],
     ["Booking fee", "$10"],
     ["Gratuity", "20% suggested, not included"],
   ];
@@ -119,7 +120,7 @@ export function BookForm() {
             )}
             <Fieldset legend={isS ? "Number of guards" : "Add-on security"} gap="gap-3">
               <div className="flex flex-wrap gap-2.5">
-                {gList.map((g) => (<Chip key={g} on={gSel === g} onClick={() => setGuards(g)}>{g === 0 ? "None" : `${g} guard${g > 1 ? "s" : ""} · ${money(CC[t])}/hr each`}</Chip>))}
+                {gList.map((g) => (<Chip key={g} on={gSel === g} onClick={() => setGuards(g)}>{g === 0 ? "None" : `${g} guard${g > 1 ? "s" : ""} · ${money(GUARD[t])}/hr each`}</Chip>))}
               </div>
             </Fieldset>
             <div><button type="button" onClick={() => setStep(2)} className={btnPrimary}>Continue to estimate</button></div>

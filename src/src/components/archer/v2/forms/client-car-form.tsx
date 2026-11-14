@@ -4,11 +4,12 @@ import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
 import { useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chip, Crumbs, Done, doneP, EstimateAside, Fieldset, FormShell, Grid, Ref, Select, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
-import { CC, FEE, money } from "@/components/archer/v2/forms/pricing";
+import { FEE, money, useRates } from "@/components/archer/v2/forms/pricing";
 
 const HOURS = ["3", "4", "5", "6", "8", "10", "12"];
 
 export function ClientCarForm() {
+  const { CC } = useRates();
   const [step, setStep] = useState(1);
   const [tier, setTier] = useState(1);
   const [hours, setHours] = useState(3);

@@ -4,9 +4,10 @@ import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
 import { useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
-import { CLS_NAME, FEE, HR, M, money, PP, STOP, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { CLS_NAME, FEE, money, STOP, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 
 export function P2PForm() {
+  const { HR, PP, M } = useRates();
   const [step, setStep] = useState(1);
   const [way, setWay] = useState("one");
   const [stops, setStops] = useState(0);

@@ -19,6 +19,8 @@ class SiteVehicleController extends Controller
             'size_label' => 'required|string|max:60',
             'model' => 'required|string|max:255',
             'blurb' => 'required|string|max:255',
+            'passengers' => 'nullable|integer|min:1|max:60',
+            'bags' => 'nullable|integer|min:0|max:60',
             'image_url' => 'nullable|string|max:500',
             'image_alt' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',

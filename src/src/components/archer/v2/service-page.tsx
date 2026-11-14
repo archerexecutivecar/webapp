@@ -187,7 +187,8 @@ export function ServicePage({ c }: { c: ServiceConfig }) {
           <span className={SMALL}>{c.pricing.eyebrow}</span>
           <h2 className={`${H2} mb-1.5 mt-1.5`} style={HEAD}>{c.pricing.title}</h2>
           <p className="m-0 max-w-[820px] text-[15px] text-[#C9C3BB]">
-            {c.pricing.text.split("[ARCHER TO CONFIRM]")[0]}<span className="text-[#E87722]">[ARCHER TO CONFIRM]</span>.
+            {/* Render admin copy as-is; the old split always re-added "[ARCHER TO CONFIRM]" even after the copy was replaced. */}
+            {c.pricing.text}
           </p>
           <div className="mt-4 grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
             {c.priceCards?.map((p) => (

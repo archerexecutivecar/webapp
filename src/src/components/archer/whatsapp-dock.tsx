@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { whatsappLink } from "@/lib/archer-data";
 import { useArcherStore } from "@/lib/archer-store";
@@ -12,7 +13,6 @@ import { WhatsAppIcon } from "@/components/archer/reveal";
  * Both hide while overlays (menu / booking / city dialog) are open.
  */
 export function WhatsAppDock() {
-  const openBooking = useArcherStore((s) => s.openBooking);
   const overlayOpen = useArcherStore(
     (s) => s.mobileMenuOpen || s.bookingOpen || s.cityOpen
   );
@@ -52,12 +52,13 @@ export function WhatsAppDock() {
           overlayOpen ? "pointer-events-none translate-y-full" : "translate-y-0"
         }`}
       >
-        <button
-          onClick={() => openBooking(undefined, 1)}
+        {/* Real booking page posts to Laravel. The old prototype dialog saved to a local DB dispatch never saw. */}
+        <Link
+          href="/book"
           className="flex h-14 items-center justify-center gap-2 bg-[#0E0E0E]/95 font-heading text-[12px] font-extrabold tracking-[0.28em] text-archer-orange uppercase active:bg-black"
         >
           Book
-        </button>
+        </Link>
         <a
           href={whatsappLink("Hello Archer — I'd like to book a ride.")}
           target="_blank"

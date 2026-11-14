@@ -4,7 +4,7 @@ import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
 import { useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
-import { CLS_NAME, FEE, HR, M, money, PP, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { CLS_NAME, FEE, money, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 import { HEAD } from "@/components/archer/v2/tokens";
 
 const LOCAL = ["EWR", "ACY", "TEB", "MMU"];
@@ -15,6 +15,7 @@ const AIRPORTS = [
 ];
 
 export function AirportForm() {
+  const { HR, PP, M } = useRates();
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState("from");
   const [airport, setAirport] = useState("EWR");

@@ -12,7 +12,7 @@ class SiteVehicle extends Model
 
     protected $table = 'site_vehicles';
 
-    protected $fillable = ['vehicle_class', 'size', 'size_label', 'model', 'blurb', 'image_url', 'image_alt', 'sort_order', 'is_active'];
+    protected $fillable = ['vehicle_class', 'size', 'size_label', 'model', 'blurb', 'passengers', 'bags', 'image_url', 'image_alt', 'sort_order', 'is_active'];
 
-    protected $casts = ['sort_order' => 'integer', 'is_active' => 'boolean'];
+    protected $casts = ['passengers' => 'integer', 'bags' => 'integer', 'sort_order' => 'integer', 'is_active' => 'boolean'];
 }

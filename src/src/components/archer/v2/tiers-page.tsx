@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { series, type SiteData } from "@/lib/site-api";
+import { series, tierMinimums, type SiteData } from "@/lib/site-api";
 import { DISPATCH_PHONE_TEL } from "@/lib/archer-data";
 import { EYEBROW, ghost, HEAD, MiniFooter, PageHero, PageShell, primary, Segmented, SiteHeader, WRAP, type HeroSlide } from "@/components/archer/v2/shared";
 
@@ -21,13 +21,13 @@ const DRIVER_DEFAULT: Tier[] = [
   { label: "TIER 1 · ESSENTIAL", title: "Professional Chauffeur", price: "$70", creds: ["Vetted, professional chauffeur", "Cleared criminal background check", "SORA-certified"], quals: ["Airport runs", "Everyday business travel", "Nights out and events"] },
   { label: "TIER 2 · EXECUTIVE", title: "Military & Law-Enforcement Chauffeur", price: "$90", creds: ["Everything in Tier 1", "Verified military or law-enforcement service", "NJ SORA security officer registration"], quals: ["Executives and corporate clients", "Roadshows and multi-stop days", "Rides needing a security-minded chauffeur"] },
   { label: "TIER 3 · ELITE", title: "Executive Protection Specialist", price: "$130", creds: ["Everything in Tier 2", "Certified in personal or executive protection", "Commendations earned in the line of duty"], quals: ["VIPs and public figures", "Sensitive itineraries", "Private aviation and FBO transfers"] },
-  { label: "TIER 4", title: "Senior Protection Specialist", price: "$190", call: true, creds: ["Everything in Tier 3", "Archer's highest level of credentials"], quals: ["Dignitaries", "Elevated-risk details", "Private aviation"] },
+  { label: "TIER 4 · ARMED", title: "Senior Protection Specialist", price: "$190", call: true, creds: ["Everything in Tier 3", "Archer's highest level of credentials"], quals: ["Dignitaries", "Elevated-risk details", "Private aviation"] },
 ];
 const SECURITY_DEFAULT: Tier[] = [
   { label: "TIER 1 · ESSENTIAL", title: "Security Officer", price: "$45", creds: ["Licensed, background-checked officer", "NJ SORA registration"], quals: ["Front desk and access control", "Office and residential coverage"] },
   { label: "TIER 2 · EXECUTIVE", title: "Security Specialist", price: "$60", creds: ["Everything in Tier 1", "Verified military or law-enforcement service"], quals: ["Corporate events", "Venue and crowd management"] },
   { label: "TIER 3 · ELITE", title: "Executive Protection Specialist", price: "$75", creds: ["Everything in Tier 2", "Certified in executive protection"], quals: ["Executive protection details", "Red carpets, galas and VIP events"] },
-  { label: "TIER 4", title: "Senior Protection Specialist", price: "$125", call: true, creds: ["Everything in Tier 3", "Archer's highest level of credentials"], quals: ["Dignitaries", "Elevated-risk assignments"] },
+  { label: "TIER 4 · ARMED", title: "Senior Protection Specialist", price: "$125", call: true, creds: ["Everything in Tier 3", "Archer's highest level of credentials"], quals: ["Dignitaries", "Elevated-risk assignments"] },
 ];
 const RATES_DEFAULT = [[80, 100], [100, 120], [140, 160], [190, 210]];
 
@@ -42,7 +42,7 @@ function Check({ children }: { children: string }) {
 
 function fromSite(site?: SiteData | null) {
   if (!site || !site.tiers || site.tier_list.length === 0) return null;
-  const driverHourly = series(site.rates, "hourly", "exec", "sedan");
+  const driverHourly = tierMinimums(site.rates, "hourly");
   const sec = series(site.rates, "security_hourly", null, null);
   const execSuv = series(site.rates, "hourly", "exec", "suv");
   const firstSuv = series(site.rates, "hourly", "first", "suv");
@@ -69,6 +69,10 @@ export function TiersPage({ site }: { site?: SiteData | null } = {}) {
         <h2 className="mb-0 mt-3 text-[38px] leading-[1.08]" style={HEAD}>Who&apos;s behind the wheel, and beside you.</h2>
         <div className="mt-[34px]">
           <Segmented label="Driver or security tiers" value={mode} onChange={setMode} options={[["driver", "DRIVER"], ["security", "SECURITY"]]} pad="px-10" />
+          {/* QA BUG-030: say what the toggle switches between. */}
+          <p className="mb-0 mt-3 text-[15px] text-[#B3ADA5]">
+            {driver ? "Chauffeur tiers: who drives you. Switch to Security for standalone guards and protection details." : "Security tiers: licensed guards and protection specialists, booked on their own or added to a ride."}
+          </p>
         </div>
         <div className="mt-[34px] grid gap-[18px] [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))]">
           {list.map((t, i) => (
@@ -76,7 +80,7 @@ export function TiersPage({ site }: { site?: SiteData | null } = {}) {
               <span className="text-[12px] font-medium tracking-[0.2em] text-[#E87722]">{t.label}</span>
               <h3 className="mb-4 mt-2 min-h-[52px] text-[21px] leading-[1.22]" style={HEAD}>{t.title}</h3>
               <span className="text-[12px] tracking-[0.12em] text-[#B3ADA5]">STARTING AT</span>
-              <span className="text-[32px] font-bold leading-[1.1]" style={HEAD}>{t.price} <span className="text-[14px] font-normal text-[#B3ADA5]">{driver ? "/hr" : "per guard/hr · 3-hr min"}</span></span>
+              <span className="text-[32px] font-bold leading-[1.1]" style={HEAD}>{t.price} <span className="text-[14px] font-normal text-[#B3ADA5]">{driver ? "/hr · 4-hr min" : "per guard/hr · 3-hr min"}</span></span>
               <span className="mb-2 mt-[22px] text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">CREDENTIALS</span>
               {t.creds.map((c) => <Check key={c}>{c}</Check>)}
               <span className="mb-2 mt-4 text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">QUALIFIED FOR</span>

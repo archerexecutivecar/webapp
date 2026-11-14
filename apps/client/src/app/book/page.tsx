@@ -1,27 +1,16 @@
 "use client";
 
-import Link from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { api, errorText } from "@/lib/api";
 import { Shell, useCustomer } from "@/components/Shell";
+import { useCatalog, type Cls as CatalogCls, type Size as CatalogSize } from "@/lib/catalog";
 
 // Approved Archer Pricing Rules (Display-only estimates)
-export type Svc = "hourly" | "airport" | "p2p" | "client" | "security";
-export type Cls = "exec" | "first";
-export type Size = "sedan" | "suv" | "van";
+type Svc = "hourly" | "airport" | "p2p" | "client" | "security";
+type Cls = CatalogCls;
+type Size = CatalogSize;
 
-const HR: Record<Cls, Record<Size, number[]>> = {
-  exec: { sedan: [70, 90, 130, 215], suv: [80, 100, 140, 190], van: [175, 195, 235, 390] },
-  first: { sedan: [80, 100, 140, 235], suv: [100, 120, 160, 210], van: [225, 245, 285, 475] },
-};
-
-const PP: Record<Cls, Record<Size, number[] | null>> = {
-  exec: { sedan: [145, 170, 215, 270], suv: [155, 180, 225, 280], van: null },
-  first: { sedan: [155, 180, 225, 280], suv: [200, 220, 260, 310], van: null },
-};
-
-const CC = [45, 60, 75, 125];
 const FEE = 10;
 const STOP = 20;
 const money = (n: number) => "$" + n.toLocaleString("en-US");
@@ -41,76 +30,6 @@ const SERVICES: ServiceMeta[] = [
   { id: "security", label: "Protection", badge: "Armed", desc: "Armed executive security & close protective escort" },
 ];
 
-const TIERS = [
-  {
-    tier: 1,
-    title: "Tier 1: Professional Chauffeur",
-    tag: "Standard Luxury",
-    desc: "Rigorous background checks, luxury driving etiquette, flawless navigation.",
-  },
-  {
-    tier: 2,
-    title: "Tier 2: Armed Law Enforcement",
-    tag: "Off-Duty Officer",
-    desc: "Current or former armed police officers trained in defensive & evasive driving.",
-  },
-  {
-    tier: 3,
-    title: "Tier 3: Executive Protection Specialist",
-    tag: "Close Protection",
-    desc: "Licensed protective agents for high-profile executives, advance route security.",
-  },
-  {
-    tier: 4,
-    title: "Tier 4: Elite Close Protection Team",
-    tag: "Tactical VIP",
-    desc: "Counter-surveillance, dignitary security teams & high-threat protection.",
-  },
-];
-
-const FLEET_VEHICLES = [
-  {
-    cls: "exec" as Cls,
-    size: "sedan" as Size,
-    name: "Executive Sedan",
-    models: "Mercedes S-Class, BMW 7 Series",
-    passengers: 3,
-    luggage: 2,
-  },
-  {
-    cls: "exec" as Cls,
-    size: "suv" as Size,
-    name: "Executive SUV",
-    models: "Cadillac Escalade, Chevy Suburban",
-    passengers: 6,
-    luggage: 5,
-  },
-  {
-    cls: "first" as Cls,
-    size: "sedan" as Size,
-    name: "First Class Sedan",
-    models: "Mercedes-Maybach, Rolls-Royce Edition",
-    passengers: 3,
-    luggage: 2,
-  },
-  {
-    cls: "first" as Cls,
-    size: "suv" as Size,
-    name: "First Class SUV",
-    models: "Maybach GLS, Escalade Platinum ESV",
-    passengers: 6,
-    luggage: 5,
-  },
-  {
-    cls: "exec" as Cls,
-    size: "van" as Size,
-    name: "Executive Sprinter",
-    models: "Mercedes-Benz Sprinter VIP (Hourly only)",
-    passengers: 14,
-    luggage: 12,
-  },
-];
-
 const AIRPORTS = [
   { code: "JFK", name: "JFK - John F. Kennedy International" },
   { code: "EWR", name: "EWR - Newark Liberty International" },
@@ -126,6 +45,14 @@ const AIRPORTS = [
 function BookRideForm() {
   const router = useRouter();
   const { me } = useCustomer();
+  // Rates, fleet, tiers and active services come from Admin (lib/catalog.ts).
+  const cat = useCatalog();
+  const { HR, PP, CC, GUARD } = cat;
+  const services = SERVICES.filter((s) => !cat.services || cat.services[s.id]).map((s) => ({
+    ...s,
+    label: cat.services?.[s.id]?.name ?? s.label,
+    desc: cat.services?.[s.id]?.tagline || s.desc,
+  }));
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -133,6 +60,11 @@ function BookRideForm() {
 
   // Core Service & Vehicle configuration
   const [service, setService] = useState<Svc>("hourly");
+  // Deep links such as /book?service=client (from /book/client-car) preselect the service.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("service");
+    if (q && SERVICES.some((x) => x.id === q)) setService(q as Svc);
+  }, []);
   const [tier, setTier] = useState<number>(1);
   const [cls, setCls] = useState<Cls>("exec");
   const [size, setSize] = useState<Size>("suv");
@@ -195,8 +127,8 @@ function BookRideForm() {
     basePrice = CC[t] * effectiveHours;
   } else if (isS) {
     const g = Math.max(1, guards);
-    baseLabel = `${g} guard${g > 1 ? "s" : ""} × ${money(CC[t])}/hr × ${effectiveHours} hrs`;
-    basePrice = CC[t] * effectiveHours * g;
+    baseLabel = `${g} guard${g > 1 ? "s" : ""} × ${money(GUARD[t])}/hr × ${effectiveHours} hrs`;
+    basePrice = GUARD[t] * effectiveHours * g;
   } else if (isH || vanTrip) {
     const h = vanTrip ? Math.max(4, effectiveHours) : effectiveHours;
     const r = HR[cls][size][t];
@@ -204,14 +136,14 @@ function BookRideForm() {
     basePrice = r * h;
   } else {
     baseLabel = "Estimated Trip Rate";
-    basePrice = PP[cls][size]?.[t] ?? 160;
+    basePrice = PP[cls][size]?.[t] ?? HR[cls][size][t] * 4;
   }
 
   const validStops = stops.filter((s) => s.trim().length > 0);
   const paidStops = isTrip && !vanTrip ? Math.max(0, validStops.length - 1) : 0;
   const stopsCost = paidStops * STOP;
   const guardHours = isTrip ? (vanTrip ? 4 : 3) : effectiveHours;
-  const guardCost = isS ? 0 : guards * CC[t] * guardHours;
+  const guardCost = isS ? 0 : guards * GUARD[t] * guardHours;
   const totalEstimate = basePrice + stopsCost + guardCost + FEE;
 
   const handleAddStop = () => {
@@ -241,10 +173,19 @@ function BookRideForm() {
 
     // Determine contact fields (use logged in user or manual overrides)
     const fullName = me?.name ? me.name.trim().split(" ") : [];
-    const firstName = customFirstName.trim() || fullName[0] || "Valued";
-    const lastName = customLastName.trim() || fullName.slice(1).join(" ") || "Guest";
+    const firstName = customFirstName.trim() || fullName[0] || "";
+    const lastName = customLastName.trim() || fullName.slice(1).join(" ") || "";
+    if (!firstName || !lastName) {
+      setError("Please enter the passenger's first and last name.");
+      return;
+    }
     const email = customEmail.trim() || me?.email || "";
-    const phone = customPhone.trim() || me?.phone || "8482319997";
+    // Never fall back to Archer's dispatch number: dispatch must be able to reach the passenger.
+    const phone = customPhone.trim() || me?.phone?.trim() || "";
+    if (phone.replace(/\D/g, "").length < 10) {
+      setError("Please enter a mobile number so your chauffeur and dispatch can reach you.");
+      return;
+    }
 
     if (!email) {
       setError("Please provide a valid contact email for booking confirmation.");
@@ -355,7 +296,7 @@ function BookRideForm() {
 
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
             <span className="muted">Service:</span>
-            <span style={{ fontWeight: 600 }}>{SERVICES.find((s) => s.id === service)?.label}</span>
+            <span style={{ fontWeight: 600 }}>{services.find((s) => s.id === service)?.label}</span>
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
@@ -438,7 +379,7 @@ function BookRideForm() {
           1. Select Service Type
         </span>
         <div className="book-service-tabs">
-          {SERVICES.map((s) => {
+          {services.map((s) => {
             const active = service === s.id;
             return (
               <button
@@ -459,7 +400,7 @@ function BookRideForm() {
           })}
         </div>
         <p className="muted" style={{ fontSize: 12, margin: "2px 0 0" }}>
-          {SERVICES.find((s) => s.id === service)?.desc}
+          {services.find((s) => s.id === service)?.desc}
         </p>
       </div>
 
@@ -780,7 +721,7 @@ function BookRideForm() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {TIERS.map((tItem) => {
+          {cat.tiers.map((tItem) => {
             const active = tier === tItem.tier;
             return (
               <div
@@ -790,7 +731,7 @@ function BookRideForm() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 13.5, fontWeight: 800, color: active ? "#FFF" : "#D4D4D8" }}>
-                    {tItem.title}
+                    {tItem.label}
                   </span>
                   <span
                     style={{
@@ -804,11 +745,11 @@ function BookRideForm() {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {tItem.tag}
+                    {tItem.callOnly ? "Call to book" : `Tier ${tItem.tier}`}
                   </span>
                 </div>
                 <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9E9890", lineHeight: 1.4 }}>
-                  {tItem.desc}
+                  {tItem.title}
                 </p>
               </div>
             );
@@ -860,13 +801,13 @@ function BookRideForm() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {FLEET_VEHICLES.filter((v) => v.cls === cls).map((v) => {
+            {cat.vehicles.filter((v) => v.cls === cls).map((v) => {
               const active = size === v.size && cls === v.cls;
               const rateDisplay = isH
                 ? `${money(HR[cls][v.size][t])}/hr`
                 : v.size === "van"
                 ? `${money(HR[cls][v.size][t])}/hr (4-hr min)`
-                : `From ${money(PP[cls][v.size]?.[t] ?? 160)}`;
+                : `From ${money(PP[cls][v.size]?.[t] ?? HR[cls][v.size][t] * 4)}`;
 
               return (
                 <div
@@ -879,12 +820,14 @@ function BookRideForm() {
                 >
                   <div className="book-fleet-info">
                     <div style={{ fontSize: 14, fontWeight: 800, color: active ? "#FFF" : "#D4D4D8" }}>
-                      {v.name}
+                      {v.model}
                     </div>
-                    <div style={{ fontSize: 11, color: "#9E9890", marginTop: 2 }}>{v.models}</div>
-                    <div style={{ fontSize: 11, color: "#71717A", marginTop: 2 }}>
-                      Up to {v.passengers} passengers · {v.luggage} bags
-                    </div>
+                    <div style={{ fontSize: 11, color: "#9E9890", marginTop: 2 }}>{v.label}</div>
+                    {(v.passengers != null || v.bags != null) && (
+                      <div style={{ fontSize: 11, color: "#71717A", marginTop: 2 }}>
+                        {[v.passengers != null && `Up to ${v.passengers} passengers`, v.bags != null && `${v.bags} bags`].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                   </div>
                   <div className="book-fleet-price">
                     <div style={{ fontSize: 14, fontWeight: 800, color: "#E87722" }}>{rateDisplay}</div>
@@ -903,7 +846,7 @@ function BookRideForm() {
           <span style={{ fontSize: 12, fontWeight: 700, color: "#9E9890", textTransform: "uppercase", letterSpacing: "0.08em" }}>
             {isS ? "Armed Protection Officers" : "Optional Security Guard Add-on"}
           </span>
-          <span style={{ fontSize: 11, color: "#E87722" }}>{money(CC[t])}/hr per guard</span>
+          <span style={{ fontSize: 11, color: "#E87722" }}>{money(GUARD[t])}/hr per guard</span>
         </div>
 
         <div className="book-guard-grid">
@@ -956,6 +899,8 @@ function BookRideForm() {
             <input
               className="input"
               type="tel"
+              required
+              autoComplete="tel"
               defaultValue={me?.phone || ""}
               placeholder="Mobile phone"
               onChange={(e) => setCustomPhone(e.target.value)}

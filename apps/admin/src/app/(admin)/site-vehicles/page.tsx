@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Plus, Trash2, Edit3, X } from 'lucide-react';
 
-interface V { id: string; vehicle_class: 'exec' | 'first'; size: 'sedan' | 'suv' | 'van'; size_label: string; model: string; blurb: string; image_url: string | null; image_alt: string | null; sort_order: number; is_active: boolean }
+interface V { id: string; vehicle_class: 'exec' | 'first'; size: 'sedan' | 'suv' | 'van'; size_label: string; model: string; blurb: string; passengers: number | null; bags: number | null; image_url: string | null; image_alt: string | null; sort_order: number; is_active: boolean }
 
 export default function SiteVehiclesPage() {
   const [items, setItems] = useState<V[]>([]);
@@ -43,7 +43,7 @@ export default function SiteVehiclesPage() {
           <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Website Fleet</h2>
           <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Vehicles shown on the public Fleet page.</span>
         </div>
-        <button type="button" onClick={() => setEditing({ vehicle_class: 'exec', size: 'suv', size_label: 'FULL-SIZE SUV', model: '', blurb: '', image_url: '', image_alt: '', sort_order: items.length + 1, is_active: true })}><Plus size={15} /> Add vehicle</button>
+        <button type="button" onClick={() => setEditing({ vehicle_class: 'exec', size: 'suv', size_label: 'FULL-SIZE SUV', model: '', blurb: '', passengers: null, bags: null, image_url: '', image_alt: '', sort_order: items.length + 1, is_active: true })}><Plus size={15} /> Add vehicle</button>
       </div>
       {error && <div className="alert">{error}</div>}
       {ok && <div className="notice">{ok}</div>}
@@ -74,6 +74,8 @@ export default function SiteVehiclesPage() {
               <label>Model *<input required value={editing.model ?? ''} onChange={(e) => setEditing({ ...editing, model: e.target.value })} /></label>
               <label>Short description *<input required maxLength={255} value={editing.blurb ?? ''} onChange={(e) => setEditing({ ...editing, blurb: e.target.value })} /></label>
               <label>Photo (file name or URL)<input value={editing.image_url ?? ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} /></label>
+              <label>Passengers<input type="number" min={1} max={60} value={editing.passengers ?? ''} onChange={(e) => setEditing({ ...editing, passengers: e.target.value === '' ? null : Number(e.target.value) })} /></label>
+              <label>Bags<input type="number" min={0} max={60} value={editing.bags ?? ''} onChange={(e) => setEditing({ ...editing, bags: e.target.value === '' ? null : Number(e.target.value) })} /></label>
               <label>Photo description (alt text)<input value={editing.image_alt ?? ''} onChange={(e) => setEditing({ ...editing, image_alt: e.target.value })} /></label>
               <label>Display order<input type="number" min={0} value={editing.sort_order ?? 0} onChange={(e) => setEditing({ ...editing, sort_order: parseInt(e.target.value) || 0 })} /></label>
               <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 16, minHeight: 16 }} checked={editing.is_active ?? true} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} />Show on website</label>

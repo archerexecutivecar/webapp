@@ -10,7 +10,13 @@ export function CookieBanner() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    try { if (!localStorage.getItem(KEY)) setOpen(true); } catch { setOpen(true); }
+    try {
+      if (!localStorage.getItem(KEY)) {
+        queueMicrotask(() => setOpen(true));
+      }
+    } catch {
+      queueMicrotask(() => setOpen(true));
+    }
     const reopen = () => setOpen(true);
     window.addEventListener("archer:cookie-settings", reopen);
     return () => window.removeEventListener("archer:cookie-settings", reopen);

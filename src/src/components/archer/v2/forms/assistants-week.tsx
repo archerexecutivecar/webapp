@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { MobileTotal, FormErrors, Panel, Agree, btnGhost, btnPrimary, Chip, Chips, Crumbs, Done, doneP, Fieldset, FormShell, Grid, inputCls, Ref, Select, StepLabels, Text, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
-import { FEE, HR, money, PP, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
+import { FEE, money, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 import { HEAD } from "@/components/archer/v2/tokens";
 
 type RideType = "airport_in" | "airport_out" | "p2p" | "hourly";
@@ -24,6 +24,7 @@ const LAB: Record<RideType, [string, string, string, string, string]> = {
 };
 
 export function AssistantsWeek() {
+  const { HR, PP } = useRates();
   const [step, setStep] = useState(1);
   const [tier, setTier] = useState(2);
   const [veh, setVeh] = useState("exec|suv");
