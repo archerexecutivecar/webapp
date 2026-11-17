@@ -38,12 +38,12 @@ export default function SiteVehiclesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '12px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Website Fleet</h2>
-          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Vehicles shown on the public Fleet page.</span>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Website Fleet</h2>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Vehicles customers can book. Passenger and bag limits set here are enforced on every quote; blank means no limit. If two vehicles share a class and size, the first in display order is the one quoted.</span>
         </div>
-        <button type="button" onClick={() => setEditing({ vehicle_class: 'exec', size: 'suv', size_label: 'FULL-SIZE SUV', model: '', blurb: '', passengers: null, bags: null, image_url: '', image_alt: '', sort_order: items.length + 1, is_active: true })}><Plus size={15} /> Add vehicle</button>
+        <button type="button" onClick={() => setEditing({ vehicle_class: 'exec', size: 'suv', size_label: 'FULL-SIZE SUV', model: '', blurb: '', passengers: null, bags: null, image_url: '', image_alt: '', sort_order: items.length + 1, is_active: true })} style={{ height: 32, padding: '0 14px', fontSize: '0.8125rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Add vehicle</button>
       </div>
       {error && <div className="alert">{error}</div>}
       {ok && <div className="notice">{ok}</div>}
@@ -52,7 +52,7 @@ export default function SiteVehiclesPage() {
           <tbody>
             {items.map((v) => (
               <tr key={v.id} style={{ borderTop: '1px solid var(--border)', opacity: v.is_active ? 1 : 0.55 }}>
-                <td style={{ padding: '10px 16px' }}><strong>{v.model}</strong><div style={{ fontSize: '0.82rem' }}>{v.vehicle_class === 'exec' ? 'Executive Class' : '1st Class'} · {v.size_label}{v.image_url ? '' : ' · no photo yet'}{v.is_active ? '' : ' · hidden'}</div></td>
+                <td style={{ padding: '10px 16px' }}><strong>{v.model}</strong><div style={{ fontSize: '0.82rem' }}>{v.vehicle_class === 'exec' ? 'Executive Class' : '1st Class'} · {v.size_label}{v.passengers === null ? ' · no passenger limit' : ` · ${v.passengers} passengers`}{v.image_url ? '' : ' · no photo yet'}{v.is_active ? '' : ' · hidden'}</div></td>
                 <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button type="button" className="secondary" aria-label="Edit" onClick={() => setEditing({ ...v })}><Edit3 size={14} /></button>{' '}
                   <button type="button" className="secondary" aria-label="Delete" onClick={() => remove(v)}><Trash2 size={14} /></button>

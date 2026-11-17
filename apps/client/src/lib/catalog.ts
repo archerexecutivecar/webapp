@@ -48,8 +48,8 @@ export const SERVICE_SLUGS: Record<Exclude<AppService, "security">, string> = {
 
 const FALLBACK: Catalog = {
   HR: {
-    exec: { sedan: [70, 90, 130, 215], suv: [80, 100, 140, 190], van: [175, 195, 235, 390] },
-    first: { sedan: [80, 100, 140, 235], suv: [100, 120, 160, 210], van: [225, 245, 285, 475] },
+    exec: { sedan: [70, 90, 130, 190], suv: [80, 100, 140, 215], van: [175, 195, 235, 390] },
+    first: { sedan: [80, 100, 140, 210], suv: [100, 120, 160, 235], van: [225, 245, 285, 475] },
   },
   PP: {
     exec: { sedan: [145, 170, 215, 270], suv: [155, 180, 225, 280], van: null },

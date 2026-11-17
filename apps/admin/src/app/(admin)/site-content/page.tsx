@@ -39,19 +39,19 @@ export default function SiteContentPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ background: 'var(--surface)', padding: '12px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
-        <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Page Content</h2>
-        <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Contact details, app launch status, and the copy on the Home, Fleet, Tiers and Service pages.</span>
+      <div style={{ background: 'var(--surface)', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Page Content</h2>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Contact details, app launch status, and the copy on the Home, Fleet, Tiers and Service pages.</span>
       </div>
       {error && <div className="alert">{error}</div>}
       {ok && <div className="notice">{ok}</div>}
-      <label>Document
-        <select value={key} onChange={(e) => setKey(e.target.value)}>
+      <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Document
+        <select value={key} onChange={(e) => setKey(e.target.value)} style={{ marginTop: 4 }}>
           {docs.map((d) => <option key={d.key} value={d.key}>{nameOf(d.key)}</option>)}
         </select>
       </label>
-      <textarea aria-label="Document content" rows={26} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.8rem' }} />
-      <div><button type="button" onClick={save}>Save document</button></div>
+      <textarea aria-label="Document content" rows={26} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.8125rem', borderRadius: 4 }} />
+      <div><button type="button" onClick={save} style={{ height: 32, padding: '0 14px', fontSize: '0.8125rem', fontWeight: 600 }}>Save document</button></div>
     </div>
   );
 }

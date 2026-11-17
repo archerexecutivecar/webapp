@@ -50,49 +50,89 @@ export function Shell({ children }: { children: React.ReactNode }) {
     setCollapsed((c) => { try { localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1'); } catch { /* ignore */ } return !c; });
   }
 
+  const activeGroup = current?.group ?? groups[0];
+
   return (
     <div className={`shell${collapsed ? ' is-collapsed' : ''}${drawer ? ' drawer-open' : ''}`}>
-      <aside className="sidebar" id="sidebar" aria-label="Main navigation">
-        <div className="sb-head">
+      {/* Column 1: Primary Dark Rail */}
+      <aside className="primary-rail" id="primary-rail" aria-label="Global navigation">
+        <div className="pr-head">
           <Link href="/" className="wordmark" aria-label="Archer Admin home">
-            <ArcherLogo size={34} />
+            <ArcherLogo size={26} />
             <div className="wm-text-group">
               <span className="wm-rest">ARCHER</span>
-              <span className="wm-sub">Executive Black Car</span>
+              <span className="wm-sub">Executive</span>
             </div>
           </Link>
           <button className="icon-btn sb-close" onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
-        <nav className="sb-nav">
-          {groups.length === 0 && <p className="sb-empty">No sections assigned to your role.</p>}
-          {groups.map((g) => (
-            <div key={g.key} className="sb-group">
-              <div className="sb-label">{g.label}</div>
-              <ul>
-                {g.items.map((i) => {
-                  const Icon = ICONS[i.icon] ?? LayoutDashboard;
-                  const active = current?.item.key === i.key;
-                  return (
-                    <li key={i.key}>
-                      <Link href={i.href} className={`sb-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined} data-tip={i.label}>
-                        <Icon size={18} aria-hidden /><span className="sb-text">{i.label}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+
+        <nav className="pr-nav">
+          {groups.length === 0 && <p className="sb-empty">No sections assigned.</p>}
+          {groups.map((g) => {
+            const firstItem = g.items[0];
+            const Icon = ICONS[firstItem?.icon] ?? LayoutDashboard;
+            const active = activeGroup?.key === g.key;
+            return (
+              <Link
+                key={g.key}
+                href={firstItem?.href ?? '/dashboard'}
+                className={`pr-link${active ? ' active' : ''}`}
+                aria-current={active ? 'page' : undefined}
+                data-tip={g.label}
+              >
+                <Icon size={16} aria-hidden />
+                <span className="pr-text">{g.label}</span>
+              </Link>
+            );
+          })}
         </nav>
-        <button className="sb-collapse" onClick={toggleCollapse} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} data-tip={collapsed ? 'Expand' : undefined}>
-          {collapsed ? <ChevronsRight size={18} /> : <><ChevronsLeft size={18} /><span className="sb-text">Collapse</span></>}
-        </button>
+
+        <div className="pr-footer">
+          <button
+            className="pr-collapse-btn"
+            onClick={toggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            data-tip={collapsed ? 'Expand' : undefined}
+          >
+            {collapsed ? <ChevronsRight size={16} /> : <><ChevronsLeft size={16} /><span className="pr-text">Collapse</span></>}
+          </button>
+        </div>
       </aside>
+
+      {/* Column 2: Secondary Context Sub-Rail */}
+      {activeGroup && activeGroup.items.length > 0 && (
+        <aside className="secondary-subrail" aria-label="Section navigation">
+          <div className="subrail-title">
+            <span>{activeGroup.label}</span>
+          </div>
+          <ul className="subrail-list">
+            {activeGroup.items.map((i) => {
+              const Icon = ICONS[i.icon] ?? LayoutDashboard;
+              const active = current?.item.key === i.key;
+              return (
+                <li key={i.key}>
+                  <Link
+                    href={i.href}
+                    className={`subrail-item-link${active ? ' active' : ''}`}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon size={15} aria-hidden />
+                    <span>{i.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </aside>
+      )}
+
       {drawer && <div className="scrim" onClick={() => setDrawer(false)} aria-hidden />}
 
+      {/* Column 3: Main Workspace */}
       <div className="main-col">
         <header className="header">
-          <button className="icon-btn menu-btn" onClick={() => setDrawer(true)} aria-label="Open menu" aria-controls="sidebar" aria-expanded={drawer}><Menu size={20} /></button>
+          <button className="icon-btn menu-btn" onClick={() => setDrawer(true)} aria-label="Open menu" aria-controls="primary-rail" aria-expanded={drawer}><Menu size={20} /></button>
           <div className="crumbs">
             <nav aria-label="Breadcrumb">
               <ol>

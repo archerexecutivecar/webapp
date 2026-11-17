@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\PricingSetting;
 use App\Models\RateCard;
+use App\Models\SiteTier;
 use App\Models\SiteVehicle;
 use Database\Seeders\SiteContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -183,6 +184,43 @@ class QuoteTest extends TestCase
         $this->postJson(self::URL, $this->hourly())->assertStatus(422)->assertJsonPath('error.code', 'SERVICE_UNAVAILABLE');
     }
 
+    public function test_standalone_security_is_checked_against_security_tiers_not_chauffeur_tiers(): void
+    {
+        $security = ['service' => 'security', 'tier' => 3, 'guards' => 1, 'hours' => 3];
+
+        SiteTier::where(['kind' => 'driver', 'tier' => 3])->update(['is_active' => false]);
+        $this->assertSame(7500 * 3, $this->postJson(self::URL, $security)->assertOk()->json('data.quote.subtotal_cents'));
+
+        SiteTier::where(['kind' => 'driver', 'tier' => 3])->update(['is_active' => true]);
+        SiteTier::where(['kind' => 'security', 'tier' => 3])->update(['is_active' => false]);
+        $this->postJson(self::URL, $security)->assertStatus(422)->assertJsonPath('error.code', 'TIER_UNAVAILABLE');
+        $this->postJson(self::URL, $this->hourly(['tier' => 3]))->assertOk();
+    }
+
+    public function test_fleet_entries_sharing_a_class_and_size_use_the_first_in_display_order(): void
+    {
+        SiteVehicle::where(['vehicle_class' => 'exec', 'size' => 'suv'])->update(['passengers' => 6, 'sort_order' => 5]);
+        SiteVehicle::create([
+            'vehicle_class' => 'exec', 'size' => 'suv', 'size_label' => 'FULL-SIZE SUV', 'model' => 'GMC Yukon',
+            'blurb' => 'Second full-size SUV.', 'passengers' => 2, 'sort_order' => 1, 'is_active' => true,
+        ]);
+
+        $this->postJson(self::URL, $this->hourly(['passengers' => 3]))->assertStatus(422)->assertJsonPath('error.code', 'OVER_CAPACITY');
+        $this->assertSame('GMC Yukon × 4 hrs', $this->postJson(self::URL, $this->hourly(['passengers' => 2]))->json('data.quote.lines.0.label'));
+    }
+
+    public function test_sprinter_trip_fare_rows_exist_switched_off_until_admin_prices_them(): void
+    {
+        $this->set('p2p', ['van_hourly' => false]);
+        $trip = ['service' => 'p2p', 'tier' => 1, 'vehicle_class' => 'exec', 'vehicle_size' => 'van'];
+        $this->postJson(self::URL, $trip)->assertStatus(422)->assertJsonPath('error.code', 'RATE_NOT_CONFIGURED');
+
+        $row = ['kind' => 'point_to_point', 'vehicle_class' => 'exec', 'size' => 'van', 'tier' => 1];
+        $this->assertSame(8, RateCard::where(['kind' => 'point_to_point', 'size' => 'van', 'is_active' => false, 'amount_cents' => 0])->count());
+        $this->assertSame(1, RateCard::where($row)->update(['amount_cents' => 40000, 'is_active' => true]));
+        $this->assertSame(40000, $this->postJson(self::URL, $trip)->assertOk()->json('data.quote.subtotal_cents'));
+    }
+
     public function test_client_cannot_send_a_total(): void
     {
         $q = $this->postJson(self::URL, $this->hourly(['total_cents' => 1, 'amount_cents' => 1]))->json('data.quote');
@@ -204,5 +242,99 @@ class QuoteTest extends TestCase
         $sim = $this->postJson('/api/v1/admin/pricing/simulate', $this->hourly(), $ops)->assertOk()->json('data.quote');
         $this->assertSame($this->postJson(self::URL, $this->hourly())->json('data.quote'), $sim);
         $this->assertSame(33500, $sim['total_cents']);
+    }
+
+    public function test_tier_4_hourly_rates_follow_approved_developer_logic(): void
+    {
+        // Traverse (exec sedan) Tier 4 = $190/hr. 4 hrs = $760 base + $10 fee = $770 ($77000 cents)
+        $t4Sedan = $this->postJson(self::URL, [
+            'service' => 'hourly', 'tier' => 4, 'vehicle_class' => 'exec', 'vehicle_size' => 'sedan', 'hours' => 4
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(76000, $t4Sedan['subtotal_cents']);
+        $this->assertSame(77000, $t4Sedan['total_cents']);
+
+        // Suburban (exec SUV) Tier 4 = $215/hr. 4 hrs = $860 base + $10 fee = $870 ($87000 cents)
+        $t4Suv = $this->postJson(self::URL, [
+            'service' => 'hourly', 'tier' => 4, 'vehicle_class' => 'exec', 'vehicle_size' => 'suv', 'hours' => 4
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(86000, $t4Suv['subtotal_cents']);
+        $this->assertSame(87000, $t4Suv['total_cents']);
+
+        // Aviator (first sedan) Tier 4 = $210/hr. 4 hrs = $840 base + $10 fee = $850 ($85000 cents)
+        $t4FirstSedan = $this->postJson(self::URL, [
+            'service' => 'hourly', 'tier' => 4, 'vehicle_class' => 'first', 'vehicle_size' => 'sedan', 'hours' => 4
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(84000, $t4FirstSedan['subtotal_cents']);
+        $this->assertSame(85000, $t4FirstSedan['total_cents']);
+
+        // Escalade (first SUV) Tier 4 = $235/hr. 4 hrs = $940 base + $10 fee = $950 ($95000 cents)
+        $t4FirstSuv = $this->postJson(self::URL, [
+            'service' => 'hourly', 'tier' => 4, 'vehicle_class' => 'first', 'vehicle_size' => 'suv', 'hours' => 4
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(94000, $t4FirstSuv['subtotal_cents']);
+        $this->assertSame(95000, $t4FirstSuv['total_cents']);
+    }
+
+    public function test_airport_pricing_nj_vs_nypa_vs_other(): void
+    {
+        // 1. NJ Airport (EWR): Escalade Tier 1 uses flat point-to-point trip fare ($200) + $10 fee = $210
+        $njAirport = $this->postJson(self::URL, [
+            'service' => 'airport', 'airport_code' => 'EWR', 'tier' => 1, 'vehicle_class' => 'first', 'vehicle_size' => 'suv'
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(20000, $njAirport['subtotal_cents']);
+        $this->assertSame(21000, $njAirport['total_cents']);
+        $this->assertTrue($njAirport['is_from_price']);
+
+        // 2. NY/PA Airport (JFK): Escalade Tier 1 uses HOURLY rate ($100) × 4 hours minimum + $10 fee = $410
+        $jfkAirport = $this->postJson(self::URL, [
+            'service' => 'airport', 'airport_code' => 'JFK', 'tier' => 1, 'vehicle_class' => 'first', 'vehicle_size' => 'suv'
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(40000, $jfkAirport['subtotal_cents']);
+        $this->assertSame(41000, $jfkAirport['total_cents']);
+        $this->assertFalse($jfkAirport['is_from_price']);
+
+        // 3. Any Sprinter to an airport: always uses hourly rate ($175) × 4 hours + $10 fee = $710
+        $sprinterAirport = $this->postJson(self::URL, [
+            'service' => 'airport', 'airport_code' => 'EWR', 'tier' => 1, 'vehicle_class' => 'exec', 'vehicle_size' => 'van'
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(17500 * 4, $sprinterAirport['subtotal_cents']);
+        $this->assertSame(17500 * 4 + 1000, $sprinterAirport['total_cents']);
+
+        // 4. Other airport / FBO: shows "Dispatch will quote"
+        $otherAirport = $this->postJson(self::URL, [
+            'service' => 'airport', 'airport_code' => 'OTHER', 'tier' => 1, 'vehicle_class' => 'exec', 'vehicle_size' => 'suv'
+        ])->assertOk()->json('data.quote');
+        $this->assertTrue($otherAirport['dispatch_will_quote']);
+        $this->assertSame(0, $otherAirport['total_cents']);
+    }
+
+    public function test_round_trip_pricing(): void
+    {
+        // Point-to-point round trip: Suburban Tier 1 = $155 × 2 = $310 base + $10 fee = $320
+        $p2pRound = $this->postJson(self::URL, [
+            'service' => 'p2p', 'tier' => 1, 'vehicle_class' => 'exec', 'vehicle_size' => 'suv', 'round_trip' => true
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(31000, $p2pRound['subtotal_cents']);
+        $this->assertSame(32000, $p2pRound['total_cents']);
+        $this->assertTrue($p2pRound['round_trip']);
+
+        // JFK Airport round trip: Escalade Tier 1 = ($100 × 4) × 2 = $800 base + $10 fee = $810
+        $jfkRound = $this->postJson(self::URL, [
+            'service' => 'airport', 'airport_code' => 'JFK', 'tier' => 1, 'vehicle_class' => 'first', 'vehicle_size' => 'suv', 'round_trip' => true
+        ])->assertOk()->json('data.quote');
+        $this->assertSame(80000, $jfkRound['subtotal_cents']);
+        $this->assertSame(81000, $jfkRound['total_cents']);
+    }
+
+    public function test_fbo_and_hotel_guest_rides_service_charge(): void
+    {
+        // FBO & Hotel guest rides add $24.95 service charge
+        $fboRide = $this->postJson(self::URL, [
+            'service' => 'p2p', 'tier' => 1, 'vehicle_class' => 'exec', 'vehicle_size' => 'suv', 'is_fbo_hotel' => true
+        ])->assertOk()->json('data.quote');
+
+        // $155 base + $24.95 service charge = $179.95 subtotal; + $10 booking fee = $189.95 total ($18995 cents)
+        $this->assertSame(15500 + 2495, $fboRide['subtotal_cents']);
+        $this->assertSame(15500 + 2495 + 1000, $fboRide['total_cents']);
     }
 }

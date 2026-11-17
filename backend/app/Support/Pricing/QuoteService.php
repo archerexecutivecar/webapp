@@ -17,7 +17,10 @@ use App\Models\SiteVehicle;
  */
 class QuoteService
 {
-    public const RULE_VERSION = 'pricing-2026-11-14';
+    public const RULE_VERSION = 'pricing-2026-11-15';
+
+    public const NJ_AIRPORTS = ['EWR', 'ACY', 'TEB', 'MMU'];
+    public const NY_PA_AIRPORTS = ['JFK', 'LGA', 'PHL'];
 
     public function quote(array $in): array
     {
@@ -28,7 +31,40 @@ class QuoteService
         }
 
         $tier = (int) $in['tier'];
-        $this->assertTier('driver', $tier, 'tier');
+        // Standalone security is staffed from the Security staffing tiers; every other service uses chauffeur tiers.
+        $this->assertTier($service === 'security' ? 'security' : 'driver', $tier, 'tier');
+
+        $isAirport = $service === 'airport';
+        $airportCode = $isAirport ? strtoupper(trim((string) ($in['airport_code'] ?? $in['airport'] ?? ''))) : null;
+        $isRoundTrip = ! empty($in['round_trip']) || ! empty($in['is_round_trip']);
+        $isFboHotel = ! empty($in['is_fbo_hotel']) || ($in['booking_type'] ?? null) === 'fbo_hotel';
+
+        // Page 3: "Airport, any other airport or FBO: no price shown. Shows 'Dispatch will quote'."
+        if ($isAirport && $airportCode === 'OTHER') {
+            return [
+                'service' => $service,
+                'currency' => 'USD',
+                'lines' => [],
+                'subtotal_cents' => 0,
+                'booking_fee_cents' => 0,
+                'stops' => 0,
+                'included_stops' => 0,
+                'stop_fee_cents' => 0,
+                'is_from_price' => false,
+                'dispatch_will_quote' => true,
+                'dispatch_note' => 'Dispatch will quote',
+                'tax_cents' => 0,
+                'tax_bp' => 0,
+                'card_fee_cents' => 0,
+                'card_fee_bp' => 0,
+                'total_cents' => 0,
+                'gratuity_suggested_cents' => 0,
+                'gratuity_suggested_bp' => $s->gratuity_suggested_bp,
+                'gratuity_included' => false,
+                'is_estimate' => false,
+                'rule_version' => self::RULE_VERSION,
+            ];
+        }
 
         $lines = [];
         $hours = null;
@@ -46,19 +82,24 @@ class QuoteService
             $lines[] = $this->line('base', "Chauffeur × {$hours} hrs", $rate * $hours, $rate, 'per hour', $hours, 'hrs');
         } else {
             [$class, $size] = [$in['vehicle_class'] ?? null, $in['vehicle_size'] ?? null];
-            $vehicle = SiteVehicle::where('vehicle_class', $class)->where('size', $size)->where('is_active', true)->first();
+            // Several fleet entries may share a class and size: the first in Website Fleet display order is used.
+            $vehicle = SiteVehicle::where('vehicle_class', $class)->where('size', $size)->where('is_active', true)
+                ->orderBy('sort_order')->orderBy('id')->first();
             if (! $vehicle) {
                 throw new QuoteException('VEHICLE_UNAVAILABLE', 'This vehicle is not currently offered.', 'vehicle_size');
             }
             $this->assertCapacity($vehicle, (int) ($in['passengers'] ?? 0), (int) ($in['bags'] ?? 0));
 
             $flat = $service !== 'hourly' && $s->pricing_mode === 'flat';
-            $vanHourly = $flat && $size === 'van' && $s->van_hourly;
+            $isNyPaAirport = $isAirport && in_array($airportCode, self::NY_PA_AIRPORTS, true);
+            $vanHourly = ($flat && $size === 'van' && $s->van_hourly) || ($isAirport && $size === 'van');
 
-            if ($flat && ! $vanHourly) {
+            if ($flat && ! $vanHourly && ! $isNyPaAirport) {
                 // Flat trip fare by tier × class × size (Rates: Point to point).
                 $rate = $this->rate('point_to_point', $class, $size, $tier);
-                $lines[] = $this->line('base', 'Trip fare', $rate, $rate, 'per trip', 1, 'trip');
+                $tripMultiplier = $isRoundTrip ? 2 : 1;
+                $label = $isRoundTrip ? 'Trip fare (Round trip)' : 'Trip fare';
+                $lines[] = $this->line('base', $label, $rate * $tripMultiplier, $rate, 'per trip', $tripMultiplier, 'trip');
                 $isFrom = true;
             } elseif ($service !== 'hourly' && $s->pricing_mode === 'per_mile') {
                 $miles = (int) ($in['miles'] ?? 0);
@@ -66,15 +107,18 @@ class QuoteService
                     throw new QuoteException('DISTANCE_REQUIRED', 'Trip distance is needed for this price.', 'miles');
                 }
                 $miles = max($miles, (int) $s->min_miles);
-                $rate = $this->rate('per_mile', $class, $size, $tier);
-                $lines[] = $this->line('base', "{$vehicle->model} × {$miles} mi", $rate * $miles, $rate, 'per mile', $miles, 'mi');
-            } else {
-                $hours = $this->hours($s, $in);
-                $rate = $this->rate('hourly', $class, $size, $tier);
-                $line = $this->line('base', "{$vehicle->model} × {$hours} hrs", $rate * $hours, $rate, 'per hour', $hours, 'hrs');
-                if ($vanHourly) {
-                    $line['note'] = 'Sprinter, hourly only';
+                if ($isRoundTrip) {
+                    $miles *= 2;
                 }
+                $rate = $this->rate('per_mile', $class, $size, $tier);
+                $lines[] = $this->line('base', "{$vehicle->model} × {$miles} mi" . ($isRoundTrip ? ' (Round trip)' : ''), $rate * $miles, $rate, 'per mile', $miles, 'mi');
+            } else {
+                // Hourly rate: used for Hourly, JFK/LGA/PHL airport runs, and every Sprinter booking.
+                $baseHours = ($isNyPaAirport || $vanHourly) ? max(4, (int) ($in['hours'] ?? 4)) : $this->hours($s, $in);
+                $hours = $isRoundTrip ? ($baseHours * 2) : $baseHours;
+                $rate = $this->rate('hourly', $class, $size, $tier);
+                $note = $vanHourly ? 'Sprinter, hourly only' : ($isNyPaAirport ? "Airport ({$airportCode}), 4-hour minimum" : null);
+                $line = $this->line('base', "{$vehicle->model} × {$hours} hrs" . ($isRoundTrip ? ' (Round trip)' : ''), $rate * $hours, $rate, 'per hour', $hours, 'hrs', null, $note);
                 $lines[] = $line;
             }
 
@@ -82,8 +126,18 @@ class QuoteService
             if ($guards > 0) {
                 $secTier = (int) ($in['security_tier'] ?? $tier);
                 $this->assertTier('security', $secTier, 'security_tier');
-                $guardHours = $s->guard_hours_mode === 'ride' && $hours !== null ? $hours : (int) ($in['guard_hours'] ?? 0);
-                $guardHours = max($guardHours, (int) $s->guard_min_hours);
+
+                // Page 3: "Hourly ride: guard hours = booked hours. Trip: 3 hours, or 4 with a Sprinter."
+                $isTrip = $service !== 'hourly';
+                if ($isTrip) {
+                    $minGuardHours = ($size === 'van') ? 4 : (int) ($s->guard_min_hours ?: 3);
+                    $baseGuardHours = max((int) ($in['guard_hours'] ?? 0), $minGuardHours);
+                    $guardHours = $isRoundTrip ? ($baseGuardHours * 2) : $baseGuardHours;
+                } else {
+                    $guardHours = $s->guard_hours_mode === 'ride' && $hours !== null ? $hours : (int) ($in['guard_hours'] ?? 0);
+                    $guardHours = max($guardHours, (int) $s->guard_min_hours);
+                }
+
                 if ($guardHours < 1) {
                     throw new QuoteException('GUARD_HOURS_REQUIRED', 'Enter how many hours security is needed.', 'guard_hours');
                 }
@@ -103,6 +157,11 @@ class QuoteService
         $this->charge($lines, 'passengers', 'Extra passengers', max(0, (int) ($in['passengers'] ?? 0) - $s->included_passengers), $s->per_passenger_cents);
         $this->charge($lines, 'bags', 'Extra bags', max(0, (int) ($in['bags'] ?? 0) - $s->included_bags), $s->per_bag_cents);
 
+        // FBO & Hotel guest rides: $24.95 service charge once per booking (Page 2 & 3).
+        if ($isFboHotel) {
+            $lines[] = $this->line('service_charge', 'FBO & hotel guest service charge', 2495, 2495, 'per booking', 1, 'booking');
+        }
+
         $subtotal = array_sum(array_column($lines, 'amount_cents'));
         $bookingFee = $s->booking_fee_cents;
         $tax = $this->percent($subtotal + ($s->tax_includes_fees ? $bookingFee : 0), $s->tax_bp);
@@ -119,6 +178,9 @@ class QuoteService
             'included_stops' => $vanHourly ? $stops : (int) $s->included_stops, // stops covered by the fare
             'stop_fee_cents' => $stopFee,
             'is_from_price' => $isFrom, // flat trip fares are a starting price: dispatch confirms longer routes
+            'round_trip' => $isRoundTrip,
+            'airport_code' => $airportCode,
+            'dispatch_will_quote' => false,
             'tax_cents' => $tax,
             'tax_bp' => $s->tax_bp,
             'card_fee_cents' => $cardFee,
@@ -178,12 +240,17 @@ class QuoteService
     }
 
     /** quantity × unit_cents (× guards, for security lines) = amount_cents. */
-    private function line(string $code, string $label, int $amount, int $unit, string $per, int $quantity, string $quantityUnit, ?int $guards = null): array
+    private function line(string $code, string $label, int $amount, int $unit, string $per, int $quantity, string $quantityUnit, ?int $guards = null, ?string $note = null): array
     {
-        return [
+        $arr = [
             'code' => $code, 'label' => $label, 'unit_cents' => $unit, 'per' => $per, 'amount_cents' => $amount,
             'quantity' => $quantity, 'quantity_unit' => $quantityUnit, 'guards' => $guards,
         ];
+        if ($note !== null) {
+            $arr['note'] = $note;
+        }
+
+        return $arr;
     }
 
     /** Basis-point percentage of integer cents, rounded half up. */

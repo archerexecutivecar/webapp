@@ -19,6 +19,10 @@ interface Setting {
   guard_hours_mode: 'ride' | 'custom'; guard_min_hours: number | null;
   tax_bp: number; tax_includes_fees: boolean; card_fee_bp: number; gratuity_suggested_bp: number; is_active: boolean;
 }
+/** Active Website Tiers and Website Fleet entries (GET /site): the simulator only offers what a customer can pick. */
+interface CatalogTier { kind: 'driver' | 'security'; tier: number; label: string; call_only: boolean }
+interface CatalogVehicle { vehicle_class: string; size: string; model: string }
+interface Catalog { tier_list: CatalogTier[]; vehicles: CatalogVehicle[] }
 const CLASS_NAME: Record<string, string> = { exec: 'Executive Class', first: '1st Class' };
 const SIZE_NAME: Record<string, string> = { sedan: 'Mid-size SUV', suv: 'Full-size SUV', van: 'Sprinter' };
 const NAMES: Record<Service, string> = { hourly: 'Hourly', airport: 'Airport', p2p: 'Point to Point', client: 'Client Car', security: 'Protection / Security' };
@@ -43,6 +47,7 @@ export default function PricingPage() {
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +58,9 @@ export default function PricingPage() {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    api<Catalog>('/site').then(setCatalog).catch(() => setError('Failed to load Website Tiers and Fleet for the simulator.'));
+  }, []);
 
   const current = settings.find((s) => s.service === svc);
   useEffect(() => {
@@ -104,22 +112,45 @@ export default function PricingPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ ...card, padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ ...card, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Pricing &amp; Simulator</h2>
-          <span style={hint}>Rules for each service. Hourly, per-mile, security and Client Car rates by tier are on <Link href="/site-rates" style={{ color: 'var(--accent)' }}>Rates</Link>.</span>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Pricing &amp; Simulator</h2>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Rules for each service. Hourly, per-mile, security and Client Car rates by tier are on <Link href="/site-rates" style={{ color: 'var(--accent)' }}>Rates</Link>. Tiers come from <Link href="/site-tiers" style={{ color: 'var(--accent)' }}>Website Tiers</Link>, vehicles and their passenger and bag limits from <Link href="/site-vehicles" style={{ color: 'var(--accent)' }}>Website Fleet</Link>.</span>
         </div>
       </div>
       {error && <div className="alert">{error}</div>}
       {ok && <div className="notice">{ok}</div>}
 
-      <div role="tablist" aria-label="Service" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {settings.map((s) => (
-          <button key={s.service} role="tab" type="button" aria-selected={svc === s.service} onClick={() => setSvc(s.service)}
-            className={svc === s.service ? '' : 'secondary'} style={{ opacity: s.is_active ? 1 : 0.6 }}>
-            {NAMES[s.service]}{s.is_active ? '' : ' (off)'}
-          </button>
-        ))}
+      <div role="tablist" aria-label="Service" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+        {settings.map((s) => {
+          const isActive = svc === s.service;
+          return (
+            <button
+              key={s.service}
+              role="tab"
+              type="button"
+              aria-selected={isActive}
+              onClick={() => setSvc(s.service)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                borderRadius: 0,
+                color: isActive ? 'var(--text)' : 'var(--text-secondary)',
+                fontWeight: isActive ? 700 : 500,
+                fontSize: '0.8125rem',
+                padding: '8px 14px',
+                cursor: 'pointer',
+                opacity: s.is_active ? 1 : 0.6,
+                minHeight: 'auto',
+                height: 36,
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {NAMES[s.service]}{s.is_active ? '' : ' (off)'}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,420px),1fr))', gap: 16, alignItems: 'start' }}>
@@ -200,18 +231,42 @@ export default function PricingPage() {
           </form>
         )}
 
-        <Simulator service={svc} perMile={current?.pricing_mode === 'per_mile' && (svc === 'airport' || svc === 'p2p')} flat={current?.pricing_mode === 'flat' && (svc === 'airport' || svc === 'p2p')} guardsCustom={current?.guard_hours_mode === 'custom'} refreshKey={settings} />
+        <Simulator service={svc} perMile={current?.pricing_mode === 'per_mile' && (svc === 'airport' || svc === 'p2p')} flat={current?.pricing_mode === 'flat' && (svc === 'airport' || svc === 'p2p')} guardsCustom={current?.guard_hours_mode === 'custom'} refreshKey={settings} catalog={catalog} />
       </div>
     </div>
   );
 }
 
-function Simulator({ service, perMile, flat, guardsCustom, refreshKey }: { service: Service; perMile: boolean; flat: boolean; guardsCustom: boolean; refreshKey: unknown }) {
+function Simulator({ service, perMile, flat, guardsCustom, refreshKey, catalog }: { service: Service; perMile: boolean; flat: boolean; guardsCustom: boolean; refreshKey: unknown; catalog: Catalog | null }) {
   const [inp, setInp] = useState({ tier: '1', vehicle_class: 'exec', vehicle_size: 'suv', hours: '4', miles: '30', passengers: '1', bags: '0', stops: '0', guards: '0', security_tier: '1', guard_hours: '4' });
   const [quote, setQuote] = useState<Quote | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Options come from the Admin catalog. Standalone security is staffed from the Security staffing tiers.
+  const securityTiers = (catalog?.tier_list ?? []).filter((t) => t.kind === 'security');
+  const tiers = service === 'security' ? securityTiers : (catalog?.tier_list ?? []).filter((t) => t.kind === 'driver');
+  const classes = [...new Set((catalog?.vehicles ?? []).map((v) => v.vehicle_class))];
+  const sizes = [...new Set((catalog?.vehicles ?? []).filter((v) => v.vehicle_class === inp.vehicle_class).map((v) => v.size))];
+  const tierKey = tiers.map((t) => t.tier).join(), secKey = securityTiers.map((t) => t.tier).join(), classKey = classes.join(), sizeKey = sizes.join();
+
+  // Keep each selection on something that is still offered.
   useEffect(() => {
+    if (!catalog) return;
+    const pick = (value: string, options: string[]) => (options.length && !options.includes(value) ? options[0] : value);
+    setInp((cur) => {
+      const next = {
+        ...cur,
+        tier: pick(cur.tier, tierKey ? tierKey.split(',') : []),
+        security_tier: pick(cur.security_tier, secKey ? secKey.split(',') : []),
+        vehicle_class: pick(cur.vehicle_class, classKey ? classKey.split(',') : []),
+        vehicle_size: pick(cur.vehicle_size, sizeKey ? sizeKey.split(',') : []),
+      };
+      return next.tier === cur.tier && next.security_tier === cur.security_tier && next.vehicle_class === cur.vehicle_class && next.vehicle_size === cur.vehicle_size ? cur : next;
+    });
+  }, [catalog, tierKey, secKey, classKey, sizeKey]);
+
+  useEffect(() => {
+    if (!catalog) return;
     const num = (s: string) => (s === '' ? null : Number(s));
     const body: Record<string, unknown> = { service, tier: num(inp.tier), stops: num(inp.stops), passengers: num(inp.passengers), bags: num(inp.bags) };
     if (service !== 'client' && service !== 'security') Object.assign(body, { vehicle_class: inp.vehicle_class, vehicle_size: inp.vehicle_size });
@@ -228,7 +283,10 @@ function Simulator({ service, perMile, flat, guardsCustom, refreshKey }: { servi
       }
     }, 250);
     return () => clearTimeout(t);
-  }, [service, perMile, flat, inp, refreshKey]);
+  }, [service, perMile, flat, inp, refreshKey, catalog]);
+
+  const tierOption = (t: CatalogTier) => <option key={t.tier} value={t.tier}>{t.label}{t.call_only ? ' (call to book)' : ''}</option>;
+  const model = catalog?.vehicles.find((v) => v.vehicle_class === inp.vehicle_class && v.size === inp.vehicle_size)?.model;
 
   const set = (k: keyof typeof inp) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setInp({ ...inp, [k]: e.target.value });
   const n = (k: keyof typeof inp, label: string) => (
@@ -243,15 +301,15 @@ function Simulator({ service, perMile, flat, guardsCustom, refreshKey }: { servi
         <div style={hint}>Uses saved settings — the same price a customer sees on the website and app.</div>
       </div>
       <div style={{ ...grid, gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))' }}>
-        <label style={{ fontSize: '0.82rem' }}>Tier<select value={inp.tier} onChange={set('tier')}>{[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}</select></label>
-        {vehicle && <label style={{ fontSize: '0.82rem' }}>Class<select value={inp.vehicle_class} onChange={set('vehicle_class')}><option value="exec">Executive</option><option value="first">1st Class</option></select></label>}
-        {vehicle && <label style={{ fontSize: '0.82rem' }}>Size<select value={inp.vehicle_size} onChange={set('vehicle_size')}><option value="sedan">Mid-size SUV</option><option value="suv">Full-size SUV</option><option value="van">Sprinter</option></select></label>}
+        <label style={{ fontSize: '0.82rem' }}>Tier<select value={inp.tier} onChange={set('tier')}>{tiers.map(tierOption)}</select></label>
+        {vehicle && <label style={{ fontSize: '0.82rem' }}>Class<select value={inp.vehicle_class} onChange={set('vehicle_class')}>{classes.map((c) => <option key={c} value={c}>{CLASS_NAME[c] ?? c}</option>)}</select></label>}
+        {vehicle && <label style={{ fontSize: '0.82rem' }}>Size<select value={inp.vehicle_size} onChange={set('vehicle_size')}>{sizes.map((s) => <option key={s} value={s}>{SIZE_NAME[s] ?? s}</option>)}</select></label>}
         {perMile ? n('miles', 'Miles') : flat ? null : n('hours', 'Hours')}
         {vehicle && n('passengers', 'Passengers')}
         {vehicle && n('bags', 'Bags')}
         {n('stops', 'Stops')}
         {service !== 'client' && n('guards', 'Guards')}
-        {vehicle && Number(inp.guards) > 0 && <label style={{ fontSize: '0.82rem' }}>Security tier<select value={inp.security_tier} onChange={set('security_tier')}>{[1, 2, 3, 4].map((t) => <option key={t} value={t}>Tier {t}</option>)}</select></label>}
+        {vehicle && Number(inp.guards) > 0 && <label style={{ fontSize: '0.82rem' }}>Security tier<select value={inp.security_tier} onChange={set('security_tier')}>{securityTiers.map(tierOption)}</select></label>}
         {vehicle && Number(inp.guards) > 0 && (guardsCustom || perMile) && n('guard_hours', 'Guard hours')}
       </div>
 
@@ -261,7 +319,7 @@ function Simulator({ service, perMile, flat, guardsCustom, refreshKey }: { servi
           <span style={{ fontSize: '0.72rem', letterSpacing: '0.2em', color: 'var(--accent)', fontWeight: 600 }}>CUSTOMER ESTIMATE</span>
           <Row label="Service" value={NAMES[service]} />
           <Row label="Tier" value={`Tier ${inp.tier}`} />
-          <Row label="Vehicle" value={vehicle ? `${SIZE_NAME[inp.vehicle_size]} · ${CLASS_NAME[inp.vehicle_class]}` : service === 'client' ? 'Your own vehicle' : 'Not included'} />
+          <Row label="Vehicle" value={vehicle ? `${model ? `${model} · ` : ''}${SIZE_NAME[inp.vehicle_size] ?? inp.vehicle_size} · ${CLASS_NAME[inp.vehicle_class] ?? inp.vehicle_class}` : service === 'client' ? 'Your own vehicle' : 'Not included'} />
           {quoteRows(quote).map(([k, v], i) => <Row key={i} label={k} value={v} />)}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 2 }}>
             <strong style={{ fontSize: '1.05rem' }}>Estimated total</strong>

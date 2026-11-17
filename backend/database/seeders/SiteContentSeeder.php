@@ -77,8 +77,8 @@ class SiteContentSeeder extends Seeder
         }
 
         $rates = [
-            ['hourly', 'exec', 'sedan', [70, 90, 130, 215]], ['hourly', 'exec', 'suv', [80, 100, 140, 190]], ['hourly', 'exec', 'van', [175, 195, 235, 390]],
-            ['hourly', 'first', 'sedan', [80, 100, 140, 235]], ['hourly', 'first', 'suv', [100, 120, 160, 210]], ['hourly', 'first', 'van', [225, 245, 285, 475]],
+            ['hourly', 'exec', 'sedan', [70, 90, 130, 190]], ['hourly', 'exec', 'suv', [80, 100, 140, 215]], ['hourly', 'exec', 'van', [175, 195, 235, 390]],
+            ['hourly', 'first', 'sedan', [80, 100, 140, 210]], ['hourly', 'first', 'suv', [100, 120, 160, 235]], ['hourly', 'first', 'van', [225, 245, 285, 475]],
             ['point_to_point', 'exec', 'sedan', [145, 170, 215, 270]], ['point_to_point', 'exec', 'suv', [155, 180, 225, 280]],
             ['point_to_point', 'first', 'sedan', [155, 180, 225, 280]], ['point_to_point', 'first', 'suv', [200, 220, 260, 310]],
             ['security_hourly', null, null, [45, 60, 75, 125]],

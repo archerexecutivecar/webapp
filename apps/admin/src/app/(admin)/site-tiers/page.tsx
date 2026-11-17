@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { Plus, Trash2, Edit3, X } from 'lucide-react';
@@ -45,12 +46,12 @@ export default function SiteTiersPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '12px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Website Tiers</h2>
-          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Tier cards on the public Tiers of Service page. Prices come from Rates.</span>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Website Tiers</h2>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Tiers customers can choose and drivers are assigned to. Hidden tiers cannot be quoted or booked; “call to book” tiers cannot be booked online. Prices come from <Link href="/site-rates" style={{ color: 'var(--accent)' }}>Rates</Link>.</span>
         </div>
-        <button type="button" onClick={() => setEditing({ kind: 'driver', tier: items.length % 4 + 1, label: '', title: '', call_only: false, credentialsText: '', suitedText: '', sort_order: items.length + 1, is_active: true })}><Plus size={15} /> Add tier</button>
+        <button type="button" onClick={() => setEditing({ kind: 'driver', tier: items.length % 4 + 1, label: '', title: '', call_only: false, credentialsText: '', suitedText: '', sort_order: items.length + 1, is_active: true })} style={{ height: 32, padding: '0 14px', fontSize: '0.8125rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Add tier</button>
       </div>
       {error && <div className="alert">{error}</div>}
       {ok && <div className="notice">{ok}</div>}

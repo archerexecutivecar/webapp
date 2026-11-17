@@ -54,6 +54,29 @@ class PublicBookingTest extends TestCase
         $this->postJson(self::URL, $this->p2p(['tier' => 1]))->assertStatus(201);
     }
 
+    public function test_call_to_book_tiers_cannot_be_booked_online(): void
+    {
+        // Seeded Tier 4 is "call to book".
+        $this->postJson(self::URL, $this->p2p(['tier' => 4]))->assertStatus(422)->assertJsonStructure(['error' => ['details' => ['tier']]]);
+
+        \App\Models\SiteTier::where('kind', 'driver')->where('tier', 4)->update(['call_only' => false]);
+        $this->postJson(self::URL, $this->p2p(['tier' => 4]))->assertStatus(201);
+    }
+
+    public function test_standalone_security_booking_uses_security_staffing_tiers(): void
+    {
+        $security = $this->contact([
+            'request_type' => 'general', 'service' => 'security', 'pickup_address' => '1 Main St, Red Bank',
+            'date' => $this->future(), 'time' => '09:30', 'passengers' => 1, 'tier' => 2, 'guards' => 1,
+        ]);
+
+        \App\Models\SiteTier::where('kind', 'driver')->where('tier', 2)->update(['is_active' => false]);
+        $this->postJson(self::URL, $security)->assertStatus(201);
+
+        \App\Models\SiteTier::where('kind', 'security')->where('tier', 2)->update(['is_active' => false]);
+        $this->postJson(self::URL, ['email' => 'ada2@example.com'] + $security)->assertStatus(422)->assertJsonStructure(['error' => ['details' => ['tier']]]);
+    }
+
     public function test_vehicle_must_be_an_active_website_fleet_entry(): void
     {
         \App\Models\SiteVehicle::where('vehicle_class', 'exec')->where('size', 'suv')->update(['is_active' => false]);

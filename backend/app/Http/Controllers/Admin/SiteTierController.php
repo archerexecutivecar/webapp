@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Driver;
 use App\Models\SiteTier;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -59,6 +60,10 @@ class SiteTierController extends Controller
     public function destroy(Request $request, string $id): JsonResponse
     {
         $row = SiteTier::findOrFail($id);
+        // A chauffeur tier that drivers are assigned to cannot be removed: hide it instead, or move the drivers first.
+        if ($row->kind === 'driver' && ($count = Driver::where('service_tier', $row->tier)->count()) > 0) {
+            return ApiResponse::error('TIER_IN_USE', "{$count} driver(s) are assigned to this tier. Move them to another tier first, or hide the tier instead.", 409);
+        }
         $row->delete();
         AuditLog::record('site.tier.deleted', $request->user()->getKey(), ['id' => $id]);
 

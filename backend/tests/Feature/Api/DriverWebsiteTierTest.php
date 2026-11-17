@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Driver;
+use App\Models\SiteTier;
 use Database\Seeders\SiteContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesStaff;
@@ -28,6 +29,23 @@ class DriverWebsiteTierTest extends TestCase
         $this->putJson("/api/v1/admin/drivers/{$id}", ['service_tier' => 3], $ops)->assertOk()
             ->assertJsonPath('data.driver.tier.name', 'TIER 3 · ELITE');
         $this->assertSame(3, Driver::find($id)->service_tier);
+    }
+
+    public function test_a_tier_with_drivers_assigned_cannot_be_deleted(): void
+    {
+        [, $admin] = $this->actingAsRole('super_admin');
+        $this->seed(SiteContentSeeder::class);
+        $this->postJson('/api/v1/admin/drivers', ['name' => 'Jordan Reyes', 'service_tier' => 2], $admin)->assertCreated();
+
+        $used = SiteTier::where(['kind' => 'driver', 'tier' => 2])->value('id');
+        $this->deleteJson("/api/v1/admin/site-tiers/{$used}", [], $admin)->assertStatus(409)->assertJsonPath('error.code', 'TIER_IN_USE');
+        $this->assertNotNull(SiteTier::find($used));
+
+        // Security staffing tiers share numbers with chauffeur tiers but are not what drivers are assigned to.
+        $security = SiteTier::where(['kind' => 'security', 'tier' => 2])->value('id');
+        $this->deleteJson("/api/v1/admin/site-tiers/{$security}", [], $admin)->assertOk();
+        $unused = SiteTier::where(['kind' => 'driver', 'tier' => 1])->value('id');
+        $this->deleteJson("/api/v1/admin/site-tiers/{$unused}", [], $admin)->assertOk();
     }
 
     public function test_retired_catalog_apis_are_gone(): void
