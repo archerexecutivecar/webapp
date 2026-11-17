@@ -18,8 +18,8 @@ type Key = "exec" | "first";
 
 // Display figures come straight from the approved design. Authoritative pricing lives in Laravel.
 const HR_DEFAULT: Record<Key, Record<Z, number[]>> = {
-  exec: { sedan: [70, 90, 130, 215], suv: [80, 100, 140, 190], van: [175, 195, 235, 390] },
-  first: { sedan: [80, 100, 140, 235], suv: [100, 120, 160, 210], van: [225, 245, 285, 475] },
+  exec: { sedan: [70, 90, 130, 190], suv: [80, 100, 140, 215], van: [175, 195, 235, 390] },
+  first: { sedan: [80, 100, 140, 210], suv: [100, 120, 160, 235], van: [225, 245, 285, 475] },
 };
 const PP_DEFAULT: Record<Key, Record<Z, number[] | null>> = {
   exec: { sedan: [145, 170, 215, 270], suv: [155, 180, 225, 280], van: null },
@@ -30,14 +30,14 @@ const money = (n: number) => "$" + n.toLocaleString("en-US");
 type Vehicle = { z: Z; size: string; model: string; good: string; img?: string; alt?: string; pax?: number | null; bags?: number | null };
 const VEHICLES_DEFAULT: Record<Key, Vehicle[]> = {
   exec: [
-    { z: "sedan", size: "MID-SIZE SUV", model: "Chevrolet Traverse", good: "Solo travelers and small groups." },
-    { z: "suv", size: "FULL-SIZE SUV", model: "Chevrolet Suburban", good: "Room for the team and the luggage.", img: "1b4961ff296cae8343dcbc40a67cfd31.png", alt: "Black SUV on a city street at night" },
-    { z: "van", size: "SPRINTER", model: "Mercedes-Benz Sprinter", good: "Groups, roadshows and events." },
+    { z: "sedan", size: "MID-SIZE SUV", model: "Chevrolet Traverse", good: "Solo travelers and small groups.", img: "fleet-traverse.jpg", alt: "Black Chevrolet Traverse luxury SUV", pax: 3, bags: 3 },
+    { z: "suv", size: "FULL-SIZE SUV", model: "Chevrolet Suburban", good: "Room for the team and the luggage.", img: "1b4961ff296cae8343dcbc40a67cfd31.png", alt: "Black SUV on a city street at night", pax: 6, bags: 6 },
+    { z: "van", size: "SPRINTER", model: "Mercedes-Benz Sprinter", good: "Groups, roadshows and events.", img: "fleet-sprinter.jpg", alt: "Black Mercedes-Benz Sprinter passenger van", pax: 15, bags: 15 },
   ],
   first: [
-    { z: "sedan", size: "MID-SIZE SUV", model: "Lincoln Aviator", good: "Refined comfort for one to a few guests." },
-    { z: "suv", size: "FULL-SIZE SUV", model: "Cadillac Escalade", good: "Archer's signature ride.", img: "5c3d16f0aa316485e13e25e61f6c0bae.jpg", alt: "Archer's own black Cadillac Escalade" },
-    { z: "van", size: "SPRINTER", model: "Executive Sprinter", good: "Premium group travel for VIP parties." },
+    { z: "sedan", size: "MID-SIZE SUV", model: "Lincoln Aviator", good: "Refined comfort for one to a few guests.", img: "fleet-aviator.jpg", alt: "Black Lincoln Aviator luxury SUV", pax: 3, bags: 4 },
+    { z: "suv", size: "FULL-SIZE SUV", model: "Cadillac Escalade", good: "Archer's signature ride.", img: "5c3d16f0aa316485e13e25e61f6c0bae.jpg", alt: "Archer's own black Cadillac Escalade", pax: 6, bags: 5 },
+    { z: "van", size: "SPRINTER", model: "Executive Sprinter", good: "Premium group travel for VIP parties.", img: "fleet-executive-sprinter.jpg", alt: "Black Mercedes-Benz Executive Sprinter VIP jet-van", pax: 11, bags: 12 },
   ],
 };
 const CLASSES: { id: string; key: Key; tag: string; name: string; text: string; from: string; pad: string }[] = [
@@ -68,7 +68,19 @@ function fromSite(site?: SiteData | null) {
     }
   }
   const VEHICLES = { exec: [] as Vehicle[], first: [] as Vehicle[] };
-  for (const v of site.vehicles) VEHICLES[v.vehicle_class].push({ z: v.size, size: v.size_label, model: v.model, good: v.blurb, img: v.image_url ?? undefined, alt: v.image_alt ?? undefined, pax: v.passengers ?? null, bags: v.bags ?? null });
+  for (const v of site.vehicles) {
+    const fallback = VEHICLES_DEFAULT[v.vehicle_class]?.find((d) => d.model === v.model || d.z === v.size);
+    VEHICLES[v.vehicle_class].push({
+      z: v.size,
+      size: v.size_label,
+      model: v.model,
+      good: v.blurb,
+      img: v.image_url ?? fallback?.img ?? undefined,
+      alt: v.image_alt ?? fallback?.alt ?? undefined,
+      pax: v.passengers ?? fallback?.pax ?? null,
+      bags: v.bags ?? fallback?.bags ?? null,
+    });
+  }
   return { SLIDES: site.fleet.slides, STANDARD: site.fleet.standard, HR, PP, VEHICLES };
 }
 

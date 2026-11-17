@@ -58,12 +58,12 @@ const FALLBACK: Catalog = {
   CC: [45, 60, 75, 125],
   GUARD: [45, 60, 75, 125],
   vehicles: [
-    { cls: "exec", size: "sedan", label: "Mid-size SUV", model: "Chevrolet Traverse", blurb: "", passengers: null, bags: null },
-    { cls: "exec", size: "suv", label: "Full-size SUV", model: "Chevrolet Suburban", blurb: "", passengers: null, bags: null },
-    { cls: "exec", size: "van", label: "Sprinter", model: "Mercedes-Benz Sprinter", blurb: "", passengers: null, bags: null },
-    { cls: "first", size: "sedan", label: "Mid-size SUV", model: "Lincoln Aviator", blurb: "", passengers: null, bags: null },
-    { cls: "first", size: "suv", label: "Full-size SUV", model: "Cadillac Escalade", blurb: "", passengers: null, bags: null },
-    { cls: "first", size: "van", label: "Sprinter", model: "Executive Sprinter", blurb: "", passengers: null, bags: null },
+    { cls: "exec", size: "sedan", label: "Mid-size SUV", model: "Chevrolet Traverse", blurb: "", passengers: 3, bags: 3 },
+    { cls: "exec", size: "suv", label: "Full-size SUV", model: "Chevrolet Suburban", blurb: "", passengers: 6, bags: 6 },
+    { cls: "exec", size: "van", label: "Sprinter", model: "Mercedes-Benz Sprinter", blurb: "", passengers: 15, bags: 15 },
+    { cls: "first", size: "sedan", label: "Mid-size SUV", model: "Lincoln Aviator", blurb: "", passengers: 3, bags: 4 },
+    { cls: "first", size: "suv", label: "Full-size SUV", model: "Cadillac Escalade", blurb: "", passengers: 6, bags: 5 },
+    { cls: "first", size: "van", label: "Sprinter", model: "Executive Sprinter", blurb: "", passengers: 11, bags: 12 },
   ],
   tiers: [
     { tier: 1, label: "TIER 1 · ESSENTIAL", title: "Professional Chauffeur", callOnly: false },

@@ -62,12 +62,12 @@ class SiteContentSeeder extends Seeder
         }
 
         $vehicles = [
-            ['exec', 'sedan', 'MID-SIZE SUV', 'Chevrolet Traverse', 'Solo travelers and small groups.', null, null],
+            ['exec', 'sedan', 'MID-SIZE SUV', 'Chevrolet Traverse', 'Solo travelers and small groups.', 'fleet-traverse.jpg', 'Black Chevrolet Traverse luxury SUV'],
             ['exec', 'suv', 'FULL-SIZE SUV', 'Chevrolet Suburban', 'Room for the team and the luggage.', '1b4961ff296cae8343dcbc40a67cfd31.png', 'Black SUV on a city street at night'],
-            ['exec', 'van', 'SPRINTER', 'Mercedes-Benz Sprinter', 'Groups, roadshows and events.', null, null],
-            ['first', 'sedan', 'MID-SIZE SUV', 'Lincoln Aviator', 'Refined comfort for one to a few guests.', null, null],
+            ['exec', 'van', 'SPRINTER', 'Mercedes-Benz Sprinter', 'Groups, roadshows and events.', 'fleet-sprinter.jpg', 'Black Mercedes-Benz Sprinter passenger van'],
+            ['first', 'sedan', 'MID-SIZE SUV', 'Lincoln Aviator', 'Refined comfort for one to a few guests.', 'fleet-aviator.jpg', 'Black Lincoln Aviator luxury SUV'],
             ['first', 'suv', 'FULL-SIZE SUV', 'Cadillac Escalade', "Archer's signature ride.", '5c3d16f0aa316485e13e25e61f6c0bae.jpg', "Archer's own black Cadillac Escalade"],
-            ['first', 'van', 'SPRINTER', 'Executive Sprinter', 'Premium group travel for VIP parties.', null, null],
+            ['first', 'van', 'SPRINTER', 'Executive Sprinter', 'Premium group travel for VIP parties.', 'fleet-executive-sprinter.jpg', 'Black Mercedes-Benz Executive Sprinter VIP jet-van'],
         ];
         foreach ($vehicles as $i => [$class, $size, $label, $model, $blurb, $img, $alt]) {
             SiteVehicle::updateOrCreate(['vehicle_class' => $class, 'size' => $size], [
