@@ -1,87 +1,653 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
-import { Plus, Trash2, Edit3, X } from 'lucide-react';
+import {
+  Car,
+  Calendar,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  AlertCircle,
+  CheckCircle2,
+  X,
+  Wrench,
+  Check
+} from 'lucide-react';
 
-interface V { id: string; vehicle_class: 'exec' | 'first'; size: 'sedan' | 'suv' | 'van'; size_label: string; model: string; blurb: string; passengers: number | null; bags: number | null; image_url: string | null; image_alt: string | null; sort_order: number; is_active: boolean }
+interface VehicleItem {
+  id: string;
+  name: string;
+  plate: string;
+  class_type: string;
+  category: string;
+  class_and_size: string;
+  available_from: string;
+  available_until: string;
+  available_days: string[];
+  is_out_of_service: boolean;
+  status_label: string;
+  blockouts: Array<{
+    id: number;
+    reason: string;
+    start_at: string;
+    end_at: string;
+  }>;
+  booked_rides: string[];
+}
 
-export default function SiteVehiclesPage() {
-  const [items, setItems] = useState<V[]>([]);
+interface CounterItem {
+  name: string;
+  free: number;
+  total: number;
+}
+
+interface TimelineTrack {
+  vehicle_id: string;
+  vehicle_name: string;
+  vehicle_class: string;
+  bookings: Array<{
+    ride_reference: string;
+    client_name: string;
+    label: string;
+    start_hour: number;
+    end_hour: number;
+    color: string;
+  }>;
+}
+
+export default function FleetAvailabilityPage() {
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ok, setOk] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Partial<V> | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const load = async () => {
-    try { setItems((await api<{ vehicles: V[] }>('/admin/site-vehicles', { auth: true })).vehicles); }
-    catch (e) { setError(e instanceof ApiError ? e.message : 'Failed to load fleet.'); }
-  };
-  useEffect(() => { load(); }, []);
-  const flash = (m: string) => { setOk(m); setTimeout(() => setOk(null), 3000); };
+  // Selected date for Gantt schedule
+  const [selectedDate, setSelectedDate] = useState<string>('2026-11-18');
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editing) return;
+  // Payload data
+  const [counters, setCounters] = useState<Record<string, CounterItem>>({});
+  const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
+  const [timelineTracks, setTimelineTracks] = useState<TimelineTrack[]>([]);
+
+  // Block out modal state
+  const [isBlockoutOpen, setIsBlockoutOpen] = useState(false);
+  const [blockoutVehicleId, setBlockoutVehicleId] = useState<string>('');
+  const [blockoutReason, setBlockoutReason] = useState('Scheduled detailing & service');
+  const [blockoutStart, setBlockoutStart] = useState('2026-11-18T14:00');
+  const [blockoutEnd, setBlockoutEnd] = useState('2026-11-18T18:00');
+  const [savingBlockout, setSavingBlockout] = useState(false);
+
+  const fetchData = async (dateStr: string) => {
     try {
+      setLoading(true);
       setError(null);
-      if (editing.id) await api(`/admin/site-vehicles/${editing.id}`, { method: 'PUT', body: editing, auth: true });
-      else await api('/admin/site-vehicles', { method: 'POST', body: editing, auth: true });
-      flash('Vehicle saved.'); setEditing(null); load();
-    } catch (err) { setError(err instanceof ApiError ? err.message : 'Failed to save vehicle.'); }
+      const res = await api<{
+        counters: Record<string, CounterItem>;
+        vehicles: VehicleItem[];
+        timeline: { date: string; tracks: TimelineTrack[] };
+      }>(`/admin/fleet/schedule?date=${dateStr}`, { auth: true });
+
+      setCounters(res.counters);
+      setVehicles(res.vehicles);
+      setTimelineTracks(res.timeline.tracks);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load fleet schedule.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const remove = async (v: V) => {
-    if (!confirm(`Remove ${v.model} from the website fleet?`)) return;
-    try { await api(`/admin/site-vehicles/${v.id}`, { method: 'DELETE', auth: true }); flash('Vehicle removed.'); load(); }
-    catch (err) { setError(err instanceof ApiError ? err.message : 'Failed to remove vehicle.'); }
+  useEffect(() => {
+    fetchData(selectedDate);
+  }, [selectedDate]);
+
+  const handlePrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d.toISOString().slice(0, 10));
   };
+
+  const handleNextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d.toISOString().slice(0, 10));
+  };
+
+  const handleToggleService = async (v: VehicleItem) => {
+    const nextStatus = !v.is_out_of_service;
+    try {
+      await api(`/admin/fleet/vehicles/${v.id}`, {
+        method: 'PUT',
+        auth: true,
+        body: JSON.stringify({ is_out_of_service: nextStatus }),
+      });
+
+      setSuccess(`${v.name} is now ${nextStatus ? 'out of service' : 'back in service'}.`);
+      fetchData(selectedDate);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update vehicle status.');
+    }
+  };
+
+  const handleSaveVehicleInfo = async (v: VehicleItem, updates: Partial<VehicleItem>) => {
+    try {
+      await api(`/admin/fleet/vehicles/${v.id}`, {
+        method: 'PUT',
+        auth: true,
+        body: JSON.stringify(updates),
+      });
+
+      setSuccess(`${v.name} updated.`);
+      fetchData(selectedDate);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to update vehicle.');
+    }
+  };
+
+  const handleOpenBlockoutModal = (vId: string) => {
+    setBlockoutVehicleId(vId);
+    setIsBlockoutOpen(true);
+  };
+
+  const handleSaveBlockout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blockoutVehicleId || !blockoutReason) return;
+    try {
+      setSavingBlockout(true);
+      setError(null);
+      await api('/admin/fleet/blockout', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({
+          vehicle_id: blockoutVehicleId,
+          start_at: blockoutStart.replace('T', ' ') + ':00',
+          end_at: blockoutEnd.replace('T', ' ') + ':00',
+          reason: blockoutReason,
+        }),
+      });
+
+      setIsBlockoutOpen(false);
+      setSuccess('Vehicle blockout interval recorded.');
+      fetchData(selectedDate);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create blockout.');
+    } finally {
+      setSavingBlockout(false);
+    }
+  };
+
+  const allDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Website Fleet</h2>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Vehicles customers can book. Passenger and bag limits set here are enforced on every quote; blank means no limit. If two vehicles share a class and size, the first in display order is the one quoted.</span>
+    <div className="space-y-6 max-w-[1600px] mx-auto p-2">
+      {/* Header matching Screenshot 9 */}
+      <div className="space-y-1 pb-2 border-b border-border">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
+            P1 · Your Fleet
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-serif">
+            Fleet &amp; availability
+          </h1>
         </div>
-        <button type="button" onClick={() => setEditing({ vehicle_class: 'exec', size: 'suv', size_label: 'FULL-SIZE SUV', model: '', blurb: '', passengers: null, bags: null, image_url: '', image_alt: '', sort_order: items.length + 1, is_active: true })} style={{ height: 32, padding: '0 14px', fontSize: '0.8125rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={14} /> Add vehicle</button>
-      </div>
-      {error && <div className="alert">{error}</div>}
-      {ok && <div className="notice">{ok}</div>}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <tbody>
-            {items.map((v) => (
-              <tr key={v.id} style={{ borderTop: '1px solid var(--border)', opacity: v.is_active ? 1 : 0.55 }}>
-                <td style={{ padding: '10px 16px' }}><strong>{v.model}</strong><div style={{ fontSize: '0.82rem' }}>{v.vehicle_class === 'exec' ? 'Executive Class' : '1st Class'} · {v.size_label}{v.passengers === null ? ' · no passenger limit' : ` · ${v.passengers} passengers`}{v.image_url ? '' : ' · no photo yet'}{v.is_active ? '' : ' · hidden'}</div></td>
-                <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <button type="button" className="secondary" aria-label="Edit" onClick={() => setEditing({ ...v })}><Edit3 size={14} /></button>{' '}
-                  <button type="button" className="secondary" aria-label="Delete" onClick={() => remove(v)}><Trash2 size={14} /></button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <p className="text-xs text-muted-foreground leading-relaxed max-w-4xl">
+          Rides in an Archer vehicle can only be booked when a vehicle of that class and size is free. Set each vehicle&apos;s days and hours, block out time for maintenance or other use, or take a vehicle out of service. Client Car rides don&apos;t use the fleet.
+        </p>
       </div>
 
-      {editing && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setEditing(null)}>
-          <aside style={{ background: 'var(--surface)', width: '100%', maxWidth: 480, height: '100vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><h2 style={{ fontSize: '1.15rem' }}>{editing.id ? 'Edit vehicle' : 'New vehicle'}</h2><button type="button" className="secondary" aria-label="Close" onClick={() => setEditing(null)}><X size={16} /></button></div>
-              <label>Class<select value={editing.vehicle_class} onChange={(e) => setEditing({ ...editing, vehicle_class: e.target.value as V['vehicle_class'] })}><option value="exec">Executive Class</option><option value="first">1st Class</option></select></label>
-              <label>Size<select value={editing.size} onChange={(e) => setEditing({ ...editing, size: e.target.value as V['size'] })}><option value="sedan">Mid-size SUV</option><option value="suv">Full-size SUV</option><option value="van">Sprinter</option></select></label>
-              <label>Size label *<input required value={editing.size_label ?? ''} onChange={(e) => setEditing({ ...editing, size_label: e.target.value })} /></label>
-              <label>Model *<input required value={editing.model ?? ''} onChange={(e) => setEditing({ ...editing, model: e.target.value })} /></label>
-              <label>Short description *<input required maxLength={255} value={editing.blurb ?? ''} onChange={(e) => setEditing({ ...editing, blurb: e.target.value })} /></label>
-              <label>Photo (file name or URL)<input value={editing.image_url ?? ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} /></label>
-              <label>Passengers<input type="number" min={1} max={60} value={editing.passengers ?? ''} onChange={(e) => setEditing({ ...editing, passengers: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-              <label>Bags<input type="number" min={0} max={60} value={editing.bags ?? ''} onChange={(e) => setEditing({ ...editing, bags: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-              <label>Photo description (alt text)<input value={editing.image_alt ?? ''} onChange={(e) => setEditing({ ...editing, image_alt: e.target.value })} /></label>
-              <label>Display order<input type="number" min={0} value={editing.sort_order ?? 0} onChange={(e) => setEditing({ ...editing, sort_order: parseInt(e.target.value) || 0 })} /></label>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="checkbox" style={{ width: 16, minHeight: 16 }} checked={editing.is_active ?? true} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} />Show on website</label>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}><button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button><button type="submit">Save vehicle</button></div>
+      {/* Notifications */}
+      {error && (
+        <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-xs hover:underline">Dismiss</button>
+        </div>
+      )}
+
+      {success && (
+        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 rounded text-xs flex items-center gap-2">
+          <CheckCircle2 size={15} className="text-emerald-700 dark:text-emerald-400" />
+          <span>{success}</span>
+        </div>
+      )}
+
+      {/* Top Row: 4 KPI Free Fleet Counter Cards matching Screenshot 9 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Card 1: Cadillac Escalade */}
+        <div className="p-4 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+          <div className="text-2xl font-serif font-bold text-foreground">
+            {counters.cadillac_escalade ? `${counters.cadillac_escalade.free} / ${counters.cadillac_escalade.total}` : '2 / 2'}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Cadillac Escalade free now
+          </div>
+        </div>
+
+        {/* Card 2: Chevrolet Suburban */}
+        <div className="p-4 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+          <div className="text-2xl font-serif font-bold text-foreground">
+            {counters.chevrolet_suburban ? `${counters.chevrolet_suburban.free} / ${counters.chevrolet_suburban.total}` : '1 / 1'}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Chevrolet Suburban free now
+          </div>
+        </div>
+
+        {/* Card 3: Chevrolet Traverse */}
+        <div className="p-4 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+          <div className="text-2xl font-serif font-bold text-foreground">
+            {counters.chevrolet_traverse ? `${counters.chevrolet_traverse.free} / ${counters.chevrolet_traverse.total}` : '0 / 1'}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Chevrolet Traverse free now
+          </div>
+        </div>
+
+        {/* Card 4: Lincoln Aviator */}
+        <div className="p-4 rounded-lg border border-border bg-card shadow-2xs space-y-1">
+          <div className="text-2xl font-serif font-bold text-foreground">
+            {counters.lincoln_aviator ? `${counters.lincoln_aviator.free} / ${counters.lincoln_aviator.total}` : '1 / 1'}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Lincoln Aviator free now
+          </div>
+        </div>
+      </div>
+
+      {/* 24-Hour Gantt Timeline Schedule matching Screenshot 9 */}
+      <div className="rounded-lg border border-border bg-card p-5 shadow-xs space-y-4">
+        {/* Schedule Header & Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            Schedule for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevDay}
+              className="px-2.5 py-1 text-xs rounded border border-border bg-background hover:bg-muted text-foreground transition"
+            >
+              &lt; Day
+            </button>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="h-7 px-2 text-xs rounded border border-border bg-background text-foreground font-mono"
+            />
+            <button
+              type="button"
+              onClick={handleNextDay}
+              className="px-2.5 py-1 text-xs rounded border border-border bg-background hover:bg-muted text-foreground transition"
+            >
+              Day &gt;
+            </button>
+          </div>
+        </div>
+
+        {/* Gantt Chart Container */}
+        <div className="space-y-2 overflow-x-auto min-w-[750px]">
+          {/* Time markers: 00:00 to 24:00 (every 3 hours) */}
+          <div className="grid grid-cols-12 text-[10px] text-muted-foreground font-mono border-b border-border/60 pb-1 px-48">
+            <span className="text-left">00</span>
+            <span className="text-left col-span-2">03</span>
+            <span className="text-left col-span-2">06</span>
+            <span className="text-left col-span-2">09</span>
+            <span className="text-left col-span-2">12</span>
+            <span className="text-left col-span-2">15</span>
+            <span className="text-left">18</span>
+          </div>
+
+          {/* Timeline Tracks */}
+          <div className="space-y-2 pt-1">
+            {timelineTracks.map((track) => (
+              <div key={track.vehicle_id} className="flex items-center text-xs">
+                {/* Vehicle Label Column */}
+                <div className="w-48 flex-shrink-0 pr-4">
+                  <div className="font-bold text-foreground text-xs leading-tight">
+                    {track.vehicle_name}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {track.vehicle_class}
+                  </div>
+                </div>
+
+                {/* 24-Hour Track Bar */}
+                <div className="flex-1 h-9 rounded bg-muted/25 border border-border/70 relative overflow-hidden flex items-center">
+                  {/* Subtle 3-hour vertical guidelines */}
+                  <div className="absolute inset-0 grid grid-cols-8 pointer-events-none divide-x divide-border/20">
+                    <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+                  </div>
+
+                  {/* Render Booked Interval if exists */}
+                  {track.bookings.map((booking, idx) => {
+                    const leftPct = (booking.start_hour / 24) * 100;
+                    const widthPct = ((booking.end_hour - booking.start_hour) / 24) * 100;
+
+                    return (
+                      <Link
+                        key={idx}
+                        href={`/rides?search=${booking.ride_reference}`}
+                        style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                        className="absolute h-7 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[11px] flex items-center justify-center px-2 transition shadow-xs z-10 whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
+                        title={`${booking.label} (${booking.start_hour}:00 to ${booking.end_hour}:00)`}
+                      >
+                        {booking.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Gantt Legend matching Screenshot 9 */}
+          <div className="flex flex-wrap items-center gap-5 text-[11px] text-muted-foreground pt-3 border-t border-border mt-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-amber-600"></span>
+              <span>Booked ride (click to open)</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-muted-foreground/30 border border-muted-foreground/50"></span>
+              <span>Blocked out</span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded bg-muted/50 border border-border"></span>
+              <span>Outside available hours</span>
+            </div>
+
+            <span className="text-foreground/80 font-medium ml-auto">
+              60 min kept free between bookings
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* VEHICLES Cards Section matching Screenshot 9 */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            Vehicles
+          </span>
+          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] font-bold text-foreground">
+            {vehicles.length}
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {vehicles.map((v) => (
+            <div
+              key={v.id}
+              className={`p-4 rounded-lg border bg-card shadow-xs space-y-3.5 transition ${
+                v.is_out_of_service ? 'border-destructive/40 bg-muted/20 opacity-80' : 'border-border'
+              }`}
+            >
+              {/* Card Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-foreground text-sm font-serif">{v.name}</span>
+                  <span className="text-xs text-muted-foreground font-mono">({v.class_and_size})</span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      v.is_out_of_service
+                        ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    }`}
+                  >
+                    {v.status_label}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleService(v)}
+                    className="px-2.5 py-1 text-xs rounded border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition font-medium"
+                  >
+                    {v.is_out_of_service ? 'Put back in service' : 'Take out of service'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Inputs Row matching Screenshot 9 */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs items-end">
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={v.name}
+                    onBlur={(e) => handleSaveVehicleInfo(v, { name: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Plate
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={v.plate}
+                    placeholder="Add plate"
+                    onBlur={(e) => handleSaveVehicleInfo(v, { plate: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Class and size
+                  </label>
+                  <select
+                    defaultValue={v.class_and_size}
+                    className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  >
+                    <option value="1st Class · SUV">1st Class · SUV</option>
+                    <option value="Executive Class · SUV">Executive Class · SUV</option>
+                    <option value="Executive Class · Sedan / Compact SUV">Executive Class · Sedan / Compact SUV</option>
+                    <option value="1st Class · Sedan / Compact SUV">1st Class · Sedan / Compact SUV</option>
+                    <option value="Executive Class · Sprinter">Executive Class · Sprinter</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Available From
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={v.available_from}
+                    onBlur={(e) => handleSaveVehicleInfo(v, { available_from: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Available Until
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={v.available_until}
+                    onBlur={(e) => handleSaveVehicleInfo(v, { available_until: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Days of Week Pills */}
+              <div className="flex items-center gap-1 pt-1">
+                {allDays.map((day) => {
+                  const isActiveDay = v.available_days?.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        const updated = isActiveDay
+                          ? v.available_days.filter((d) => d !== day)
+                          : [...(v.available_days || []), day];
+                        handleSaveVehicleInfo(v, { available_days: updated });
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                        isActiveDay
+                          ? 'bg-amber-600 text-white'
+                          : 'border border-border bg-muted/40 text-muted-foreground'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Blocked out section */}
+              <div className="pt-2 border-t border-border/50 text-xs space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Blocked out
+                </span>
+                {v.blockouts.length === 0 ? (
+                  <div className="text-muted-foreground text-[11px] italic">
+                    Nothing blocked
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {v.blockouts.map((b) => (
+                      <div key={b.id} className="text-xs text-foreground flex items-center gap-2">
+                        <Wrench size={12} className="text-muted-foreground" />
+                        <span className="font-semibold">{b.reason}</span>
+                        <span className="text-muted-foreground font-mono text-[10px]">
+                          ({new Date(b.start_at).toLocaleDateString()} {new Date(b.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(b.end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleOpenBlockoutModal(v.id)}
+                  className="text-[11px] font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:underline inline-block pt-0.5"
+                >
+                  + Block out time
+                </button>
+              </div>
+
+              {/* Booked Rides info */}
+              {v.booked_rides && v.booked_rides.length > 0 && (
+                <div className="pt-1 text-[11px] text-muted-foreground">
+                  <span className="font-semibold text-foreground">Booked: </span>
+                  {v.booked_rides.join(' · ')}
+                </div>
+              )}
+
+              {/* Footer link */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Remove ${v.name} from operational fleet?`)) {
+                      handleToggleService(v);
+                    }
+                  }}
+                  className="text-[11px] text-red-500 hover:text-red-700 transition hover:underline"
+                >
+                  Remove vehicle from fleet
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Block Out Time Modal */}
+      {isBlockoutOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-card rounded-lg border border-border shadow-xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-2.5">
+              <h3 className="font-bold text-foreground text-sm">Block Out Fleet Vehicle Time</h3>
+              <button
+                type="button"
+                onClick={() => setIsBlockoutOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBlockout} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Reason / Work Description *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={blockoutReason}
+                  onChange={(e) => setBlockoutReason(e.target.value)}
+                  placeholder="e.g. Scheduled 50k service, detailing, maintenance"
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Start Date &amp; Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={blockoutStart}
+                    onChange={(e) => setBlockoutStart(e.target.value)}
+                    className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    End Date &amp; Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={blockoutEnd}
+                    onChange={(e) => setBlockoutEnd(e.target.value)}
+                    className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsBlockoutOpen(false)}
+                  className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingBlockout}
+                  className="px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingBlockout ? 'Saving...' : 'Save Blockout'}
+                </button>
+              </div>
             </form>
-          </aside>
+          </div>
         </div>
       )}
     </div>

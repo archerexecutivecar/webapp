@@ -1,218 +1,364 @@
 'use client';
 
-import {
-  Car, Shield, DollarSign, FileText, MessageSquare, ExternalLink,
-  CheckCircle2, Clock, MapPin, Phone, Mail, Globe, Server, Layers,
-} from 'lucide-react';
-import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { api, ApiError } from '@/lib/api';
+
+interface PlatformSettings {
+  id?: number;
+  min_booking_notice_hours: number;
+  unaccepted_alert_hours: number;
+  cancellation_window_hours: number;
+  customer_notice_channel: string;
+  driver_btn_step1: string;
+  driver_btn_step2: string;
+  driver_btn_step3: string;
+  driver_btn_step4: string;
+}
 
 export default function SettingsPage() {
+  const [settings, setSettings] = useState<PlatformSettings>({
+    min_booking_notice_hours: 48,
+    unaccepted_alert_hours: 24,
+    cancellation_window_hours: 24,
+    customer_notice_channel: 'SMS + email',
+    driver_btn_step1: 'On my way',
+    driver_btn_step2: 'At your doorstep',
+    driver_btn_step3: 'Ride started',
+    driver_btn_step4: 'Ride ends',
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const loadSettings = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api<{ data: { settings: PlatformSettings } }>('/admin/platform-settings', { auth: true });
+      if (res.data?.settings) {
+        setSettings(res.data.settings);
+      }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to load settings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const handleSave = async (updated: Partial<PlatformSettings>) => {
+    const next = { ...settings, ...updated };
+    setSettings(next);
+    try {
+      setSaving(true);
+      setError(null);
+      await api('/admin/platform-settings', {
+        method: 'PUT',
+        auth: true,
+        body: next,
+      });
+      setSuccessMsg('Settings saved successfully.');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to save settings.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResetSampleData = async () => {
+    if (!confirm('Reset all sample configuration data to original prototype defaults?')) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const res = await api<{ data: { settings: PlatformSettings } }>('/admin/platform-settings/reset', {
+        method: 'POST',
+        auth: true,
+      });
+      if (res.data?.settings) {
+        setSettings(res.data.settings);
+      }
+      setSuccessMsg('Sample configuration data reset to defaults.');
+      setTimeout(() => setSuccessMsg(null), 3500);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to reset settings.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Platform Settings & Administration</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Configure operations, rate cards, fleet specs, public website content, and integration status.
-        </p>
+    <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
+      {/* Header matching Screenshot 11 */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <span
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              background: 'rgba(217, 119, 6, 0.12)',
+              color: '#d97706',
+              padding: '3px 8px',
+              borderRadius: 4,
+            }}
+          >
+            P1
+          </span>
+        </div>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f3f4f6' }}>
+          Settings
+        </h1>
       </div>
 
-      {/* Primary Configuration Hubs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Vehicles & Fleet */}
-        <Link
-          href="/site-vehicles"
-          className="p-5 rounded-lg border border-border bg-card hover:border-primary/50 transition flex flex-col justify-between group"
-        >
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <Car size={20} />
-            </div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
-              Fleet & Availability
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Manage luxury fleet models, passenger capacities, luggage limits, and availability flags.
-            </p>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary mt-4">
-            Manage Fleet →
-          </div>
-        </Link>
+      {successMsg && (
+        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#4ade80', marginBottom: 16 }}>
+          ✓ {successMsg}
+        </div>
+      )}
 
-        {/* Vehicles & Rates */}
-        <Link
-          href="/site-rates"
-          className="p-5 rounded-lg border border-border bg-card hover:border-primary/50 transition flex flex-col justify-between group"
-        >
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <DollarSign size={20} />
-            </div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
-              Vehicles & Rates
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Hourly rates, base trip pricing, airport flat rates, and extra stop fees.
-            </p>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary mt-4">
-            Manage Rates →
-          </div>
-        </Link>
+      {error && (
+        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#f87171', marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
 
-        {/* Pricing Simulator */}
-        <Link
-          href="/pricing"
-          className="p-5 rounded-lg border border-border bg-card hover:border-primary/50 transition flex flex-col justify-between group"
-        >
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <Layers size={20} />
-            </div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
-              Pricing Engine & Simulator
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Test exact dispatch formulas, EA multi-ride schedules, and out-of-region quoting rules.
-            </p>
+      {/* 4 Configuration Panels matching Screenshot 11 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+        {/* Panel 1: BOOKING NOTICE */}
+        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+            Booking Notice
           </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary mt-4">
-            Open Simulator →
-          </div>
-        </Link>
 
-        {/* Website Tiers */}
-        <Link
-          href="/site-tiers"
-          className="p-5 rounded-lg border border-border bg-card hover:border-primary/50 transition flex flex-col justify-between group"
-        >
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <Shield size={20} />
-            </div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
-              Website Tiers
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Chauffeur security credentials, Tier 1-4 armed guard requirements, and certifications.
-            </p>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+              Minimum notice for website requests
+            </label>
+            <select
+              value={settings.min_booking_notice_hours}
+              onChange={(e) => handleSave({ min_booking_notice_hours: Number(e.target.value) })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '8px 10px',
+                fontSize: '0.84rem',
+              }}
+            >
+              <option value={24}>24 hours</option>
+              <option value={48}>48 hours</option>
+              <option value={72}>72 hours</option>
+              <option value={96}>96 hours</option>
+            </select>
           </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary mt-4">
-            Manage Tiers →
-          </div>
-        </Link>
 
-        {/* Page Content & CMS */}
-        <Link
-          href="/site-content"
-          className="p-5 rounded-lg border border-border bg-card hover:border-primary/50 transition flex flex-col justify-between group"
-        >
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <FileText size={20} />
-            </div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
-              Page Content & Policies
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Update website copy, FAQs, cancellation policies, terms of service, and insurance disclosures.
-            </p>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary mt-4">
-            Edit Content →
-          </div>
-        </Link>
+          <p style={{ margin: 0, fontSize: '0.76rem', color: '#6b7280', lineHeight: 1.45 }}>
+            This applies to new requests. The website forms check and message update right away.
+          </p>
+        </div>
 
-        {/* Testimonials */}
-        <Link
-          href="/testimonials"
-          className="p-5 rounded-lg border border-border bg-card hover:border-primary/50 transition flex flex-col justify-between group"
-        >
-          <div>
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-3">
-              <MessageSquare size={20} />
-            </div>
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition">
-              Client Testimonials
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-              Approve, feature, and publish verified client reviews and executive endorsements.
-            </p>
+        {/* Panel 2: ALERTS AND CANCELLATIONS */}
+        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+            Alerts and Cancellations
           </div>
-          <div className="flex items-center gap-1 text-xs font-semibold text-primary mt-4">
-            Manage Reviews →
-          </div>
-        </Link>
-      </div>
 
-      {/* Operational Defaults & Integrations Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-        {/* Regional Defaults */}
-        <div className="p-5 rounded-lg border border-border bg-card">
-          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Globe size={16} className="text-primary" /> Regional & Operational Defaults
-          </h2>
-          <div className="space-y-2.5 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Base Currency</span>
-              <span className="font-semibold text-foreground">USD ($) · Integer Cent Storage</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Primary Timezone</span>
-              <span className="font-semibold text-foreground">America/New_York (Eastern Time)</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Primary Service Territory</span>
-              <span className="font-semibold text-foreground">Northern New Jersey, NYC Metro, Philadelphia</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Dispatch Phone Hotline</span>
-              <span className="font-semibold text-foreground">(201) 555-ARCH</span>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-muted-foreground">Standard Booking Fee</span>
-              <span className="font-semibold text-foreground">$10.00 Fixed per Reservation</span>
-            </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+              Alert dispatch when a ride sits unaccepted for (hours)
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={settings.unaccepted_alert_hours}
+              onChange={(e) => handleSave({ unaccepted_alert_hours: Number(e.target.value) })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '8px 10px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+              Client cancellation window (hours before pickup)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={settings.cancellation_window_hours}
+              onChange={(e) => handleSave({ cancellation_window_hours: Number(e.target.value) })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '8px 10px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+              Customer notice channel
+            </label>
+            <select
+              value={settings.customer_notice_channel}
+              onChange={(e) => handleSave({ customer_notice_channel: e.target.value })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '8px 10px',
+                fontSize: '0.84rem',
+              }}
+            >
+              <option value="SMS + email">SMS + email</option>
+              <option value="SMS only">SMS only</option>
+              <option value="Email only">Email only</option>
+            </select>
           </div>
         </div>
 
-        {/* Integration Status */}
-        <div className="p-5 rounded-lg border border-border bg-card">
-          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Server size={16} className="text-primary" /> Connected Services Status
-          </h2>
-          <div className="space-y-2.5 text-xs">
-            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Laravel Business Rule API</span>
-              <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                <CheckCircle2 size={13} /> Active & Enforcing
-              </span>
+        {/* Panel 3: DRIVER APP BUTTON LABELS */}
+        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+            Driver App Button Labels
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              Step 1
+            </label>
+            <input
+              type="text"
+              value={settings.driver_btn_step1}
+              onChange={(e) => setSettings({ ...settings, driver_btn_step1: e.target.value })}
+              onBlur={() => handleSave({ driver_btn_step1: settings.driver_btn_step1 })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '7px 10px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              Step 2
+            </label>
+            <input
+              type="text"
+              value={settings.driver_btn_step2}
+              onChange={(e) => setSettings({ ...settings, driver_btn_step2: e.target.value })}
+              onBlur={() => handleSave({ driver_btn_step2: settings.driver_btn_step2 })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '7px 10px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              Step 3
+            </label>
+            <input
+              type="text"
+              value={settings.driver_btn_step3}
+              onChange={(e) => setSettings({ ...settings, driver_btn_step3: e.target.value })}
+              onBlur={() => handleSave({ driver_btn_step3: settings.driver_btn_step3 })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '7px 10px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              Step 4
+            </label>
+            <input
+              type="text"
+              value={settings.driver_btn_step4}
+              onChange={(e) => setSettings({ ...settings, driver_btn_step4: e.target.value })}
+              onBlur={() => handleSave({ driver_btn_step4: settings.driver_btn_step4 })}
+              style={{
+                width: '100%',
+                background: '#242424',
+                border: '1px solid #383838',
+                borderRadius: 4,
+                color: '#f3f4f6',
+                padding: '7px 10px',
+                fontSize: '0.84rem',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Panel 4: PROTOTYPE */}
+        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+              Prototype
             </div>
-            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Brevo Transactional Email</span>
-              <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                <CheckCircle2 size={13} /> Configured
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">Square Payment Webhooks</span>
-              <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                <CheckCircle2 size={13} /> Idempotent & Verified
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-              <span className="text-muted-foreground">PostgreSQL Database</span>
-              <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                <CheckCircle2 size={13} /> Synchronized
-              </span>
-            </div>
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-muted-foreground">Fleet Pricing Engine</span>
-              <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold">
-                <CheckCircle2 size={13} /> Approved 2026 Rules
-              </span>
-            </div>
+            <p style={{ margin: '0 0 20px 0', fontSize: '0.82rem', color: '#9ca3af', lineHeight: 1.5 }}>
+              All data is sample data saved in this browser only.
+            </p>
+          </div>
+
+          <div>
+            <button
+              onClick={handleResetSampleData}
+              disabled={saving}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                background: 'transparent',
+                color: '#ef4444',
+                border: '1px solid #ef4444',
+                borderRadius: 6,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+            >
+              Reset sample data
+            </button>
           </div>
         </div>
       </div>

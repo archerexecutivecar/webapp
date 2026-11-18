@@ -21,12 +21,33 @@ class Driver extends Model
         'bio',
         'sort_order',
         'is_active',
+        // The 3 Operating Switches
+        'is_fleet_operator',
+        'is_client_car_operator',
+        'is_owner_operator',
+        // Owner-operator vehicle registry
+        'owner_vehicle_model',
+        'owner_vehicle_class',
+        'owner_vehicle_plate',
+        'owner_vehicle_reg_expires',
+        'owner_vehicle_ins_expires',
+        'owner_vehicle_inspected',
+        // Compliance radar & scheduling
+        'compliance_credentials',
+        'availability_schedule',
     ];
 
     protected $casts = [
         'service_tier' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
+        'is_fleet_operator' => 'boolean',
+        'is_client_car_operator' => 'boolean',
+        'is_owner_operator' => 'boolean',
+        'owner_vehicle_inspected' => 'boolean',
+        'owner_vehicle_reg_expires' => 'date',
+        'owner_vehicle_ins_expires' => 'date',
+        'compliance_credentials' => 'array',
     ];
 
     public function user()

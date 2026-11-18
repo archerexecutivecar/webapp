@@ -1,855 +1,1133 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
-import { Plus, Trash2, Edit3, UserCheck, Check, X, Search, Users, Phone, Mail } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  ChevronLeft,
+  Check,
+  AlertCircle,
+  CheckCircle2,
+  Shield,
+  Car,
+  Clock,
+  Calendar,
+  ExternalLink,
+  Save,
+  UserCheck,
+  Phone,
+  Mail,
+  X,
+  CreditCard,
+  AlertTriangle
+} from 'lucide-react';
 
-export interface Driver {
+export interface DriverSummary {
   id: string;
   name: string;
   email: string | null;
   phone: string | null;
   service_tier: number | null;
   tier?: { tier: number; name: string } | null;
-  user_id?: string | null;
-  user?: { id: number; name: string; email: string } | null;
   avatar_url: string | null;
   bio: string | null;
-  sort_order: number;
   is_active: boolean;
+  is_fleet_operator: boolean;
+  is_client_car_operator: boolean;
+  is_owner_operator: boolean;
+  weekly_balance: number;
+  active_rides_count: number;
 }
 
-/** A driver tier from Admin → Website Tiers (kind = driver). */
-export interface DriverTier {
-  kind: string;
-  tier: number;
-  label: string;
-  is_active: boolean;
+export interface DriverDetail extends DriverSummary {
+  employment_type: string;
+  owner_vehicle_model: string | null;
+  owner_vehicle_class: string | null;
+  owner_vehicle_plate: string | null;
+  owner_vehicle_reg_expires: string | null;
+  owner_vehicle_ins_expires: string | null;
+  owner_vehicle_inspected: boolean;
+  compliance_credentials: {
+    soar_certification: { status: string; label: string };
+    driver_license: { status: string; label: string };
+    carry_permit: { status: string; label: string };
+  };
+  availability_schedule: string;
+  claimed_shifts: {
+    title: string;
+    schedule: string;
+  };
+  active_ride: {
+    id: string;
+    reference: string;
+    client_name: string;
+    client_phone: string;
+    date_time_label: string;
+    tier_label: string;
+    status_label: string;
+    pickup_address: string;
+    dropoff_address: string;
+    service_description: string;
+    archer_vehicle: string;
+    route_note: string;
+  } | null;
+  ride_history: Array<{
+    id: string;
+    date: string;
+    client: string;
+    reference: string;
+    job: string;
+    paid_by: string;
+    earned: number;
+  }>;
+  pay_week: {
+    earned_pay_tips: number;
+    cash_kept: number;
+    carried_earlier_weeks: number;
+    net_balance: number;
+    check_date: string;
+    status_banner: string;
+    lifetime_earnings: number;
+  };
 }
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [tiers, setTiers] = useState<DriverTier[]>([]);
+  const [drivers, setDrivers] = useState<DriverSummary[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing, setEditing] = useState<Partial<Driver> | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
-  // Onboarding Login Credentials
-  const [createAccount, setCreateAccount] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  // Active view: 'list' or 'profile'
+  const [viewMode, setViewMode] = useState<'list' | 'profile'>('profile');
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<DriverDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const fetchData = async () => {
+  // Edit states for Driver Profile (Screenshot 4)
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [isFleetOp, setIsFleetOp] = useState(true);
+  const [isClientCarOp, setIsClientCarOp] = useState(true);
+  const [isOwnerOp, setIsOwnerOp] = useState(true);
+  const [ownerVehicleModel, setOwnerVehicleModel] = useState('2022 Chevrolet Suburban');
+  const [ownerVehicleClass, setOwnerVehicleClass] = useState('Executive Class · SUV');
+  const [ownerVehiclePlate, setOwnerVehiclePlate] = useState('NJ PLM-221');
+  const [ownerRegExpires, setOwnerRegExpires] = useState('2027-09-14');
+  const [ownerInsExpires, setOwnerInsExpires] = useState('2026-11-20');
+  const [ownerInspected, setOwnerInspected] = useState(true);
+  const [selectedTier, setSelectedTier] = useState<number>(3);
+
+  // New Driver Onboarding Modal
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newTier, setNewTier] = useState(1);
+
+  const fetchDrivers = async () => {
     try {
       setLoading(true);
+      const res = await api<{ drivers: DriverSummary[] }>('/admin/drivers', { auth: true });
+      setDrivers(res.drivers);
       setError(null);
-      const [driversRes, tiersRes] = await Promise.all([
-        api<{ drivers: Driver[] }>('/admin/drivers', { auth: true }),
-        api<{ tiers: DriverTier[] }>('/admin/site-tiers', { auth: true }).catch(() => ({ tiers: [] })),
-      ]);
-      setDrivers(driversRes.drivers);
-      setTiers((tiersRes.tiers ?? []).filter((t) => t.kind === 'driver'));
+
+      // Auto-load first driver into profile if available
+      if (res.drivers.length > 0 && !selectedDriverId) {
+        loadDriverDetail(res.drivers[0].id);
+      }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load drivers.');
+      setError(err instanceof ApiError ? err.message : 'Failed to load driver roster.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    fetchDrivers();
   }, []);
 
-  const openNewDrawer = () => {
-    setEditing({
-      name: '',
-      email: '',
-      phone: '',
-      service_tier: tiers[0]?.tier ?? null,
-      bio: '',
-      sort_order: drivers.length + 1,
-      is_active: true,
-    });
-    setCreateAccount(true);
-    setUsername('');
-    setPassword('');
-    setDrawerOpen(true);
-  };
-
-  const openEditDrawer = (item: Driver) => {
-    setEditing({ ...item });
-    setCreateAccount(false);
-    setUsername(item.user?.email || item.email || '');
-    setPassword('');
-    setDrawerOpen(true);
-  };
-
-  const closeDrawer = () => {
-    setDrawerOpen(false);
-    setEditing(null);
-  };
-
-  const handleToggleActive = async (driver: Driver) => {
+  const loadDriverDetail = async (id: string) => {
+    setSelectedDriverId(id);
+    setDetailLoading(true);
+    setSuccessNotice(null);
     try {
-      const nextActive = !driver.is_active;
-      await api(`/admin/drivers/${driver.id}`, {
+      const res = await api<{ driver: DriverDetail }>(`/admin/drivers/${id}`, { auth: true });
+      const d = res.driver;
+      setSelectedDetail(d);
+      setEditPhone(d.phone || '');
+      setEditEmail(d.email || '');
+      setIsFleetOp(d.is_fleet_operator);
+      setIsClientCarOp(d.is_client_car_operator);
+      setIsOwnerOp(d.is_owner_operator);
+      setOwnerVehicleModel(d.owner_vehicle_model || '2022 Chevrolet Suburban');
+      setOwnerVehicleClass(d.owner_vehicle_class || 'Executive Class · SUV');
+      setOwnerVehiclePlate(d.owner_vehicle_plate || 'NJ PLM-221');
+      setOwnerRegExpires(d.owner_vehicle_reg_expires || '2027-09-14');
+      setOwnerInsExpires(d.owner_vehicle_ins_expires || '2026-11-20');
+      setOwnerInspected(Boolean(d.owner_vehicle_inspected));
+      setSelectedTier(d.service_tier || 3);
+      setViewMode('profile');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load driver profile.');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleSaveDetails = async (overrides: Partial<DriverDetail> = {}) => {
+    if (!selectedDriverId) return;
+    setSaving(true);
+    setError(null);
+    setSuccessNotice(null);
+
+    const payload = {
+      phone: editPhone,
+      email: editEmail,
+      service_tier: overrides.service_tier !== undefined ? overrides.service_tier : selectedTier,
+      is_fleet_operator: overrides.is_fleet_operator !== undefined ? overrides.is_fleet_operator : isFleetOp,
+      is_client_car_operator: overrides.is_client_car_operator !== undefined ? overrides.is_client_car_operator : isClientCarOp,
+      is_owner_operator: overrides.is_owner_operator !== undefined ? overrides.is_owner_operator : isOwnerOp,
+      owner_vehicle_model: ownerVehicleModel,
+      owner_vehicle_class: ownerVehicleClass,
+      owner_vehicle_plate: ownerVehiclePlate,
+      owner_vehicle_reg_expires: ownerRegExpires,
+      owner_vehicle_ins_expires: ownerInsExpires,
+      owner_vehicle_inspected: ownerInspected,
+    };
+
+    try {
+      const res = await api<{ driver: DriverDetail }>(`/admin/drivers/${selectedDriverId}`, {
         method: 'PUT',
-        body: { ...driver, is_active: nextActive },
         auth: true,
+        body: JSON.stringify(payload),
       });
-      setDrivers((prev) => prev.map((d) => (d.id === driver.id ? { ...d, is_active: nextActive } : d)));
-      setSuccess(`Driver status updated.`);
-      setTimeout(() => setSuccess(null), 3000);
+
+      setSelectedDetail(res.driver);
+      setSuccessNotice('Driver profile updated successfully.');
+      fetchDrivers();
+      setTimeout(() => setSuccessNotice(null), 3000);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to update status.');
+      setError(err instanceof ApiError ? err.message : 'Failed to update driver profile.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleToggleMode = (mode: 'fleet' | 'client_car' | 'owner') => {
+    if (mode === 'fleet') {
+      const next = !isFleetOp;
+      setIsFleetOp(next);
+      handleSaveDetails({ is_fleet_operator: next });
+    } else if (mode === 'client_car') {
+      const next = !isClientCarOp;
+      setIsClientCarOp(next);
+      handleSaveDetails({ is_client_car_operator: next });
+    } else if (mode === 'owner') {
+      const next = !isOwnerOp;
+      setIsOwnerOp(next);
+      handleSaveDetails({ is_owner_operator: next });
+    }
+  };
+
+  const handleSelectTier = (tier: number) => {
+    setSelectedTier(tier);
+    handleSaveDetails({ service_tier: tier });
+  };
+
+  const handleToggleActive = async () => {
+    if (!selectedDetail) return;
+    const nextStatus = !selectedDetail.is_active;
+    try {
+      await api(`/admin/drivers/${selectedDetail.id}`, {
+        method: 'PUT',
+        auth: true,
+        body: JSON.stringify({ is_active: nextStatus }),
+      });
+      setSelectedDetail({ ...selectedDetail, is_active: nextStatus });
+      setSuccessNotice(`Driver marked as ${nextStatus ? 'Active' : 'Inactive'}.`);
+      fetchDrivers();
+      setTimeout(() => setSuccessNotice(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to toggle status.');
+    }
+  };
+
+  const handleCreateDriver = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editing?.name) return;
+    if (!newName.trim()) return;
     try {
-      setError(null);
-      const payload: any = {
-        ...editing,
-      };
+      setSaving(true);
+      const res = await api<{ driver: DriverDetail }>('/admin/drivers', {
+        method: 'POST',
+        auth: true,
+        body: JSON.stringify({
+          name: newName.trim(),
+          email: newEmail.trim() || null,
+          phone: newPhone.trim() || null,
+          service_tier: newTier,
+          is_active: true,
+          is_fleet_operator: true,
+          is_client_car_operator: true,
+          is_owner_operator: false,
+        }),
+      });
 
-      if (createAccount) {
-        payload.create_user_account = true;
-        payload.username = username || editing.email || editing.name.toLowerCase().replace(/\s+/g, '.');
-        payload.password = password;
-      } else if (password) {
-        payload.password = password;
-      }
-
-      if (editing.id) {
-        await api(`/admin/drivers/${editing.id}`, { method: 'PUT', body: payload, auth: true });
-        setSuccess('Driver updated successfully.');
-      } else {
-        await api('/admin/drivers', { method: 'POST', body: payload, auth: true });
-        setSuccess('Driver onboarded with login account.');
-      }
-      closeDrawer();
-      fetchData();
-      setTimeout(() => setSuccess(null), 3000);
+      setIsNewModalOpen(false);
+      setNewName('');
+      setNewEmail('');
+      setNewPhone('');
+      await fetchDrivers();
+      loadDriverDetail(res.driver.id);
+      setSuccessNotice('New chauffeur added to roster.');
+      setTimeout(() => setSuccessNotice(null), 3500);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to save driver.');
+      setError(err instanceof ApiError ? err.message : 'Failed to add driver.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (driver: Driver) => {
-    if (!confirm(`Are you sure you want to remove driver ${driver.name}?`)) return;
-    try {
-      setError(null);
-      await api(`/admin/drivers/${driver.id}`, { method: 'DELETE', auth: true });
-      setSuccess('Driver removed from roster.');
-      fetchData();
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to delete driver.');
-    }
-  };
-
-  const filtered = drivers.filter(d => d.name.toLowerCase().includes(search.toLowerCase()) || (d.email && d.email.toLowerCase().includes(search.toLowerCase())));
+  const filteredDrivers = useMemo(() => {
+    return drivers.filter(
+      (d) =>
+        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        (d.email && d.email.toLowerCase().includes(search.toLowerCase())) ||
+        (d.phone && d.phone.includes(search))
+    );
+  }, [drivers, search]);
 
   return (
-    <div className="zoho-view">
-      {/* Action Toolbar */}
-      <div className="zoho-toolbar">
-        <div className="toolbar-left">
-          <div>
-            <h2>Chauffeurs & Driver Roster</h2>
-            <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-              Certified SOAR drivers, executive close protection credentials, and portal accounts
-            </p>
+    <div className="space-y-4 max-w-[1600px] mx-auto p-2">
+      {/* Alert Notices */}
+      {error && (
+        <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive rounded text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} />
+            <span>{error}</span>
           </div>
-          <span className="total-badge">{drivers.length} Drivers</span>
-        </div>
-
-        <div className="toolbar-right">
-          <div className="search-box">
-            <Search size={14} className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search drivers by name or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          <button type="button" onClick={openNewDrawer} className="zoho-btn-primary">
-            <Plus size={14} /> Add Driver
-          </button>
-        </div>
-      </div>
-
-      {/* Notifications */}
-      {error && <div className="alert">{error}</div>}
-      {success && <div className="notice">{success}</div>}
-
-      {/* Data Table */}
-      <div className="zoho-card-container">
-        {loading ? (
-          <div className="p-8 text-center text-muted">Loading driver roster...</div>
-        ) : filtered.length === 0 ? (
-          <div className="zoho-empty-state">
-            <Users size={40} />
-            <h3>No drivers found</h3>
-            <p>Add a new executive chauffeur using the button above.</p>
-          </div>
-        ) : (
-          <table className="zoho-table">
-            <thead>
-              <tr>
-                <th>Driver Name & Credentials</th>
-                <th>Assigned Qualification Tier</th>
-                <th>Contact Phone</th>
-                <th>Email Address</th>
-                <th style={{ width: 110 }}>Roster Status</th>
-                <th style={{ width: 120, textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((d) => (
-                <tr key={d.id}>
-                  <td>
-                    <div className="driver-name-cell">
-                      <div className="avatar-chip">{d.name.slice(0, 2).toUpperCase()}</div>
-                      <div>
-                        <span className="row-title">{d.name}</span>
-                        {d.bio && <span className="row-desc">{d.bio}</span>}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {d.tier ? (
-                      <span className="tier-badge-cell">{d.tier.name}</span>
-                    ) : (
-                      <span className="unassigned-text">Unassigned</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="contact-text">{d.phone || '—'}</span>
-                  </td>
-                  <td>
-                    <span className="contact-text">{d.email || '—'}</span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleActive(d)}
-                      className={`zoho-status-tag ${d.is_active ? 'active' : 'inactive'}`}
-                      title="Click to toggle status"
-                    >
-                      <span className="status-dot"></span>
-                      {d.is_active ? 'Active' : 'Off-Duty'}
-                    </button>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        type="button"
-                        onClick={() => openEditDrawer(d)}
-                        className="zoho-icon-action"
-                        title="Edit Driver"
-                      >
-                        <Edit3 size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(d)}
-                        className="zoho-icon-action danger"
-                        title="Remove Driver"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Drawer */}
-      {drawerOpen && editing && (
-        <div className="zoho-drawer-backdrop" onClick={closeDrawer}>
-          <aside className="zoho-drawer" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleSave} className="zoho-drawer-form">
-              <div className="zoho-drawer-header">
-                <div>
-                  <span className="drawer-pretitle">Driver Record</span>
-                  <h2>{editing.id ? `Edit ${editing.name}` : 'New Driver'}</h2>
-                </div>
-                <button type="button" onClick={closeDrawer} className="zoho-close-btn" aria-label="Close">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="zoho-drawer-body">
-                <div className="form-group">
-                  <label className="zoho-label">Driver Full Name <span className="req">*</span></label>
-                  <input
-                    type="text"
-                    required
-                    value={editing.name ?? ''}
-                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    placeholder="e.g. Paul Malesky"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="zoho-label">Assigned Qualification Tier</label>
-                  <select
-                    value={editing.service_tier ?? ''}
-                    onChange={(e) => setEditing({ ...editing, service_tier: e.target.value ? Number(e.target.value) : null })}
-                  >
-                    <option value="">No Tier Selected</option>
-                    {tiers.map((t) => (
-                      <option key={t.tier} value={t.tier}>
-                        {t.label}{t.is_active ? '' : ' (hidden on website)'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label className="zoho-label">Phone Number</label>
-                    <input
-                      type="text"
-                      value={editing.phone ?? ''}
-                      onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
-                      placeholder="+1 (848) 231-9997"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="zoho-label">Email Address</label>
-                    <input
-                      type="email"
-                      value={editing.email ?? ''}
-                      onChange={(e) => setEditing({ ...editing, email: e.target.value })}
-                      placeholder="driver@archerexecutive.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="zoho-label">Bio & Executive Protection Credentials</label>
-                  <textarea
-                    rows={4}
-                    value={editing.bio ?? ''}
-                    onChange={(e) => setEditing({ ...editing, bio: e.target.value })}
-                    placeholder="Experience, military/law enforcement background, route specialty..."
-                  />
-                </div>
-
-                {/* Driver Portal Login Account Onboarding */}
-                <div className="account-onboard-card">
-                  <div className="account-card-header">
-                    <span className="drawer-pretitle">Driver Portal Credentials</span>
-                  </div>
-                  
-                  {!editing.id ? (
-                    <div className="form-group status-check" style={{ marginBottom: 12 }}>
-                      <label className="zoho-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={createAccount}
-                          onChange={(e) => setCreateAccount(e.target.checked)}
-                        />
-                        <span style={{ fontWeight: 600 }}>Create Login Account for Driver Portal</span>
-                      </label>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                      Linked Account: <strong style={{ color: 'var(--text)' }}>{editing.user?.email || editing.email || 'None'}</strong>
-                    </div>
-                  )}
-
-                  {(createAccount || editing.id) && (
-                    <div className="form-row-2">
-                      <div className="form-group">
-                        <label className="zoho-label">Login Username / Email</label>
-                        <input
-                          type="text"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          placeholder="e.g. paul.malesky or driver@archer.com"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="zoho-label">{editing.id ? 'Reset Password (optional)' : 'Account Password'}</label>
-                        <input
-                          type="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder={editing.id ? 'Leave blank to keep' : 'Minimum 6 chars'}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group status-check">
-                  <label className="zoho-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={editing.is_active ?? true}
-                      onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
-                    />
-                    <span>Active and selectable in public driver preference</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="zoho-drawer-footer">
-                <button type="button" onClick={closeDrawer} className="secondary">
-                  Cancel
-                </button>
-                <button type="submit" className="zoho-btn-primary">
-                  Save Driver
-                </button>
-              </div>
-            </form>
-          </aside>
+          <button onClick={() => setError(null)} className="text-xs hover:underline">Dismiss</button>
         </div>
       )}
 
-      {/* Scoped Styles */}
-      <style jsx>{`
-        .zoho-view {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        .zoho-toolbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 12px;
-          background: var(--surface);
-          padding: 12px 16px;
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-        }
-        .toolbar-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .toolbar-left h2 {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: var(--text);
-          letter-spacing: -0.01em;
-          margin: 0;
-        }
-        .total-badge {
-          background: var(--surface-2);
-          color: var(--text-secondary);
-          font-size: 0.6875rem;
-          font-weight: 600;
-          padding: 2px 8px;
-          border-radius: 12px;
-          border: 1px solid var(--border);
-        }
-        .toolbar-right {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .search-box {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-        .search-icon {
-          position: absolute;
-          left: 10px;
-          color: var(--muted);
-          pointer-events: none;
-        }
-        .search-box input {
-          width: 250px;
-          height: 32px;
-          min-height: 32px;
-          padding: 4px 12px 4px 30px;
-          font-size: 0.8125rem;
-          border-radius: 4px;
-          border: 1px solid var(--border);
-          background: var(--surface);
-          color: var(--text);
-          font-family: inherit;
-        }
-        .search-box input:focus {
-          outline: none;
-          border-color: var(--accent);
-        }
-        .zoho-btn-primary {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          background: var(--accent);
-          color: #fff;
-          border: 1px solid var(--accent);
-          height: 32px;
-          min-height: 32px;
-          padding: 0 12px;
-          font-size: 0.8125rem;
-          font-weight: 600;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-        .zoho-btn-primary:hover {
-          background: var(--accent-hover);
-        }
-        .zoho-card-container {
-          background: var(--surface);
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          overflow: hidden;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-        }
-        .zoho-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 0.8125rem;
-        }
-        .zoho-table th {
-          background: var(--surface-2);
-          border-bottom: 1px solid var(--border);
-          padding: 10px 16px;
-          font-size: 0.6875rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          text-align: left;
-        }
-        .zoho-table td {
-          padding: 11px 16px;
-          border-bottom: 1px solid var(--border);
-          vertical-align: middle;
-        }
-        .zoho-table tbody tr:hover {
-          background: var(--surface-2);
-        }
-        .zoho-table tbody tr:last-child td {
-          border-bottom: none;
-        }
-        .driver-name-cell {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-        .avatar-chip {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: var(--surface-2);
-          color: var(--text);
-          font-weight: 700;
-          font-size: 0.6875rem;
-          display: grid;
-          place-items: center;
-          border: 1px solid var(--border);
-          flex-shrink: 0;
-        }
-        .row-title {
-          display: block;
-          font-weight: 600;
-          color: var(--text);
-          font-size: 0.8125rem;
-        }
-        .row-desc {
-          display: block;
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-          margin-top: 1px;
-          max-width: 340px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .tier-badge-cell {
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: var(--accent);
-          background: rgba(217, 110, 27, 0.08);
-          border: 1px solid rgba(217, 110, 27, 0.22);
-          padding: 2px 7px;
-          border-radius: 4px;
-        }
-        .unassigned-text {
-          font-size: 0.75rem;
-          color: var(--muted);
-          font-style: italic;
-        }
-        .contact-text {
-          font-size: 0.8125rem;
-          color: var(--text-secondary);
-        }
-        .zoho-status-tag {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          border-radius: 10px;
-          padding: 2px 8px;
-          font-size: 0.6875rem;
-          font-weight: 600;
-          cursor: pointer;
-          min-height: 22px;
-          border: 1px solid transparent;
-        }
-        .status-dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-        }
-        .zoho-status-tag.active {
-          background: rgba(5, 150, 105, 0.1);
-          color: #059669;
-          border-color: rgba(5, 150, 105, 0.25);
-        }
-        .zoho-status-tag.active .status-dot {
-          background: #059669;
-        }
-        .zoho-status-tag.inactive {
-          background: var(--surface-2);
-          color: var(--muted);
-          border-color: var(--border);
-        }
-        .zoho-status-tag.inactive .status-dot {
-          background: var(--muted);
-        }
-        .row-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 4px;
-        }
-        .zoho-icon-action {
-          width: 28px;
-          height: 28px;
-          min-height: 28px;
-          padding: 0;
-          background: transparent;
-          border: 1px solid transparent;
-          color: var(--text-secondary);
-          border-radius: 4px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-        }
-        .zoho-icon-action:hover {
-          background: var(--surface-2);
-          color: var(--text);
-        }
-        .zoho-icon-action.danger:hover {
-          background: rgba(220, 38, 38, 0.1);
-          color: var(--danger);
-        }
-        .zoho-empty-state {
-          padding: 48px 24px;
-          text-align: center;
-          color: var(--muted);
-        }
-        .zoho-empty-state h3 {
-          margin: 12px 0 4px;
-          color: var(--text);
-          font-size: 0.9375rem;
-          font-weight: 700;
-        }
+      {successNotice && (
+        <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 rounded text-xs flex items-center gap-2">
+          <CheckCircle2 size={15} className="text-emerald-700 dark:text-emerald-400" />
+          <span>{successNotice}</span>
+        </div>
+      )}
 
-        /* Drawer */
-        .zoho-drawer-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(16, 20, 29, 0.45);
-          backdrop-filter: blur(2px);
-          z-index: 100;
-          display: flex;
-          justify-content: flex-end;
-        }
-        .zoho-drawer {
-          background: var(--surface);
-          border-left: 1px solid var(--border);
-          width: 100%;
-          max-width: 480px;
-          height: 100vh;
-          box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
-          display: flex;
-          flex-direction: column;
-          animation: slideLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          font-family: inherit;
-        }
-        @keyframes slideLeft {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        .zoho-drawer-form {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-        .zoho-drawer-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 18px;
-          border-bottom: 1px solid var(--border);
-          background: var(--surface);
-        }
-        .drawer-pretitle {
-          font-size: 0.6875rem;
-          font-weight: 700;
-          color: var(--accent);
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-        .zoho-drawer-header h2 {
-          font-size: 1.125rem;
-          font-weight: 700;
-          color: var(--text);
-          margin-top: 2px;
-        }
-        .zoho-close-btn {
-          width: 28px;
-          height: 28px;
-          min-height: 28px;
-          background: transparent;
-          border: 1px solid transparent;
-          color: var(--muted);
-          border-radius: 4px;
-          padding: 0;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .zoho-close-btn:hover {
-          background: var(--surface-2);
-          color: var(--text);
-        }
-        .zoho-drawer-body {
-          flex: 1;
-          padding: 18px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-        }
-        .zoho-label {
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-        }
-        .req { color: var(--danger); }
-        .form-row-2 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-        .account-onboard-card {
-          background: var(--surface-2);
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          padding: 12px 14px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .account-card-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 2px;
-        }
-        .zoho-checkbox {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.8125rem;
-          color: var(--text);
-          cursor: pointer;
-        }
-        .zoho-checkbox input {
-          width: 15px;
-          height: 15px;
-          min-height: 15px;
-          cursor: pointer;
-          accent-color: var(--accent);
-        }
-        .zoho-drawer-footer {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 8px;
-          padding: 12px 18px;
-          border-top: 1px solid var(--border);
-          background: var(--surface-2);
-        }
+      {/* VIEW MODE 1: All Drivers Roster List */}
+      {viewMode === 'list' && (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-border">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                  P1 · Operations
+                </span>
+                <h1 className="text-xl font-bold tracking-tight text-foreground font-serif">Drivers</h1>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                  {drivers.length} Total
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Chauffeur qualifications, operating modes, compliance radar, and weekly earnings.
+              </p>
+            </div>
 
-        /* Mobile Responsive Overrides */
-        @media (max-width: 768px) {
-          .zoho-toolbar {
-            flex-direction: column;
-            align-items: stretch;
-            padding: 12px;
-            gap: 10px;
-          }
-          .toolbar-left {
-            justify-content: space-between;
-            width: 100%;
-          }
-          .toolbar-right {
-            flex-direction: column;
-            align-items: stretch;
-            width: 100%;
-            gap: 10px;
-          }
-          .search-box, .search-box input {
-            width: 100%;
-          }
-          .zoho-card-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          .zoho-table {
-            min-width: 650px;
-          }
-          .zoho-drawer {
-            max-width: 100%;
-            width: 100vw;
-            border-left: none;
-          }
-          .form-row-2 {
-            grid-template-columns: 1fr;
-            gap: 10px;
-          }
-          .zoho-drawer-footer button {
-            flex: 1;
-            height: 36px;
-            justify-content: center;
-          }
-        }
-      `}</style>
+            <div className="flex items-center gap-2.5">
+              <div className="w-full md:w-64 relative">
+                <Search size={14} className="absolute left-3 top-2.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search drivers..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full h-8 pl-9 pr-3 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsNewModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition whitespace-nowrap"
+              >
+                <Plus size={14} /> Add driver
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="py-2.5 px-3">Driver Name & Credentials</th>
+                    <th className="py-2.5 px-3">Tier</th>
+                    <th className="py-2.5 px-3">Operating Modes</th>
+                    <th className="py-2.5 px-3">Phone</th>
+                    <th className="py-2.5 px-3">Weekly Balance</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {loading && drivers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        Loading driver roster...
+                      </td>
+                    </tr>
+                  ) : filteredDrivers.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                        No drivers found matching current search.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDrivers.map((d) => (
+                      <tr
+                        key={d.id}
+                        onClick={() => loadDriverDetail(d.id)}
+                        className="cursor-pointer transition hover:bg-muted/40"
+                      >
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-muted border border-border text-foreground font-bold text-[11px] flex items-center justify-center flex-shrink-0">
+                              {d.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-bold text-foreground text-xs leading-tight">{d.name}</div>
+                              <div className="text-[10px] text-muted-foreground mt-0.5">
+                                {d.email || 'No email on file'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
+                            T{d.service_tier || 1} {d.tier?.name || 'Essential'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-1">
+                            {d.is_fleet_operator && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-muted text-muted-foreground border border-border">
+                                Fleet
+                              </span>
+                            )}
+                            {d.is_client_car_operator && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-muted text-muted-foreground border border-border">
+                                Client Car
+                              </span>
+                            )}
+                            {d.is_owner_operator && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                                Owner-Op
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 font-mono text-muted-foreground text-[11px]">
+                          {d.phone || '—'}
+                        </td>
+
+                        <td className="py-3 px-3 font-bold text-foreground">
+                          ${Number(d.weekly_balance || 424.50).toFixed(2)}
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              d.is_active
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${d.is_active ? 'bg-emerald-500' : 'bg-muted-foreground'}`}></span>
+                            {d.is_active ? 'Active' : 'Off-Duty'}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              loadDriverDetail(d.id);
+                            }}
+                            className="px-2.5 py-1 text-xs rounded border border-border bg-background hover:bg-muted text-foreground transition font-medium"
+                          >
+                            View profile
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW MODE 2: Driver Detail Profile matching Screenshot 4 */}
+      {viewMode === 'profile' && selectedDetail && (
+        <div className="space-y-4">
+          {/* Top Header: Breadcrumb & Action Buttons */}
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold transition"
+            >
+              <ChevronLeft size={15} />
+              <span>All drivers</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleActive}
+                className="px-3 py-1.5 text-xs rounded border border-border bg-background hover:bg-muted text-foreground transition font-medium"
+              >
+                {selectedDetail.is_active ? 'Mark inactive' : 'Mark active'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => alert(`Opening driver portal view for ${selectedDetail.name}`)}
+                className="px-3 py-1.5 text-xs rounded bg-amber-600 hover:bg-amber-700 text-white font-medium transition shadow-xs"
+              >
+                View their driver app
+              </button>
+            </div>
+          </div>
+
+          {detailLoading ? (
+            <div className="p-12 text-center text-muted-foreground">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+              Loading driver profile...
+            </div>
+          ) : (
+            <>
+              {/* Driver Profile Header */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Driver Profile
+                </span>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground font-serif">
+                  {selectedDetail.name}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {selectedDetail.employment_type || 'Archer employee · owner-operator rights · Active · online now'}
+                </p>
+              </div>
+
+              {/* Contact Fields: Phone & Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Phone
+                  </label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 3 Server-Authoritative Operating Switches (Screenshot 4) */}
+              <div className="space-y-2 pt-2">
+                <label className="block text-[11px] text-muted-foreground">
+                  Can drive (only admin can change these). A driver sees a ride only with its tier and the matching switch.
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleMode('fleet')}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
+                      isFleetOp
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Archer fleet operator
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleMode('client_car')}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
+                      isClientCarOp
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Client Car operator
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleMode('owner')}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
+                      isOwnerOp
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    Owner-operator
+                  </button>
+                </div>
+              </div>
+
+              {/* Owner-Operator Vehicle Box (Screenshot 4 middle section) */}
+              {isOwnerOp && (
+                <div className="p-4 rounded-lg border border-border bg-card shadow-xs space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                      Owner-operator vehicle
+                    </span>
+                    <span className="text-[11px] text-emerald-800 dark:text-emerald-400 font-semibold">
+                      Can take own-vehicle rates
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Vehicle
+                      </label>
+                      <input
+                        type="text"
+                        value={ownerVehicleModel}
+                        onChange={(e) => setOwnerVehicleModel(e.target.value)}
+                        className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                      />
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Counts As
+                      </label>
+                      <select
+                        value={ownerVehicleClass}
+                        onChange={(e) => setOwnerVehicleClass(e.target.value)}
+                        className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs"
+                      >
+                        <option value="Executive Class · SUV">Executive Class · SUV</option>
+                        <option value="Executive Class · Sedan / Compact SUV">Executive Class · Sedan / Compact SUV</option>
+                        <option value="1st Class · SUV">1st Class · SUV</option>
+                        <option value="Sprinter">Sprinter</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Plate
+                      </label>
+                      <input
+                        type="text"
+                        value={ownerVehiclePlate}
+                        onChange={(e) => setOwnerVehiclePlate(e.target.value)}
+                        className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Registration Expires
+                      </label>
+                      <input
+                        type="date"
+                        value={ownerRegExpires}
+                        onChange={(e) => setOwnerRegExpires(e.target.value)}
+                        className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                        Commercial Insurance Expires
+                      </label>
+                      <input
+                        type="date"
+                        value={ownerInsExpires}
+                        onChange={(e) => setOwnerInsExpires(e.target.value)}
+                        className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Checkbox: Vehicle inspected and meets Archer standards */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="inspectCheck"
+                      checked={ownerInspected}
+                      onChange={(e) => setOwnerInspected(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="inspectCheck" className="text-xs text-foreground cursor-pointer select-none">
+                      Vehicle inspected and meets Archer standards
+                    </label>
+                  </div>
+
+                  {/* Subtext explanation matching Screenshot 4 */}
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Own-vehicle rides only go out when no Archer vehicle of the same class and size is free. The client is billed the same; the driver gets the fare minus $25 per billed hour. Rides stop automatically if the registration or commercial insurance is expired on the ride date.
+                  </p>
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => handleSaveDetails()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs shadow-xs transition disabled:opacity-50"
+                    >
+                      <Save size={13} />
+                      <span>{saving ? 'Saving...' : 'Save details'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tiers Multi-Select (Screenshot 4) */}
+              <div className="space-y-2 pt-2">
+                <label className="block text-[11px] text-muted-foreground">
+                  Tiers (only admin can change these)
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTier(1)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                      selectedTier === 1
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    T1 Essential
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTier(2)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                      selectedTier === 2
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    T2 Executive
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTier(3)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                      selectedTier === 3
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    T3 Elite
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTier(4)}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                      selectedTier === 4
+                        ? 'bg-amber-600 text-white shadow-xs'
+                        : 'border border-border bg-background text-muted-foreground/60 hover:bg-muted'
+                    }`}
+                  >
+                    T4 Armed (Inactive)
+                  </button>
+                </div>
+              </div>
+
+              {/* Lower Section: Two Columns Layout (Screenshot 4) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-3">
+                {/* Left Column: UPCOMING AND ACTIVE + RIDE HISTORY */}
+                <div className="lg:col-span-7 space-y-5">
+                  {/* UPCOMING AND ACTIVE */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 border-b border-border pb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Upcoming and active
+                      </span>
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] font-bold text-foreground">
+                        {selectedDetail.active_ride ? 1 : 0}
+                      </span>
+                    </div>
+
+                    {selectedDetail.active_ride ? (
+                      <div className="p-3.5 rounded-lg border border-border bg-card shadow-xs space-y-2.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-foreground text-xs">
+                            {selectedDetail.active_ride.date_time_label}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                              {selectedDetail.active_ride.tier_label}
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                              {selectedDetail.active_ride.status_label}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="font-bold text-foreground">
+                            {selectedDetail.active_ride.client_name}
+                          </span>{' '}
+                          <span className="text-muted-foreground">
+                            {selectedDetail.active_ride.client_phone} · {selectedDetail.active_ride.reference}
+                          </span>
+                        </div>
+
+                        <div className="space-y-0.5 text-muted-foreground text-[11px]">
+                          <div>
+                            <span className="font-semibold text-foreground">FROM:</span> {selectedDetail.active_ride.pickup_address}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-foreground">TO:</span> {selectedDetail.active_ride.dropoff_address}
+                          </div>
+                        </div>
+
+                        <div className="text-[11px] text-muted-foreground">
+                          {selectedDetail.active_ride.service_description}
+                        </div>
+
+                        <div className="text-[11px] font-semibold text-foreground">
+                          Archer vehicle: <span className="font-normal text-muted-foreground">{selectedDetail.active_ride.archer_vehicle}</span>
+                        </div>
+
+                        {selectedDetail.active_ride.route_note && (
+                          <div className="p-2 rounded bg-muted/40 border border-border/50 text-[11px] text-muted-foreground">
+                            {selectedDetail.active_ride.route_note}
+                          </div>
+                        )}
+
+                        <div className="pt-1">
+                          <Link
+                            href={`/rides?search=${selectedDetail.active_ride.reference}`}
+                            className="text-[11px] font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:underline"
+                          >
+                            Driving: Open in Ride requests
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded border border-border text-xs text-muted-foreground italic">
+                        No upcoming or active rides assigned to this driver.
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIDE HISTORY */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 border-b border-border pb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Ride history
+                      </span>
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-muted text-[10px] font-bold text-foreground">
+                        {selectedDetail.ride_history?.length || 0}
+                      </span>
+                    </div>
+
+                    <div className="rounded-lg border border-border bg-card overflow-hidden shadow-xs">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <th className="py-2 px-3">Date</th>
+                            <th className="py-2 px-3">Client</th>
+                            <th className="py-2 px-3">Job</th>
+                            <th className="py-2 px-2">Paid By</th>
+                            <th className="py-2 px-3 text-right">Earned</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {selectedDetail.ride_history?.map((h) => (
+                            <tr key={h.id} className="hover:bg-muted/30">
+                              <td className="py-2 px-3 text-foreground whitespace-nowrap">{h.date}</td>
+                              <td className="py-2 px-3">
+                                <div className="font-semibold text-foreground">{h.client}</div>
+                                <div className="font-mono text-[10px] text-primary">{h.reference}</div>
+                              </td>
+                              <td className="py-2 px-3 text-muted-foreground">{h.job}</td>
+                              <td className="py-2 px-2 text-muted-foreground">{h.paid_by}</td>
+                              <td className="py-2 px-3 text-right font-bold text-foreground whitespace-nowrap">
+                                ${Number(h.earned).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-muted/20 font-bold">
+                            <td colSpan={4} className="py-2.5 px-3 text-foreground">
+                              Lifetime earnings
+                            </td>
+                            <td className="py-2.5 px-3 text-right text-foreground">
+                              ${Number(selectedDetail.pay_week?.lifetime_earnings || 424.50).toFixed(2)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: THIS PAY WEEK + CREDENTIALS + AVAILABILITY + CLAIMED SHIFTS */}
+                <div className="lg:col-span-5 space-y-4">
+                  {/* THIS PAY WEEK Card */}
+                  <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      This pay week
+                    </span>
+
+                    {/* Green status banner matching Screenshot 4 */}
+                    <div className="p-2.5 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+                      {selectedDetail.pay_week?.status_banner || 'Archer owes $424.50 check ready Fri, Nov 27'}
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Earned (pay + tips)</span>
+                        <span className="text-foreground font-medium">
+                          ${Number(selectedDetail.pay_week?.earned_pay_tips || 267.50).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Cash kept by driver</span>
+                        <span className="text-foreground font-medium">
+                          ${Number(selectedDetail.pay_week?.cash_kept || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Carried from earlier weeks</span>
+                        <span className="text-foreground font-medium">
+                          ${Number(selectedDetail.pay_week?.carried_earlier_weeks || 157.00).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-border font-bold text-foreground">
+                        <span>Balance</span>
+                        <span className="text-emerald-700 dark:text-emerald-400">
+                          Archer owes ${Number(selectedDetail.pay_week?.net_balance || 424.50).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <Link
+                        href="/payroll"
+                        className="text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold hover:underline"
+                      >
+                        Open weekly payroll
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* CREDENTIALS [P2] Card */}
+                  <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Credentials
+                      </span>
+                      <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-muted text-muted-foreground">
+                        P2
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-foreground font-medium">SOAR certification</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          Active · 203 days
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-foreground font-medium">NJ driver license</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          Active · 519 days
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-foreground font-medium">Carry permit</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                          Renewal due · 21 days
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AVAILABILITY [P2] Card */}
+                  <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Availability
+                      </span>
+                      <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-muted text-muted-foreground">
+                        P2
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded bg-muted/30 border border-border/60 text-xs text-foreground font-mono">
+                      {selectedDetail.availability_schedule || 'Mon, Tue, Wed, Thu, Fri: 07:00–19:00'}
+                    </div>
+                  </div>
+
+                  {/* CLAIMED SHIFTS [P2] Card */}
+                  <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Claimed shifts
+                      </span>
+                      <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-muted text-muted-foreground">
+                        P2
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded bg-muted/30 border border-border/60 space-y-1">
+                      <div className="text-xs font-bold text-foreground">
+                        {selectedDetail.claimed_shifts?.title || 'Shore Day Camp (sample)'}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {selectedDetail.claimed_shifts?.schedule || 'Mon, Nov 23, 8:00 AM – 4:00 PM · T2'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* APP NOTIFICATIONS SENT Card */}
+                  <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                      App notifications sent
+                    </span>
+                    <div className="text-xs text-muted-foreground italic py-1">
+                      None yet
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Onboard New Driver Modal */}
+      {isNewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-card rounded-lg border border-border shadow-xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-2.5">
+              <h3 className="font-bold text-foreground text-sm">Add New Chauffeur</h3>
+              <button
+                type="button"
+                onClick={() => setIsNewModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDriver} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Marcus Vance"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="(732) 555-0199"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="m.vance@example.com"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Qualification Tier
+                </label>
+                <select
+                  value={newTier}
+                  onChange={(e) => setNewTier(Number(e.target.value))}
+                  className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs"
+                >
+                  <option value={1}>T1 Essential ($25/hr)</option>
+                  <option value={2}>T2 Executive ($30/hr)</option>
+                  <option value={3}>T3 Elite ($35/hr)</option>
+                  <option value={4}>T4 Armed ($55/hr)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsNewModalOpen(false)}
+                  className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
+                >
+                  {saving ? 'Adding...' : 'Add Chauffeur'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

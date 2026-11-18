@@ -1,0 +1,95 @@
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\CustomerNotice;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\CreatesStaff;
+use Tests\TestCase;
+
+class CustomerNoticeTest extends TestCase
+{
+    use CreatesStaff, RefreshDatabase;
+
+    public function test_dispatcher_lists_customer_notices(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        $response = $this->getJson('/api/v1/admin/notices', $h);
+
+        $response->assertOk();
+        $response->assertJsonStructure([
+            'data' => [
+                'notices' => [
+                    '*' => [
+                        'id',
+                        'sent_at',
+                        'sent_at_formatted',
+                        'recipient_name',
+                        'recipient_phone',
+                        'recipient_email',
+                        'channel',
+                        'trigger',
+                        'trigger_label',
+                        'ride_reference',
+                        'message',
+                        'status',
+                    ],
+                ],
+            ],
+        ]);
+
+        $notices = collect($response->json('data.notices'));
+        $this->assertTrue($notices->contains('recipient_name', 'Morgan Hale'));
+        $this->assertTrue($notices->contains('recipient_name', 'Grant Whitfield'));
+        $this->assertTrue($notices->contains('trigger', 'allocated'));
+        $this->assertTrue($notices->contains('trigger', 'on_my_way'));
+        $this->assertTrue($notices->contains('trigger', 'at_your_doorstep'));
+    }
+
+    public function test_filter_and_search_notices(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        // Filter by trigger: on_my_way
+        $filterRes = $this->getJson('/api/v1/admin/notices?trigger=on_my_way', $h)->assertOk();
+        $filtered = collect($filterRes->json('data.notices'));
+        $this->assertTrue($filtered->every(fn ($n) => $n['trigger'] === 'on_my_way'));
+
+        // Search by recipient: Morgan
+        $searchRes = $this->getJson('/api/v1/admin/notices?search=Morgan', $h)->assertOk();
+        $searched = collect($searchRes->json('data.notices'));
+        $this->assertCount(1, $searched);
+        $this->assertEquals('Morgan Hale', $searched->first()['recipient_name']);
+    }
+
+    public function test_dispatcher_can_log_notice(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        $payload = [
+            'ride_reference' => 'AR-1055',
+            'recipient_name' => 'Lena Ortiz',
+            'recipient_phone' => '(848) 555-0177',
+            'channel' => 'SMS',
+            'trigger' => 'on_my_way',
+            'message' => 'Matthew Krywinski is on the way to 220 Ocean Ave.',
+        ];
+
+        $response = $this->postJson('/api/v1/admin/notices', $payload, $h);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.notice.recipient_name', 'Lena Ortiz');
+        $response->assertJsonPath('data.notice.trigger_label', 'On my way');
+
+        $this->assertDatabaseHas('customer_notices', [
+            'ride_reference' => 'AR-1055',
+            'recipient_name' => 'Lena Ortiz',
+            'trigger' => 'on_my_way',
+        ]);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'customer_notice.logged',
+        ]);
+    }
+}

@@ -1,8 +1,6 @@
 'use client';
 
-import { DetailsView } from '@/components/DetailsView';
-
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { 
   Search, 
@@ -19,7 +17,13 @@ import {
   Clock4,
   CheckCircle2,
   XCircle,
-  FileText
+  FileText,
+  Plus,
+  Shield,
+  FileCheck2,
+  Send,
+  UserCheck,
+  DollarSign
 } from 'lucide-react';
 
 export interface Driver {
@@ -27,14 +31,19 @@ export interface Driver {
   name: string;
   phone: string | null;
   email: string | null;
+  service_tier: number | null;
   is_active: boolean;
+  is_fleet_operator?: boolean;
+  is_client_car_operator?: boolean;
+  is_owner_operator?: boolean;
 }
 
 export interface RideRequest {
   id: string;
   reference: string;
+  request_type?: string | null;
   first_name: string;
-  last_name: string;
+  last_name: string | null;
   email: string | null;
   phone: string;
   pickup_location?: string | null;
@@ -48,9 +57,41 @@ export interface RideRequest {
   driver_preference: string | null;
   assigned_driver_id: string | null;
   assigned_driver?: Driver | null;
-  status: 'pending' | 'dispatched' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'new' | 'broadcast' | 'dispatched' | 'driver_assigned' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_notes: string | null;
-  details?: Record<string, unknown> | null;
+  details?: {
+    is_client_car_signed?: boolean;
+    client_car_vehicle?: string;
+    hours?: number;
+    passengers?: number;
+    ride_amount?: number;
+    security_guard_tier?: number;
+    security_guards_count?: number;
+    created_via?: string;
+    status_log?: Array<{
+      status: string;
+      channel: string;
+      timestamp: string;
+      agent?: string;
+      notes?: string;
+    }>;
+    closeout?: {
+      booked_price: number;
+      extra_time: string;
+      extra_time_fare: number;
+      booking_fee: number;
+      sales_tax: number;
+      tip: number;
+      client_paid: number;
+      payment_method: string;
+      driver_pay: number;
+      tip_to_driver: number;
+      security_pay: number;
+      card_processing_fee: number;
+      sales_tax_remit: number;
+      archer_profit: number;
+    };
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,30 +101,66 @@ export default function RidesPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedRide, setSelectedRide] = useState<RideRequest | null>(null);
-  const [editStatus, setEditStatus] = useState<RideRequest['status']>('pending');
-  const [editDriverId, setEditDriverId] = useState<string>('');
-  const [editNotes, setEditNotes] = useState<string>('');
+  const [editServiceType, setEditServiceType] = useState('hourly');
+  const [editPickupTime, setEditPickupTime] = useState('');
+  const [editVehicle, setEditVehicle] = useState('');
+  const [editTier, setEditTier] = useState('1');
+  const [editHours, setEditHours] = useState('4');
+  const [editPassengers, setEditPassengers] = useState('2');
+  const [editPickupAddress, setEditPickupAddress] = useState('');
+  const [editDropoffAddress, setEditDropoffAddress] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editRideAmount, setEditRideAmount] = useState('145');
+  const [editPreferredDriver, setEditPreferredDriver] = useState('');
+  const [editAssignedDriverId, setEditAssignedDriverId] = useState('');
+  const [editSecurityAddon, setEditSecurityAddon] = useState(false);
+  const [editGuardTier, setEditGuardTier] = useState('2');
+  const [editGuardCount, setEditGuardCount] = useState('1');
+  const [clientCarVehicle, setClientCarVehicle] = useState('2023 Obsidian black Mercedes-Benz S 580 NJ M41-HLE');
+
+  // Phone Booking Modal
+  const [phoneBookingOpen, setPhoneBookingOpen] = useState(false);
+  const [pbForm, setPbForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    email: '',
+    service_type: 'hourly',
+    driver_tier: '1',
+    ride_date: new Date().toISOString().slice(0, 10),
+    ride_time: '12:00',
+    vehicle: 'Chevrolet Traverse',
+    pickup_location: '',
+    dropoff_location: '',
+    dispatch_notes: '',
+  });
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (fromDate) params.append('from', fromDate);
+      if (toDate) params.append('to', toDate);
+
       const [ridesRes, driversRes] = await Promise.all([
-        api<{ rides: RideRequest[] }>(`/admin/rides${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`, { auth: true }),
+        api<{ rides: RideRequest[] }>(`/admin/rides?${params.toString()}`, { auth: true }),
         api<{ drivers: Driver[] }>('/admin/drivers', { auth: true }).catch(() => ({ drivers: [] })),
       ]);
       setRides(ridesRes.rides);
       setDrivers(driversRes.drivers.filter((d) => d.is_active));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to load rides and dispatch data.');
+      setError(err instanceof ApiError ? err.message : 'Failed to load dispatch requests.');
     } finally {
       setLoading(false);
     }
@@ -91,1139 +168,925 @@ export default function RidesPage() {
 
   useEffect(() => {
     fetchData();
-  }, [statusFilter]);
+  }, [statusFilter, fromDate, toDate]);
 
   const openDrawer = (ride: RideRequest) => {
     setSelectedRide(ride);
-    setEditStatus(ride.status);
-    setEditDriverId(ride.assigned_driver_id || '');
+    setEditServiceType(ride.service_type || 'hourly');
+    setEditPickupTime(`${ride.ride_date} ${ride.ride_time}`);
+    setEditVehicle(ride.vehicle || 'Chevrolet Traverse');
+    setEditTier(String(ride.driver_tier || '1'));
+    setEditHours(String(ride.details?.hours || 4));
+    setEditPassengers(String(ride.details?.passengers || 2));
+    setEditPickupAddress(ride.pickup_location || '');
+    setEditDropoffAddress(ride.dropoff_location || '');
     setEditNotes(ride.dispatch_notes || '');
-    setDrawerOpen(true);
+    setEditRideAmount(String(ride.details?.ride_amount || 145));
+    setEditPreferredDriver(ride.driver_preference || '');
+    setEditAssignedDriverId(ride.assigned_driver_id || '');
+    setEditSecurityAddon(ride.security_addon === '1' || Boolean(ride.details?.security_guards_count));
+    setEditGuardTier(String(ride.details?.security_guard_tier || 2));
+    setEditGuardCount(String(ride.details?.security_guards_count || 1));
+    setClientCarVehicle(ride.details?.client_car_vehicle || '2023 Obsidian black Mercedes-Benz S 580 NJ M41-HLE');
     setError(null);
     setSuccess(null);
   };
 
   const closeDrawer = () => {
-    setDrawerOpen(false);
     setSelectedRide(null);
   };
 
-  const handleSaveDispatch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Concurrency-safe driver assignment / update
+  const handleSaveRide = async (assignDriverId?: string) => {
     if (!selectedRide) return;
 
     try {
       setSaving(true);
       setError(null);
+      const targetDriverId = assignDriverId !== undefined ? assignDriverId : (editAssignedDriverId || null);
+
       const res = await api<{ ride: RideRequest }>(`/admin/rides/${selectedRide.id}`, {
         method: 'PUT',
         auth: true,
         body: {
-          status: editStatus,
-          assigned_driver_id: editDriverId || null,
-          dispatch_notes: editNotes || null,
+          service_type: editServiceType,
+          vehicle: editVehicle,
+          driver_tier: editTier,
+          pickup_location: editPickupAddress,
+          dropoff_location: editDropoffAddress,
+          dispatch_notes: editNotes,
+          driver_preference: editPreferredDriver || null,
+          assigned_driver_id: targetDriverId,
+          status: targetDriverId ? 'driver_assigned' : selectedRide.status,
+          details: {
+            hours: Number(editHours) || 4,
+            passengers: Number(editPassengers) || 2,
+            ride_amount: Number(editRideAmount) || 145,
+            security_guard_tier: editSecurityAddon ? Number(editGuardTier) : null,
+            security_guards_count: editSecurityAddon ? Number(editGuardCount) : 0,
+            client_car_vehicle: clientCarVehicle,
+          },
         },
       });
 
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
       setSelectedRide(res.ride);
-      setSuccess(`Ride ${res.ride.reference} updated successfully.`);
-      setTimeout(() => {
-        setSuccess(null);
-        closeDrawer();
-      }, 900);
+      setSuccess(`Ride ${res.ride.reference} saved successfully.`);
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to dispatch ride.');
+      setError(err instanceof ApiError ? err.message : 'Failed to update ride.');
     } finally {
       setSaving(false);
     }
   };
 
-  const filteredRides = rides.filter((r) => {
-    const q = search.toLowerCase();
-    const fullName = `${r.first_name} ${r.last_name}`.toLowerCase();
-    const ref = r.reference.toLowerCase();
-    const phone = (r.phone || '').toLowerCase();
-    const vehicle = (r.vehicle || '').toLowerCase();
-    return fullName.includes(q) || ref.includes(q) || phone.includes(q) || vehicle.includes(q);
-  });
+  // Smart Broadcast
+  const handleBroadcast = async () => {
+    if (!selectedRide) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const res = await api<{ ride: RideRequest; recipients_count: number; message: string }>(
+        `/admin/rides/${selectedRide.id}/broadcast`,
+        { method: 'POST', auth: true }
+      );
+      setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
+      setSelectedRide(res.ride);
+      setSuccess(res.message);
+      setTimeout(() => setSuccess(null), 3500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Broadcast failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Record Signed Agreement
+  const handleRecordAgreement = async () => {
+    if (!selectedRide) return;
+    try {
+      setSaving(true);
+      setError(null);
+      const res = await api<{ ride: RideRequest; message: string }>(
+        `/admin/rides/${selectedRide.id}/record-agreement`,
+        { method: 'POST', auth: true }
+      );
+      setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
+      setSelectedRide(res.ride);
+      setSuccess(res.message);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to record agreement.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Create Phone Booking
+  const handleCreatePhoneBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      setError(null);
+      const res = await api<{ ride: RideRequest }>('/admin/rides', {
+        method: 'POST',
+        auth: true,
+        body: pbForm,
+      });
+      setRides((prev) => [res.ride, ...prev]);
+      setPhoneBookingOpen(false);
+      setSuccess(`Phone booking created with reference ${res.ride.reference}.`);
+      setPbForm({
+        first_name: '',
+        last_name: '',
+        phone: '',
+        email: '',
+        service_type: 'hourly',
+        driver_tier: '1',
+        ride_date: new Date().toISOString().slice(0, 10),
+        ride_time: '12:00',
+        vehicle: 'Chevrolet Traverse',
+        pickup_location: '',
+        dropoff_location: '',
+        dispatch_notes: '',
+      });
+      openDrawer(res.ride);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create phone booking.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Filtered rides
+  const filteredRides = useMemo(() => {
+    return rides.filter((r) => {
+      const q = search.toLowerCase();
+      const fullName = `${r.first_name} ${r.last_name || ''}`.toLowerCase();
+      const ref = (r.reference || '').toLowerCase();
+      const phone = (r.phone || '').toLowerCase();
+      const vehicle = (r.vehicle || '').toLowerCase();
+      return fullName.includes(q) || ref.includes(q) || phone.includes(q) || vehicle.includes(q);
+    });
+  }, [rides, search]);
+
+  const isClientCar = editServiceType.toLowerCase().includes('client');
+  const isAgreementSigned = Boolean(selectedRide?.details?.is_client_car_signed);
+
+  // Status badge styling
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'new':
+      case 'pending':
+        return <span className="text-[11px] font-bold px-2.5 py-1 rounded bg-[#E48243]/15 text-[#E48243] border border-[#E48243]/30">New request</span>;
+      case 'broadcast':
+      case 'offered':
+        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">Offered to preferred driver</span>;
+      case 'dispatched':
+      case 'driver_assigned':
+        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30">Driver assigned</span>;
+      case 'in_progress':
+        return <span className="text-[11px] font-bold px-2.5 py-1 rounded bg-blue-600 text-white shadow-sm">Ride in progress</span>;
+      case 'completed':
+        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">Completed</span>;
+      case 'cancelled':
+        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-rose-500/15 text-rose-600 border border-rose-500/30">Cancelled</span>;
+      default:
+        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-muted text-muted-foreground">{status}</span>;
+    }
+  };
 
   return (
-    <div className="zoho-page-container">
-      {/* Notifications */}
+    <div className="space-y-4">
+      {/* Page Header matching Prototype */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold tracking-widest uppercase text-[#8C745E] bg-[#8C745E]/10 px-2.5 py-0.5 rounded">P1</span>
+            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Ride requests</h1>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+            Requests from the website, the client app and phone bookings all land here. Website requests come in without addresses, so add those before you allocate.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setPhoneBookingOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-md bg-[#E48243] text-white hover:bg-[#d47334] transition shadow-sm"
+        >
+          <Plus size={14} /> + Phone booking
+        </button>
+      </div>
+
+      {/* Global Alerts */}
       {error && (
-        <div className="alert">
-          <AlertCircle size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
-          {error}
+        <div className="p-3 text-xs rounded-md bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-2">
+          <AlertCircle size={15} /> {error}
         </div>
       )}
       {success && (
-        <div className="notice">
-          <Check size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
-          {success}
+        <div className="p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center gap-2">
+          <CheckCircle2 size={15} /> {success}
         </div>
       )}
 
-      {/* Header Block matching Hospitable */}
-      <div className="hosp-page-header">
-        <h1 className="hosp-title">Rides & Dispatch</h1>
-        <p className="hosp-subtitle">
-          Manage real-time chauffeur assignments, flight tracking triggers, passenger reservations, and dispatch operations across the Archer Executive fleet.
-        </p>
-        <div className="hosp-tour-chips">
-          <span className="hosp-chip-item">
-            <Clock4 size={13} />
-            <span>Flight tracking active</span>
-            <span className="hosp-badge-green">LIVE</span>
-          </span>
-          <span className="hosp-chip-item">
-            <Car size={13} />
-            <span>{drivers.length} Chauffeurs on roster</span>
-          </span>
-          <span className="hosp-chip-item">
-            <CheckCircle2 size={13} />
-            <span>{rides.length} Total Bookings</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Underline Tabs matching Hospitable Image 3 */}
-      <div className="hosp-tab-strip">
-        {(['all', 'pending', 'dispatched', 'in_progress', 'completed', 'cancelled'] as const).map((st) => (
-          <button
-            key={st}
-            type="button"
-            onClick={() => setStatusFilter(st)}
-            className={`hosp-tab-btn ${statusFilter === st ? 'active' : ''}`}
+      {/* Filter Row matching Screenshot 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-card p-3 rounded-lg border border-border text-xs">
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
           >
-            {st === 'all' ? 'All Requests' : st.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-            {st === 'all' && ` (${rides.length})`}
-          </button>
-        ))}
-      </div>
+            <option value="all">All</option>
+            <option value="new">New request</option>
+            <option value="dispatched">Driver assigned</option>
+            <option value="in_progress">Ride in progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
 
-      {/* Filter & Search Toolbar matching Hospitable Image 1 */}
-      <div className="hosp-toolbar-row">
-        <div className="hosp-toolbar-left">
-          <div className="hosp-search-field">
-            <Search size={14} className="hosp-search-icon" />
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Search Name, Phone or Ref</label>
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search reference, passenger, vehicle, phone..."
+              placeholder="e.g. Morgan Hale, (732)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-8 pl-8 pr-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
             />
           </div>
         </div>
-        <div className="hosp-toolbar-right">
-          <span className="hosp-results-count">{filteredRides.length} of {rides.length} rides</span>
+
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">From</label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">To</label>
+          <input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+          />
         </div>
       </div>
 
-      {/* Divided Row Cards matching Hospitable List View */}
-      <div className="hosp-divided-list">
-        {loading ? (
-          <div className="hosp-empty-state">
-            <div className="loading-spinner"></div>
-            <p>Loading dispatch requests...</p>
-          </div>
-        ) : filteredRides.length === 0 ? (
-          <div className="hosp-empty-state">
-            <Car size={32} />
-            <h3>No Ride Requests Found</h3>
-            <p>There are no passenger bookings matching your search or filter.</p>
-          </div>
-        ) : (
-          filteredRides.map((ride) => {
-            const initials = `${ride.first_name?.[0] || ''}${ride.last_name?.[0] || ''}`.toUpperCase();
-            const vehTag = ride.vehicle?.toLowerCase().includes('sprinter')
-              ? 'VAN'
-              : ride.vehicle?.toLowerCase().includes('escalade')
-              ? 'ESV'
-              : ride.vehicle?.toLowerCase().includes('suv')
-              ? 'SUV'
-              : 'SED';
+      {/* Main Table Layout */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                <th className="p-3">Request</th>
+                <th className="p-3">Ride Schedule & Service</th>
+                <th className="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr>
+                  <td colSpan={3} className="p-8 text-center text-muted-foreground">
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    Loading ride requests...
+                  </td>
+                </tr>
+              ) : filteredRides.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-8 text-center text-muted-foreground">
+                    No ride requests found matching current filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredRides.map((ride) => {
+                  const isSelected = selectedRide?.id === ride.id;
+                  const source = ride.request_type || (ride.details?.created_via === 'phone_booking' ? 'phone' : 'website');
 
-            return (
-              <div key={ride.id} onClick={() => openDrawer(ride)} className="hosp-row-item">
-                <div className="hosp-row-avatar">{initials || 'VIP'}</div>
-                <div className="hosp-row-main">
-                  <div className="hosp-row-title-line">
-                    <span className="hosp-passenger-name">{ride.first_name} {ride.last_name}</span>
-                    <span className="hosp-ref-tag">{ride.reference}</span>
-                    <span className={`hosp-status-pill status-${ride.status}`}>
-                      <span className="status-dot"></span>
-                      {ride.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="hosp-row-sub-line">
-                    <span className="hosp-phone-text">
-                      <Phone size={11} style={{ display: 'inline', marginRight: 3 }} />
-                      {ride.phone}
-                    </span>
-                    {ride.pickup_location && (
-                      <span className="hosp-location-text">
-                        • {ride.pickup_location}
+                  return (
+                    <tr
+                      key={ride.id}
+                      onClick={() => openDrawer(ride)}
+                      className={`cursor-pointer transition hover:bg-muted/50 ${isSelected ? 'bg-primary/5 border-l-4 border-primary font-medium' : ''}`}
+                    >
+                      <td className="p-3">
+                        <div className="font-bold text-foreground text-xs">
+                          {ride.first_name} {ride.last_name || ''}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                          <span>{ride.phone}</span>
+                          <span>·</span>
+                          <span className="font-mono text-[10px] text-primary">{ride.reference}</span>
+                          <span>·</span>
+                          <span className="capitalize text-[10px] bg-muted px-1.5 py-0.5 rounded">{source}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-3">
+                        <div className="text-foreground text-xs">
+                          <span className="font-semibold">{ride.ride_date}</span> at <span className="font-semibold">{ride.ride_time}</span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          <span className="capitalize">{ride.service_type.replace('_', ' ')}</span>
+                          {' · '}
+                          <span>{ride.vehicle}</span>
+                          {' · '}
+                          <span className="font-semibold text-primary">T{ride.driver_tier}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-3">
+                        {renderStatusBadge(ride.status)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Slide-Over Context Drawer matching Screenshot 2 & Screenshot 7 */}
+      {selectedRide && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl h-full bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-sm font-bold text-primary">{selectedRide.reference}</span>
+                {renderStatusBadge(selectedRide.status)}
+              </div>
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
+              {/* Row 1: Client info */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-muted/20 p-3 rounded-lg border border-border">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Client Name</label>
+                  <div className="font-bold text-foreground">{selectedRide.first_name} {selectedRide.last_name || ''}</div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Phone</label>
+                  <div className="text-foreground">{selectedRide.phone}</div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Service</label>
+                  <select
+                    value={editServiceType}
+                    onChange={(e) => setEditServiceType(e.target.value)}
+                    className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  >
+                    <option value="hourly">Hourly</option>
+                    <option value="point_to_point">Point to point</option>
+                    <option value="airport">Airport transfer</option>
+                    <option value="client-car">Client Car Service</option>
+                    <option value="security">Security only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Pickup Time</label>
+                  <input
+                    type="text"
+                    value={editPickupTime}
+                    onChange={(e) => setEditPickupTime(e.target.value)}
+                    className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Row 2: Vehicle, Tier, Hours, Passengers */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-muted/20 p-3 rounded-lg border border-border">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Vehicle</label>
+                  <select
+                    value={editVehicle}
+                    onChange={(e) => setEditVehicle(e.target.value)}
+                    className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  >
+                    <option value="Chevrolet Traverse">Chevrolet Traverse</option>
+                    <option value="Chevrolet Suburban">Chevrolet Suburban</option>
+                    <option value="Mercedes-Benz Sprinter">Mercedes-Benz Sprinter</option>
+                    <option value="Lincoln Aviator">Lincoln Aviator</option>
+                    <option value="Cadillac Escalade">Cadillac Escalade</option>
+                    <option value="Executive Sprinter">Executive Sprinter</option>
+                    <option value="Client Car Service">Client Car Service</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Tier</label>
+                  <select
+                    value={editTier}
+                    onChange={(e) => setEditTier(e.target.value)}
+                    className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  >
+                    <option value="1">Tier 1 · Essential</option>
+                    <option value="2">Tier 2 · Executive</option>
+                    <option value="3">Tier 3 · Elite</option>
+                    <option value="4">Tier 4 · Armed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Hours</label>
+                  <input
+                    type="number"
+                    value={editHours}
+                    onChange={(e) => setEditHours(e.target.value)}
+                    className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Passengers</label>
+                  <input
+                    type="number"
+                    value={editPassengers}
+                    onChange={(e) => setEditPassengers(e.target.value)}
+                    className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Client Car Service Safety Lock Box matching Screenshot 2 */}
+              {isClientCar && (
+                <div className="p-3.5 rounded-lg border border-[#E48243]/30 bg-[#E48243]/5 space-y-2.5">
+                  <div className="font-bold text-foreground flex items-center justify-between">
+                    <span>Client Car Service · Archer drives the client&apos;s own vehicle</span>
+                    {isAgreementSigned ? (
+                      <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded flex items-center gap-1">
+                        <CheckCircle2 size={12} /> Agreement signed
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-rose-600 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                        Agreement not signed
                       </span>
                     )}
                   </div>
-                </div>
 
-                <div className="hosp-row-vehicle">
-                  <div className="hosp-veh-thumb">{vehTag}</div>
-                  <div className="hosp-veh-info">
-                    <span className="hosp-veh-title">{ride.vehicle ? ride.vehicle.replace('|', ' • ') : 'Executive Black Car'}</span>
-                    <span className="hosp-veh-time">
-                      <Clock size={11} style={{ display: 'inline', marginRight: 4 }} />
-                      {ride.ride_date} at {ride.ride_time}
-                    </span>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Client&apos;s Car</label>
+                    <select
+                      value={clientCarVehicle}
+                      onChange={(e) => setClientCarVehicle(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                    >
+                      <option value="2023 Obsidian black Mercedes-Benz S 580 NJ M41-HLE">
+                        2023 Obsidian black Mercedes-Benz S 580 NJ M41-HLE
+                      </option>
+                      <option value="2022 Range Rover Autobiography NJ VIP-77">
+                        2022 Range Rover Autobiography NJ VIP-77
+                      </option>
+                    </select>
+                  </div>
+
+                  {!isAgreementSigned && (
+                    <div className="p-2.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 text-[11px] flex items-center justify-between gap-2">
+                      <span>Dispatch is blocked until a service/financial agreement is signed.</span>
+                      <button
+                        type="button"
+                        onClick={handleRecordAgreement}
+                        disabled={saving}
+                        className="px-2.5 py-1 text-[11px] font-bold rounded bg-rose-600 text-white hover:bg-rose-700 transition"
+                      >
+                        Record signed agreement
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="text-[10px] text-muted-foreground">
+                    Hourly only. 3-hour minimum. Billed round trip: chauffeur returns vehicle to client&apos;s residence.
                   </div>
                 </div>
+              )}
 
-                <div className="hosp-row-driver">
-                  {ride.assigned_driver ? (
-                    <span className="hosp-driver-assigned">
-                      <User size={12} style={{ display: 'inline', marginRight: 4 }} />
-                      {ride.assigned_driver.name}
-                    </span>
-                  ) : (
-                    <span className="hosp-unassigned-tag">Unassigned</span>
-                  )}
-                  {ride.driver_preference && (
-                    <div className="hosp-pref-note">Pref: {ride.driver_preference}</div>
-                  )}
+              {/* Add-on Security Checkbox matching Screenshot 2 & 7 */}
+              <div className="p-3 rounded-lg border border-border bg-card space-y-2.5">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={editSecurityAddon}
+                    onChange={(e) => setEditSecurityAddon(e.target.checked)}
+                    className="rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span>Add-on security for the ride</span>
+                </label>
+
+                {editSecurityAddon && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Guard Tier</label>
+                      <select
+                        value={editGuardTier}
+                        onChange={(e) => setEditGuardTier(e.target.value)}
+                        className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                      >
+                        <option value="1">Tier 1 · Essential: $45/hr</option>
+                        <option value="2">Tier 2 · Executive: $60/hr</option>
+                        <option value="3">Tier 3 · Elite: $75/hr</option>
+                        <option value="4">Tier 4 · Armed: $125/hr</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Guards</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editGuardCount}
+                        onChange={(e) => setEditGuardCount(e.target.value)}
+                        className="w-full h-7 px-2 rounded border border-border bg-background text-foreground text-xs"
+                      />
+                    </div>
+                    <div className="col-span-2 text-[10px] text-muted-foreground">
+                      Priced per guard-hour from the Security tier table for ride duration (3-hour minimum).
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pickup & Dropoff Addresses */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Pickup Address</label>
+                  <input
+                    type="text"
+                    value={editPickupAddress}
+                    onChange={(e) => setEditPickupAddress(e.target.value)}
+                    placeholder="Enter full pickup address..."
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  />
                 </div>
 
-                <div className="hosp-row-actions">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Drop-off Address</label>
+                  <input
+                    type="text"
+                    value={editDropoffAddress}
+                    onChange={(e) => setEditDropoffAddress(e.target.value)}
+                    placeholder="Leave blank for as directed"
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Notes for the Driver */}
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Notes for the Driver</label>
+                <textarea
+                  rows={2}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Flight number, terminal, luggage requirements, gate codes..."
+                  className="w-full p-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                />
+              </div>
+
+              {/* Ride Amount & Preferred Driver */}
+              <div className="grid grid-cols-2 gap-3 bg-muted/20 p-3 rounded-lg border border-border">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Ride Amount ($)</label>
+                  <input
+                    type="number"
+                    value={editRideAmount}
+                    onChange={(e) => setEditRideAmount(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-bold"
+                  />
+                  <span className="text-[10px] text-muted-foreground mt-1 block">
+                    {editServiceType === 'client-car' ? `Client Car (Tier ${editTier}) ${editHours} hr · $45/hr` : `Base Rate × ${editHours} hrs + $10 booking fee`}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Preferred Driver</label>
+                  <select
+                    value={editPreferredDriver}
+                    onChange={(e) => setEditPreferredDriver(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                  >
+                    <option value="">None</option>
+                    {drivers.map((d) => (
+                      <option key={d.id} value={d.name}>{d.name} (T{d.service_tier})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Save Changes Button */}
+              <button
+                type="button"
+                onClick={() => handleSaveRide()}
+                disabled={saving}
+                className="w-full py-2 px-3 rounded text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm"
+              >
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+
+              {/* Section DISPATCH matching Screenshot 2 */}
+              <div className="p-4 rounded-lg border border-border bg-muted/20 space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Dispatch</h3>
+
+                {/* Smart Broadcast Button */}
+                <button
+                  type="button"
+                  onClick={handleBroadcast}
+                  disabled={saving || (isClientCar && !isAgreementSigned)}
+                  className="w-full py-2.5 px-3 rounded text-xs font-bold bg-[#E48243] text-white hover:bg-[#d47334] disabled:opacity-50 transition shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Send size={14} />
+                  <span>Send to all T{editTier} Essential {isClientCar ? 'Client Car operators' : 'Fleet operators'} ({drivers.filter(d => (d.service_tier || 1) <= Number(editTier)).length})</span>
+                </button>
+
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Only drivers assigned to Tier {editTier} and with their matching operating switch enabled receive this alert. The first driver to accept secures the run.
+                </p>
+
+                {/* Direct Allocation Dropdown */}
+                <div className="flex items-center gap-2 pt-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Allocate To</label>
+                    <select
+                      value={editAssignedDriverId}
+                      onChange={(e) => setEditAssignedDriverId(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                    >
+                      <option value="">Select chauffeur...</option>
+                      {drivers.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name} (Tier {d.service_tier})</option>
+                      ))}
+                    </select>
+                  </div>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openDrawer(ride);
-                    }}
-                    className="hosp-action-btn"
+                    onClick={() => handleSaveRide(editAssignedDriverId)}
+                    disabled={saving || !editAssignedDriverId || (isClientCar && !isAgreementSigned)}
+                    className="mt-4 h-8 px-4 text-xs font-bold rounded bg-foreground text-background hover:bg-foreground/90 disabled:opacity-50 transition"
                   >
-                    Dispatch
-                    <ChevronRight size={13} style={{ marginLeft: 3 }} />
+                    Allocate
                   </button>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
 
-      {/* Right Slide-over Drawer - Exact Zoho ERP Pattern */}
-      {drawerOpen && selectedRide && (
-        <div className="zoho-drawer-backdrop" onClick={closeDrawer}>
-          <aside className="zoho-drawer" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleSaveDispatch} className="zoho-drawer-form">
-              <div className="zoho-drawer-header">
-                <div>
-                  <span className="drawer-pretitle">Booking Reference {selectedRide.reference}</span>
-                  <h2>Dispatch & Driver Assignment</h2>
-                </div>
-                <button type="button" onClick={closeDrawer} className="zoho-close-btn" aria-label="Close">
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="zoho-drawer-body">
-                {/* Passenger Info Card */}
-                <div className="detail-card">
-                  <span className="card-section-title">Passenger Details</span>
-                  <div className="passenger-lead">
-                    <h3>{selectedRide.first_name} {selectedRide.last_name}</h3>
-                  </div>
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <span className="detail-label">Phone</span>
-                      <a href={`tel:${selectedRide.phone}`} className="detail-value link">
-                        <Phone size={13} style={{ display: 'inline', marginRight: 4 }} />
-                        {selectedRide.phone}
-                      </a>
-                    </div>
-                    {selectedRide.email && (
-                      <div className="detail-item">
-                        <span className="detail-label">Email</span>
-                        <a href={`mailto:${selectedRide.email}`} className="detail-value link">
-                          <Mail size={13} style={{ display: 'inline', marginRight: 4 }} />
-                          {selectedRide.email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Ride Routing & Locations */}
-                <div className="detail-card">
-                  <span className="card-section-title">Route & Locations</span>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="detail-label">Pickup Location</span>
-                      <div className="detail-value" style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>●</span>
-                        <span>{selectedRide.pickup_location || 'Confirmed via Phone Coordination'}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="detail-label">Drop-off Destination</span>
-                      <div className="detail-value" style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ color: '#10b981', fontWeight: 'bold' }}>■</span>
-                        <span>{selectedRide.dropoff_location || 'Confirmed via Phone Coordination'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ride Specifications */}
-                <div className="detail-card">
-                  <span className="card-section-title">Ride Specifications</span>
-                  <div className="detail-grid-4">
-                    <div className="detail-item">
-                      <span className="detail-label">Service</span>
-                      <span className="detail-value text-capitalize">{selectedRide.service_type || 'Standard'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Tier</span>
-                      <span className="detail-value">Tier {selectedRide.driver_tier || '1'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Vehicle</span>
-                      <span className="detail-value">{selectedRide.vehicle || 'Executive Sedan'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Security Add-on</span>
-                      <span className="detail-value">{selectedRide.security_addon || 'None'}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Scheduled Trip Date</span>
-                      <span className="detail-value">{selectedRide.ride_date}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Scheduled Trip Time</span>
-                      <span className="detail-value">{selectedRide.ride_time}</span>
-                    </div>
-                    <div className="detail-item" style={{ gridColumn: 'span 2' }}>
-                      <span className="detail-label">Server Booking Timestamp</span>
-                      <span className="detail-value" style={{ color: 'var(--accent)', fontFamily: 'monospace' }}>
-                        {new Date(selectedRide.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'medium' })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {selectedRide.details && Object.keys(selectedRide.details).length > 0 && (
-                    <div style={{ marginTop: 16 }}>
-                      <span className="card-section-title">Everything the customer sent</span>
-                      <DetailsView data={selectedRide.details} />
-                    </div>
-                  )}
-
-                  {selectedRide.driver_preference && (
-                    <div className="preference-banner">
-                      <span className="detail-label">Client Driver Preference:</span>
-                      <strong>{selectedRide.driver_preference}</strong>
-                    </div>
-                  )}
-                </div>
-
-                {/* Dispatch Controls */}
-                <div className="dispatch-section">
-                  <span className="card-section-title">Dispatch Control</span>
-
-                  <div className="form-group">
-                    <label className="zoho-label">Dispatch Status <span className="req">*</span></label>
-                    <select
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value as RideRequest['status'])}
-                    >
-                      <option value="pending">Pending (Awaiting Review)</option>
-                      <option value="dispatched">Dispatched (Chauffeur Confirmed)</option>
-                      <option value="in_progress">In Progress (Chauffeur En Route / Driving)</option>
-                      <option value="completed">Completed (Trip Finished)</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="zoho-label">Assign Chauffeur / Driver</label>
-                    <select
-                      value={editDriverId}
-                      onChange={(e) => setEditDriverId(e.target.value)}
-                    >
-                      <option value="">-- No Chauffeur Assigned --</option>
-                      {drivers.map((drv) => (
-                        <option key={drv.id} value={drv.id}>
-                          {drv.name} {drv.phone ? `(${drv.phone})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="hint-text">
-                      Only active SOAR-certified drivers from the fleet are eligible for assignment.
+              {/* Section CLOSE-OUT BREAKDOWN (FROM THE DRIVER APP) matching Screenshot 7 */}
+              {selectedRide.status === 'completed' && (
+                <div className="p-4 rounded-lg border border-border bg-card space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                      Close-Out Breakdown (From the Driver App)
+                    </h3>
+                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/15 px-2 py-0.5 rounded">
+                      Completed
                     </span>
                   </div>
 
-                  <div className="form-group">
-                    <label className="zoho-label">Dispatcher Notes & Routing Instructions</label>
-                    <textarea
-                      rows={3}
-                      value={editNotes}
-                      onChange={(e) => setEditNotes(e.target.value)}
-                      placeholder="e.g. Flight UA482 arriving Terminal B. Passenger confirmed bag count: 3. Chauffeur staging at cell lot."
-                    />
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Booked price (Includes add-on security)</span>
+                      <span className="font-semibold text-foreground">$640.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Extra time (1 hr 15 min)</span>
+                      <span className="font-semibold text-foreground">$200.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Booking fee</span>
+                      <span className="font-semibold text-foreground">$5.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Sales tax</span>
+                      <span className="font-semibold text-foreground">$55.58</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Tip</span>
+                      <span className="font-semibold text-foreground">$110.00</span>
+                    </div>
+                    <div className="flex justify-between font-bold border-t border-border pt-1.5 text-sm">
+                      <span className="text-foreground">Client paid (Card)</span>
+                      <span className="text-foreground">$1,010.58</span>
+                    </div>
+
+                    <div className="pt-2 border-t border-border space-y-1 text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Driver pay T2 Executive $30/hr × 5 hr 15 min</span>
+                        <span className="text-foreground">$157.50</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tip to driver (100% pass-through)</span>
+                        <span className="text-foreground">$110.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Security pay 1 × T2 Executive $40/hr × 5 hr 15 min</span>
+                        <span className="text-foreground">$210.00</span>
+                      </div>
+                      <div className="flex justify-between text-rose-500">
+                        <span>Card processing fee</span>
+                        <span>-$35.53</span>
+                      </div>
+                      <div className="flex justify-between text-rose-500">
+                        <span>Sales tax (Archer remits)</span>
+                        <span>-$55.58</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center border-t border-border pt-2 text-sm">
+                      <span className="font-bold text-foreground">Archer profit</span>
+                      <span className="font-extrabold text-emerald-600 text-base">$441.97</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div className="zoho-drawer-footer">
-                <button type="button" onClick={closeDrawer} className="zoho-btn-secondary" disabled={saving}>
-                  Cancel
-                </button>
-                <button type="submit" className="zoho-btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save & Dispatch'}
-                </button>
+              {/* Status Log Timeline */}
+              <div className="space-y-2 border-t border-border pt-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status Log</div>
+                <div className="space-y-1.5">
+                  <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                    <span>New request · {selectedRide.request_type || 'Website'}</span>
+                    <span className="text-[10px]">{new Date(selectedRide.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {selectedRide.assigned_driver && (
+                    <div className="text-[11px] text-muted-foreground flex items-center justify-between">
+                      <span>Driver assigned · {selectedRide.assigned_driver.name}</span>
+                      <span className="text-[10px]">Allocated</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </form>
-          </aside>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Scoped Hospitable & Archer CSS */}
-      <style jsx>{`
-        .hosp-rides-container, .zoho-page-container {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
+      {/* Phone Booking Modal */}
+      {phoneBookingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Phone size={16} className="text-[#E48243]" />
+                <h2 className="text-sm font-bold text-foreground">Create Phone Booking</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPhoneBookingOpen(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-        /* Header Block */
-        .hosp-page-header {
-          margin-bottom: 2px;
-        }
-        .hosp-title {
-          font-size: 1.25rem; /* 20px */
-          font-weight: 700;
-          color: var(--text);
-          letter-spacing: -0.01em;
-          margin-bottom: 4px;
-        }
-        .hosp-subtitle {
-          font-size: 0.8125rem; /* 13px */
-          color: var(--muted);
-          line-height: 1.4;
-          margin-bottom: 10px;
-          max-width: 860px;
-        }
-        .hosp-tour-chips {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-        .hosp-chip-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 5px;
-          font-size: 0.75rem; /* 12px */
-          color: var(--success);
-          font-weight: 500;
-        }
-        .hosp-badge-green {
-          background: var(--success);
-          color: #fff;
-          font-size: 0.6rem;
-          font-weight: 800;
-          padding: 1px 4px;
-          border-radius: 3px;
-        }
+            <form onSubmit={handleCreatePhoneBooking} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={pbForm.first_name}
+                    onChange={(e) => setPbForm({ ...pbForm, first_name: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    value={pbForm.last_name}
+                    onChange={(e) => setPbForm({ ...pbForm, last_name: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
+                  />
+                </div>
+              </div>
 
-        /* Underline Tabs */
-        .hosp-tab-strip {
-          display: flex;
-          gap: 20px;
-          border-bottom: 1px solid var(--border);
-          overflow-x: auto;
-          scrollbar-width: none;
-        }
-        .hosp-tab-btn {
-          padding: 6px 0 10px;
-          font-size: 0.84rem;
-          font-weight: 400;
-          color: var(--muted);
-          background: none;
-          border: none;
-          border-bottom: 2px solid transparent;
-          margin-bottom: -1px;
-          cursor: pointer;
-          font-family: inherit;
-          white-space: nowrap;
-          transition: all 0.1s;
-        }
-        .hosp-tab-btn:hover {
-          color: var(--text);
-        }
-        .hosp-tab-btn.active {
-          color: var(--text);
-          font-weight: 600;
-          border-bottom-color: var(--accent);
-        }
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Phone *</label>
+                  <input
+                    type="text"
+                    required
+                    value={pbForm.phone}
+                    onChange={(e) => setPbForm({ ...pbForm, phone: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={pbForm.email}
+                    onChange={(e) => setPbForm({ ...pbForm, email: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
+                  />
+                </div>
+              </div>
 
-        /* Toolbar */
-        .hosp-toolbar-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 4px;
-        }
-        .hosp-toolbar-left {
-          flex: 1;
-          max-width: 440px;
-        }
-        .hosp-search-field {
-          position: relative;
-          width: 100%;
-        }
-        :global(.hosp-search-icon) {
-          position: absolute;
-          left: 10px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--muted);
-        }
-        .hosp-search-field input {
-          width: 100%;
-          height: 32px;
-          padding: 0 10px 0 32px;
-          border: 1px solid var(--border);
-          border-radius: 4px;
-          font-size: 0.8125rem;
-          background: var(--surface);
-          color: var(--text);
-          outline: none;
-        }
-        .hosp-search-field input:focus {
-          border-color: var(--accent);
-        }
-        .hosp-results-count {
-          font-size: 0.75rem;
-          color: var(--muted);
-        }
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Service Type *</label>
+                  <select
+                    value={pbForm.service_type}
+                    onChange={(e) => setPbForm({ ...pbForm, service_type: e.target.value })}
+                    className="w-full h-8 px-2 rounded border border-border bg-background text-foreground"
+                  >
+                    <option value="hourly">Hourly</option>
+                    <option value="point_to_point">Point to point</option>
+                    <option value="airport">Airport transfer</option>
+                    <option value="client-car">Client Car</option>
+                    <option value="security">Security only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Ride Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={pbForm.ride_date}
+                    onChange={(e) => setPbForm({ ...pbForm, ride_date: e.target.value })}
+                    className="w-full h-8 px-2 rounded border border-border bg-background text-foreground"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Ride Time *</label>
+                  <input
+                    type="time"
+                    required
+                    value={pbForm.ride_time}
+                    onChange={(e) => setPbForm({ ...pbForm, ride_time: e.target.value })}
+                    className="w-full h-8 px-2 rounded border border-border bg-background text-foreground"
+                  />
+                </div>
+              </div>
 
-        /* Divided Row Cards */
-        .hosp-divided-list {
-          border-top: 1px solid var(--border);
-          background: var(--surface);
-          border-radius: 4px;
-          border: 1px solid var(--border);
-          overflow: hidden;
-        }
-        .hosp-row-item {
-          display: flex;
-          align-items: center;
-          padding: 12px 14px;
-          border-bottom: 1px solid var(--border);
-          gap: 14px;
-          cursor: pointer;
-          transition: background 0.1s;
-        }
-        .hosp-row-item:last-child {
-          border-bottom: none;
-        }
-        .hosp-row-item:hover {
-          background: var(--surface-2);
-        }
-        .hosp-row-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: var(--surface-2);
-          border: 1px solid var(--border);
-          color: var(--text-secondary);
-          font-size: 0.72rem;
-          font-weight: 700;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .hosp-row-main {
-          flex: 1;
-          min-width: 0;
-        }
-        .hosp-row-title-line {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 2px;
-          flex-wrap: wrap;
-        }
-        .hosp-passenger-name {
-          font-size: 0.84rem;
-          font-weight: 600;
-          color: var(--text);
-        }
-        .hosp-ref-tag {
-          font-size: 0.72rem;
-          font-family: monospace;
-          background: var(--surface-2);
-          padding: 1px 5px;
-          border-radius: 3px;
-          color: var(--text-secondary);
-        }
-        .hosp-row-sub-line {
-          font-size: 0.78rem;
-          color: var(--muted);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .hosp-phone-text {
-          color: var(--text-secondary);
-        }
-        .hosp-location-text {
-          color: var(--muted);
-        }
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Pickup Address *</label>
+                <input
+                  type="text"
+                  required
+                  value={pbForm.pickup_location}
+                  onChange={(e) => setPbForm({ ...pbForm, pickup_location: e.target.value })}
+                  placeholder="Street, City, State ZIP..."
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
+                />
+              </div>
 
-        .hosp-row-vehicle {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 250px;
-          flex-shrink: 0;
-        }
-        .hosp-veh-thumb {
-          width: 38px;
-          height: 26px;
-          border-radius: 3px;
-          background: #10141d;
-          border: 1px solid var(--border);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--accent);
-          font-size: 0.65rem;
-          font-weight: 800;
-          letter-spacing: 0.04em;
-        }
-        .hosp-veh-info {
-          display: flex;
-          flex-direction: column;
-          line-height: 1.25;
-        }
-        .hosp-veh-title {
-          font-size: 0.78rem;
-          font-weight: 500;
-          color: var(--text);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .hosp-veh-time {
-          font-size: 0.72rem;
-          color: var(--muted);
-        }
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Drop-off Address</label>
+                <input
+                  type="text"
+                  value={pbForm.dropoff_location}
+                  onChange={(e) => setPbForm({ ...pbForm, dropoff_location: e.target.value })}
+                  placeholder="Leave blank for as directed"
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
+                />
+              </div>
 
-        .hosp-row-driver {
-          width: 150px;
-          flex-shrink: 0;
-          font-size: 0.78rem;
-        }
-        .hosp-driver-assigned {
-          color: var(--text);
-          font-weight: 500;
-        }
-        .hosp-unassigned-tag {
-          color: var(--danger);
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-        .hosp-pref-note {
-          font-size: 0.7rem;
-          color: var(--muted);
-        }
+              <div>
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Dispatch Notes</label>
+                <textarea
+                  rows={2}
+                  value={pbForm.dispatch_notes}
+                  onChange={(e) => setPbForm({ ...pbForm, dispatch_notes: e.target.value })}
+                  placeholder="Flight info, executive notes..."
+                  className="w-full p-2 rounded border border-border bg-background text-foreground"
+                />
+              </div>
 
-        .hosp-status-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 0.7rem;
-          font-weight: 600;
-          padding: 2px 7px;
-          border-radius: 12px;
-          text-transform: capitalize;
-        }
-        .status-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-        }
-        .status-pending { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-        .status-pending .status-dot { background: #f59e0b; }
-        .status-dispatched { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
-        .status-dispatched .status-dot { background: #3b82f6; }
-        .status-in_progress { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-        .status-in_progress .status-dot { background: #10b981; }
-        .status-completed { background: rgba(100, 116, 139, 0.12); color: #64748b; }
-        .status-completed .status-dot { background: #64748b; }
-        .status-cancelled { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
-        .status-cancelled .status-dot { background: #ef4444; }
-
-        .hosp-row-actions {
-          flex-shrink: 0;
-        }
-        .hosp-action-btn {
-          height: 26px;
-          padding: 0 10px;
-          background: var(--surface);
-          border: 1px solid var(--border);
-          border-radius: 3px;
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: var(--text);
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-        }
-        .hosp-action-btn:hover {
-          border-color: var(--accent);
-          color: var(--accent);
-        }
-
-        .hosp-empty-state {
-          padding: 40px 20px;
-          text-align: center;
-          color: var(--muted);
-        }
-        .hosp-empty-state h3 {
-          font-size: 0.95rem;
-          font-weight: 600;
-          color: var(--text);
-          margin: 8px 0 4px;
-        }
-        .zoho-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        .zoho-table th {
-          background: #f8fafc;
-          border-bottom: 1px solid var(--border);
-          padding: 10px 16px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-align: left;
-        }
-        .zoho-table td {
-          padding: 12px 16px;
-          border-bottom: 1px solid var(--border);
-          vertical-align: middle;
-        }
-        .zoho-table tbody tr.clickable-row {
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-        .zoho-table tbody tr.clickable-row:hover {
-          background: #f8fafc;
-        }
-        .zoho-table tbody tr:last-child td {
-          border-bottom: none;
-        }
-        .ref-badge {
-          display: inline-block;
-          font-family: monospace;
-          font-weight: 700;
-          color: var(--accent);
-          font-size: 0.82rem;
-          background: rgba(232, 119, 34, 0.08);
-          padding: 2px 8px;
-          border-radius: 4px;
-          border: 1px solid rgba(232, 119, 34, 0.2);
-        }
-        .passenger-cell, .service-cell, .datetime-cell {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .row-title {
-          font-size: 0.84rem;
-          font-weight: 600;
-          color: var(--text);
-        }
-        .row-desc {
-          font-size: 0.76rem;
-          color: var(--text-secondary);
-        }
-        .text-capitalize {
-          text-transform: capitalize;
-        }
-        .driver-assigned-tag {
-          display: inline-flex;
-          align-items: center;
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: #0e6251;
-          background: #e8f8f5;
-          border: 1px solid #a3e4d7;
-          border-radius: 4px;
-          padding: 2px 8px;
-        }
-        .unassigned-text {
-          font-size: 0.76rem;
-          color: var(--muted);
-          font-style: italic;
-        }
-        .pref-note {
-          font-size: 0.7rem;
-          color: var(--text-secondary);
-          margin-top: 2px;
-        }
-        .status-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          border-radius: 12px;
-          padding: 2px 10px;
-          font-size: 0.73rem;
-          font-weight: 600;
-          text-transform: capitalize;
-          border: 1px solid transparent;
-        }
-        .status-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-        }
-        .status-pending {
-          background: #fef9c3;
-          color: #854d0e;
-          border-color: #fde047;
-        }
-        .status-pending .status-dot { background: #ca8a04; }
-        .status-dispatched {
-          background: #dbeafe;
-          color: #1e40af;
-          border-color: #93c5fd;
-        }
-        .status-dispatched .status-dot { background: #2563eb; }
-        .status-in_progress {
-          background: #f3e8ff;
-          color: #6b21a8;
-          border-color: #d8b4fe;
-        }
-        .status-in_progress .status-dot { background: #9333ea; }
-        .status-completed {
-          background: #defbe6;
-          color: #198038;
-          border-color: #a7f0ba;
-        }
-        .status-completed .status-dot { background: #198038; }
-        .status-cancelled {
-          background: #fee2e2;
-          color: #991b1b;
-          border-color: #fca5a5;
-        }
-        .status-cancelled .status-dot { background: #dc2626; }
-
-        .row-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-        }
-        .zoho-btn-dispatch {
-          display: inline-flex;
-          align-items: center;
-          background: var(--surface-2);
-          border: 1px solid var(--border);
-          color: var(--text);
-          padding: 4px 10px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-        .zoho-btn-dispatch:hover {
-          background: var(--accent);
-          color: #fff;
-          border-color: var(--accent);
-        }
-
-        .zoho-empty-state {
-          padding: 48px 24px;
-          text-align: center;
-          color: var(--muted);
-        }
-        .zoho-empty-state h3 {
-          margin: 12px 0 4px;
-          color: var(--text);
-          font-size: 1rem;
-        }
-        .loading-spinner {
-          width: 24px;
-          height: 24px;
-          border: 2px solid var(--border);
-          border-top-color: var(--accent);
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-          margin: 0 auto 12px;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-
-        /* Slide-over Drawer */
-        .zoho-drawer-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(15, 23, 42, 0.45);
-          backdrop-filter: blur(2px);
-          z-index: 1000;
-          display: flex;
-          justify-content: flex-end;
-        }
-        .zoho-drawer {
-          background: var(--surface);
-          border-left: 1px solid var(--border);
-          width: 100%;
-          max-width: 500px;
-          height: 100vh;
-          box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
-          display: flex;
-          flex-direction: column;
-          animation: slideLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes slideLeft {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        .zoho-drawer-form {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-        .zoho-drawer-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 20px;
-          border-bottom: 1px solid var(--border);
-          background: var(--surface);
-        }
-        .drawer-pretitle {
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: var(--accent);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-        .zoho-drawer-header h2 {
-          font-size: 1.15rem;
-          color: var(--text);
-          margin-top: 2px;
-          font-weight: 600;
-        }
-        .zoho-close-btn {
-          width: 32px;
-          height: 32px;
-          min-height: 32px;
-          background: transparent;
-          border: 1px solid transparent;
-          color: var(--muted);
-          border-radius: 4px;
-          padding: 0;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .zoho-close-btn:hover {
-          background: var(--surface-2);
-          color: var(--text);
-        }
-        .zoho-drawer-body {
-          flex: 1;
-          padding: 20px;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
-        }
-        .detail-card {
-          background: var(--surface-2);
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          padding: 14px 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .card-section-title {
-          font-size: 0.72rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--text-secondary);
-        }
-        .passenger-lead h3 {
-          margin: 0;
-          font-size: 1.05rem;
-          color: var(--text);
-          font-weight: 600;
-        }
-        .detail-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-        .detail-grid-4 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-        .detail-item {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .detail-label {
-          font-size: 0.7rem;
-          color: var(--text-secondary);
-          font-weight: 500;
-        }
-        .detail-value {
-          font-size: 0.8125rem;
-          font-weight: 600;
-          color: var(--text);
-        }
-        .detail-value.link {
-          color: var(--accent);
-          text-decoration: none;
-        }
-        .detail-value.link:hover {
-          text-decoration: underline;
-        }
-        .preference-banner {
-          background: var(--surface);
-          border: 1px dashed var(--border);
-          padding: 8px 12px;
-          border-radius: 4px;
-          font-size: 0.76rem;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        .preference-banner strong {
-          color: var(--accent);
-        }
-        .dispatch-section {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .zoho-label {
-          font-size: 0.78rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-        }
-        .req { color: var(--danger); }
-        .hint-text {
-          font-size: 0.72rem;
-          color: var(--muted);
-        }
-        .zoho-drawer-footer {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 10px;
-          padding: 14px 20px;
-          border-top: 1px solid var(--border);
-          background: var(--surface);
-        }
-        .zoho-btn-primary {
-          background: var(--accent);
-          color: #fff;
-          border: 1px solid var(--accent);
-          min-height: 34px;
-          padding: 0 16px;
-          font-size: 0.8125rem;
-          font-weight: 500;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        .zoho-btn-primary:hover {
-          background: var(--accent-hover);
-        }
-        .zoho-btn-secondary {
-          background: var(--surface);
-          color: var(--text);
-          border: 1px solid var(--border);
-          min-height: 34px;
-          padding: 0 14px;
-          font-size: 0.8125rem;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        .zoho-btn-secondary:hover {
-          background: var(--surface-2);
-        }
-
-        /* Mobile Responsive Overrides */
-        @media (max-width: 768px) {
-          .zoho-toolbar {
-            flex-direction: column;
-            align-items: stretch;
-            padding: 12px;
-            gap: 10px;
-          }
-          .toolbar-left {
-            justify-content: space-between;
-            width: 100%;
-          }
-          .toolbar-right {
-            flex-direction: column;
-            align-items: stretch;
-            width: 100%;
-            gap: 10px;
-          }
-          .status-filter-group {
-            overflow-x: auto;
-            white-space: nowrap;
-            width: 100%;
-            padding: 4px;
-            scrollbar-width: thin;
-          }
-          .search-box, .search-box input {
-            width: 100%;
-          }
-          .zoho-card-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          .zoho-table {
-            min-width: 650px;
-          }
-          .zoho-drawer {
-            max-width: 100%;
-            width: 100vw;
-            border-left: none;
-          }
-          .detail-grid, .detail-grid-4 {
-            grid-template-columns: 1fr;
-            gap: 10px;
-          }
-          .zoho-drawer-footer button {
-            flex: 1;
-            height: 40px;
-            justify-content: center;
-          }
-        }
-      `}</style>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setPhoneBookingOpen(false)}
+                  className="px-3 py-1.5 rounded text-xs font-semibold border border-border hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-1.5 rounded text-xs font-bold bg-[#E48243] text-white hover:bg-[#d47334]"
+                >
+                  {saving ? 'Creating...' : 'Create Booking'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

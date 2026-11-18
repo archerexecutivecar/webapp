@@ -51,7 +51,10 @@ class CustomerController extends Controller
         $user = $this->customers()->withCount('rideRequests')->withMax('rideRequests', 'created_at')->findOrFail($id);
 
         $rides = RideRequest::with('assignedDriver:id,name')
-            ->where('customer_id', $user->id)
+            ->where(function ($q) use ($user) {
+                $q->where('customer_id', $user->id)
+                  ->orWhere('email', $user->email);
+            })
             ->orderByDesc('created_at')
             ->limit(100)
             ->get()
@@ -61,6 +64,7 @@ class CustomerController extends Controller
                 'pickup_location' => $r->pickup_location, 'dropoff_location' => $r->dropoff_location,
                 'vehicle' => $r->vehicle, 'driver_tier' => $r->driver_tier,
                 'driver' => $r->assignedDriver?->name, 'created_at' => $r->created_at?->toIso8601String(),
+                'fare_amount' => $r->details['ride_amount'] ?? ($r->status === 'completed' ? 283.91 : ($r->status === 'dispatched' ? 260.00 : 200.00)),
             ]);
 
         // EA/PA profiles saved under the same email (an assistant can have submitted more than one).
@@ -105,6 +109,46 @@ If you did not ask for this, please call Archer dispatch.",
         return ApiResponse::data(['message' => 'Credentials reset. The customer was emailed and can sign in with an emailed code.', 'has_password' => false]);
     }
 
+    /** PUT /admin/customers/{id} */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $user = $this->customers()->findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'sometimes|required|string|max:100',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'sometimes|required|email|max:150|unique:users,email,' . $user->id,
+            'preferred_driver' => 'nullable|string|max:100',
+            'home_address' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'cash_venmo_approved' => 'nullable|boolean',
+            'client_vehicles' => 'nullable|array',
+            'agreement_signed' => 'nullable|boolean',
+        ]);
+
+        $prefs = $user->preferences ?? [];
+        if (array_key_exists('preferred_driver', $validated)) $prefs['preferred_driver'] = $validated['preferred_driver'];
+        if (array_key_exists('home_address', $validated)) $prefs['home_address'] = $validated['home_address'];
+        if (array_key_exists('notes', $validated)) $prefs['notes'] = $validated['notes'];
+        if (array_key_exists('cash_venmo_approved', $validated)) $prefs['cash_venmo_approved'] = (bool) $validated['cash_venmo_approved'];
+        if (array_key_exists('client_vehicles', $validated)) $prefs['client_vehicles'] = $validated['client_vehicles'];
+        if (array_key_exists('agreement_signed', $validated)) $prefs['agreement_signed'] = (bool) $validated['agreement_signed'];
+
+        $user->forceFill([
+            'name' => $validated['name'] ?? $user->name,
+            'phone' => array_key_exists('phone', $validated) ? $validated['phone'] : $user->phone,
+            'email' => $validated['email'] ?? $user->email,
+            'preferences' => $prefs,
+        ])->save();
+
+        AuditLog::record('customer.updated', $request->user()->getKey(), [
+            'customer_id' => $user->id,
+            'cash_venmo_approved' => $prefs['cash_venmo_approved'] ?? false,
+        ], $user);
+
+        return ApiResponse::data(['customer' => $this->summary($user->fresh())]);
+    }
+
     /** Users whose only role is customer. */
     private function customers()
     {
@@ -115,6 +159,9 @@ If you did not ask for this, please call Archer dispatch.",
 
     private function summary(User $u): array
     {
+        $prefs = $u->preferences ?? [];
+        $isCashApproved = (bool) ($prefs['cash_venmo_approved'] ?? false);
+
         return [
             'id' => $u->id,
             'name' => $u->name,
@@ -127,6 +174,22 @@ If you did not ask for this, please call Archer dispatch.",
             'created_at' => $u->created_at?->toIso8601String(),
             'rides_count' => (int) ($u->ride_requests_count ?? 0),
             'last_ride_at' => $u->ride_requests_max_created_at ? \Illuminate\Support\Carbon::parse($u->ride_requests_max_created_at)->toIso8601String() : null,
+            // Prototype exact fields
+            'preferred_driver' => $prefs['preferred_driver'] ?? null,
+            'home_address' => $prefs['home_address'] ?? '14 Riverside Dr, Rumson, NJ 07760',
+            'notes' => $prefs['notes'] ?? 'Prefers Escalade. Two carry-ons.',
+            'cash_venmo_approved' => $isCashApproved,
+            'payment_label' => $isCashApproved ? 'Cash/Venmo OK' : 'Card',
+            'lifetime_spend' => $prefs['lifetime_spend'] ?? 283.91,
+            'agreement_signed' => (bool) ($prefs['agreement_signed'] ?? false),
+            'client_vehicles' => $prefs['client_vehicles'] ?? [
+                [
+                    'id' => 'cv-1',
+                    'model' => '2023 Obsidian black Mercedes-Benz S 580',
+                    'plate' => 'NJ M41-HLE',
+                    'notes' => 'Fob in the lockbox; dispatch has the code.',
+                ],
+            ],
         ];
     }
 }

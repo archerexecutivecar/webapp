@@ -78,12 +78,18 @@ Route::prefix('v1')->group(function (): void {
         // Rides & Dispatch Management
         Route::middleware('permission:rides.view')->group(function (): void {
             Route::get('/rides', [RideDispatchController::class, 'index']);
+            Route::post('/rides', [RideDispatchController::class, 'store']);
             Route::get('/rides/{id}', [RideDispatchController::class, 'show']);
             Route::put('/rides/{id}', [RideDispatchController::class, 'update']);
+            Route::post('/rides/{id}/broadcast', [RideDispatchController::class, 'broadcast']);
+            Route::post('/rides/{id}/record-agreement', [RideDispatchController::class, 'recordAgreement']);
 
             // Customer directory (read-only; opening a customer is audited)
             Route::get('/customers', [CustomerController::class, 'index']);
             Route::get('/customers/{id}', [CustomerController::class, 'show'])->whereNumber('id');
+            Route::put('/customers/{id}', [CustomerController::class, 'update'])->whereNumber('id');
+            Route::get('/notices', [\App\Http\Controllers\Admin\CustomerNoticeController::class, 'index']);
+            Route::post('/notices', [\App\Http\Controllers\Admin\CustomerNoticeController::class, 'store']);
         });
 
         Route::post('/customers/{id}/reset-credentials', [CustomerController::class, 'resetCredentials'])
@@ -126,13 +132,25 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/site-vehicles', [SiteVehicleController::class, 'store']);
             Route::put('/site-vehicles/{id}', [SiteVehicleController::class, 'update']);
             Route::delete('/site-vehicles/{id}', [SiteVehicleController::class, 'destroy']);
+            Route::get('/fleet/schedule', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'index']);
+            Route::post('/fleet/blockout', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'blockout']);
+            Route::put('/fleet/vehicles/{id}', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'updateVehicle']);
         });
         Route::middleware('permission:pricing.manage')->group(function (): void {
             Route::get('/rates', [RateCardController::class, 'index']);
             Route::put('/rates', [RateCardController::class, 'update']);
+            Route::get('/site-rates/matrix', [RateCardController::class, 'matrix']);
+            Route::put('/site-rates/matrix', [RateCardController::class, 'updateMatrix']);
+            Route::get('/payments-earnings', [\App\Http\Controllers\Admin\PaymentsEarningsController::class, 'index']);
+            Route::get('/payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index']);
+            Route::post('/payroll/disbursements', [\App\Http\Controllers\Admin\PayrollController::class, 'recordDisbursement']);
+            Route::get('/payroll/export', [\App\Http\Controllers\Admin\PayrollController::class, 'export']);
             Route::get('/pricing-settings', [\App\Http\Controllers\Admin\PricingSettingController::class, 'index']);
             Route::put('/pricing-settings/{service}', [\App\Http\Controllers\Admin\PricingSettingController::class, 'update']);
             Route::post('/pricing/simulate', [\App\Http\Controllers\QuoteController::class, 'store']);
+            Route::get('/platform-settings', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'show']);
+            Route::put('/platform-settings', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'update']);
+            Route::post('/platform-settings/reset', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'reset']);
         });
 
 
@@ -142,6 +160,19 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/drivers/{id}', [DriverController::class, 'show']);
             Route::put('/drivers/{id}', [DriverController::class, 'update']);
             Route::delete('/drivers/{id}', [DriverController::class, 'destroy']);
+        });
+
+        Route::prefix('security')->group(function (): void {
+            Route::get('/leads', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'leads']);
+            Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
+            Route::get('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'contractsAndShifts']);
+            Route::post('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeContract']);
+            Route::put('/shifts/{id}/assign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'assignShift']);
+            Route::get('/swaps', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swaps']);
+            Route::post('/swaps/{id}/decision', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swapDecision']);
+            Route::get('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'credentials']);
+            Route::get('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'announcements']);
+            Route::post('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeAnnouncement']);
         });
 
     });
