@@ -31,8 +31,8 @@ export default function SecurityLeadsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: { leads: SecurityLead[]; new_count: number } }>('/security/leads', { auth: true });
-      setLeads(res.data.leads);
+      const res = await api<{ data: { leads: SecurityLead[]; new_count: number } }>('/admin/security/leads', { auth: true });
+      setLeads(res.data?.leads || []);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load security leads.');
     } finally {
@@ -47,7 +47,7 @@ export default function SecurityLeadsPage() {
   const updateStatus = async (id: number, status: 'contacted' | 'in_progress' | 'converted') => {
     try {
       setError(null);
-      await api(`/security/leads/${id}/status`, {
+      await api(`/admin/security/leads/${id}/status`, {
         method: 'PUT',
         auth: true,
         body: { status },
@@ -66,7 +66,7 @@ export default function SecurityLeadsPage() {
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
-      {/* Top Header matching Screenshot 12 */}
+      {/* Header matching Screenshot 12 */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <span
@@ -76,7 +76,7 @@ export default function SecurityLeadsPage() {
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               background: 'rgba(59, 130, 246, 0.15)',
-              color: '#60a5fa',
+              color: '#3b82f6',
               padding: '3px 8px',
               borderRadius: 4,
             }}
@@ -84,34 +84,34 @@ export default function SecurityLeadsPage() {
             P2
           </span>
         </div>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f3f4f6' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
           Security leads
         </h1>
-        <p style={{ margin: 0, fontSize: '0.86rem', color: '#9ca3af' }}>
+        <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
           Requests from the client app's security form. A booking agent calls each one back, then converts the deal into a contract.
         </p>
       </div>
 
       {actionSuccess && (
-        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#4ade80', marginBottom: 16 }}>
+        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#16a34a', marginBottom: 16 }}>
           ✓ {actionSuccess}
         </div>
       )}
 
       {error && (
-        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#f87171', marginBottom: 16 }}>
+        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#dc2626', marginBottom: 16 }}>
           {error}
         </div>
       )}
 
-      {/* Leads Cards Feed */}
+      {/* Leads Feed */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#6b7280', background: '#171717', borderRadius: 8 }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
             Loading security leads...
           </div>
         ) : leads.length === 0 ? (
-          <div style={{ padding: 30, textAlign: 'center', color: '#9ca3af', background: '#171717', borderRadius: 8 }}>
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--muted)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
             No security leads pending.
           </div>
         ) : (
@@ -119,17 +119,18 @@ export default function SecurityLeadsPage() {
             <div
               key={lead.id}
               style={{
-                background: '#181818',
-                border: '1px solid #282828',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
                 borderRadius: 8,
                 padding: '18px 20px',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
-              {/* Card Header & Status Badge */}
+              {/* Header & Status Badge */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#f3f4f6' }}>
-                  {lead.client_name} · <span style={{ color: '#d1d5db', fontWeight: 400 }}>{lead.contact_name}</span>{' '}
-                  <span style={{ color: '#9ca3af', fontSize: '0.9rem', fontWeight: 400 }}>{lead.phone}</span>
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)' }}>
+                  {lead.client_name} · <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>{lead.contact_name}</span>{' '}
+                  <span style={{ color: 'var(--muted)', fontSize: '0.9rem', fontWeight: 400 }}>{lead.phone}</span>
                 </div>
                 <div>
                   <span
@@ -141,16 +142,16 @@ export default function SecurityLeadsPage() {
                       textTransform: 'capitalize',
                       background:
                         lead.status === 'new'
-                          ? 'rgba(217, 119, 6, 0.2)'
+                          ? 'rgba(217, 119, 6, 0.15)'
                           : lead.status === 'contacted'
-                          ? 'rgba(59, 130, 246, 0.2)'
-                          : 'rgba(34, 197, 94, 0.2)',
+                          ? 'rgba(59, 130, 246, 0.15)'
+                          : 'rgba(34, 197, 94, 0.15)',
                       color:
                         lead.status === 'new'
-                          ? '#f59e0b'
+                          ? '#d97706'
                           : lead.status === 'contacted'
-                          ? '#60a5fa'
-                          : '#4ade80',
+                          ? '#2563eb'
+                          : '#16a34a',
                     }}
                   >
                     {lead.status}
@@ -159,21 +160,21 @@ export default function SecurityLeadsPage() {
               </div>
 
               {/* Scope & Schedule line */}
-              <div style={{ fontSize: '0.82rem', color: '#d1d5db', marginBottom: 10 }}>
-                <span style={{ fontWeight: 600 }}>{lead.coverage_type}</span> · {lead.protecting} · starts {lead.starts_at} ·{' '}
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 10 }}>
+                <strong style={{ color: 'var(--text)' }}>{lead.coverage_type}</strong> · {lead.protecting} · starts {lead.starts_at} ·{' '}
                 {lead.hours_per_day} hr/day · {lead.frequency} · {lead.venue_type}
               </div>
 
-              {/* Special Instructions Box */}
+              {/* Instructions Box */}
               {lead.instructions && (
                 <div
                   style={{
-                    background: '#1f1f1f',
-                    border: '1px solid #2d2d2d',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
                     borderRadius: 6,
                     padding: '10px 14px',
                     fontSize: '0.82rem',
-                    color: '#9ca3af',
+                    color: 'var(--text-secondary)',
                     marginBottom: 12,
                   }}
                 >
@@ -182,21 +183,22 @@ export default function SecurityLeadsPage() {
               )}
 
               {/* Client estimate text */}
-              <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginBottom: 14 }}>
-                Client's estimate: <span style={{ color: '#f3f4f6', fontWeight: 500 }}>{lead.client_estimate_text}</span>
+              <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: 14 }}>
+                Client's estimate: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{lead.client_estimate_text}</span>
               </div>
 
-              {/* Action buttons matching Screenshot 12 */}
+              {/* Action buttons */}
               <div style={{ display: 'flex', gap: 10 }}>
                 {lead.status === 'new' && (
                   <button
+                    type="button"
                     onClick={() => updateStatus(lead.id, 'contacted')}
                     style={{
-                      padding: '7px 14px',
+                      padding: '6px 14px',
                       fontSize: '0.8rem',
-                      background: '#262626',
-                      color: '#d1d5db',
-                      border: '1px solid #404040',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      border: '1px solid var(--border)',
                       borderRadius: 4,
                       cursor: 'pointer',
                     }}
@@ -206,13 +208,14 @@ export default function SecurityLeadsPage() {
                 )}
                 {lead.status !== 'in_progress' && lead.status !== 'converted' && (
                   <button
+                    type="button"
                     onClick={() => updateStatus(lead.id, 'in_progress')}
                     style={{
-                      padding: '7px 14px',
+                      padding: '6px 14px',
                       fontSize: '0.8rem',
-                      background: '#262626',
-                      color: '#d1d5db',
-                      border: '1px solid #404040',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      border: '1px solid var(--border)',
                       borderRadius: 4,
                       cursor: 'pointer',
                     }}
@@ -221,9 +224,10 @@ export default function SecurityLeadsPage() {
                   </button>
                 )}
                 <button
+                  type="button"
                   onClick={() => convertToContract(lead)}
                   style={{
-                    padding: '7px 16px',
+                    padding: '6px 16px',
                     fontSize: '0.8rem',
                     fontWeight: 600,
                     background: '#d97706',

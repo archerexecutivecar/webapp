@@ -357,15 +357,30 @@ export default function RidesPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
       {/* Page Header matching Prototype */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold tracking-widest uppercase text-[#8C745E] bg-[#8C745E]/10 px-2.5 py-0.5 rounded">P1</span>
-            <h1 className="text-xl font-extrabold text-foreground tracking-tight">Ride requests</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                background: 'rgba(217, 119, 6, 0.12)',
+                color: '#d97706',
+                padding: '3px 8px',
+                borderRadius: 4,
+              }}
+            >
+              P1
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
+          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
+            Ride requests
+          </h1>
+          <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
             Requests from the website, the client app and phone bookings all land here. Website requests come in without addresses, so add those before you allocate.
           </p>
         </div>
@@ -373,7 +388,19 @@ export default function RidesPage() {
         <button
           type="button"
           onClick={() => setPhoneBookingOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-md bg-[#E48243] text-white hover:bg-[#d47334] transition shadow-sm"
+          style={{
+            padding: '8px 18px',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            background: '#d97706',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
         >
           <Plus size={14} /> + Phone booking
         </button>
@@ -381,24 +408,48 @@ export default function RidesPage() {
 
       {/* Global Alerts */}
       {error && (
-        <div className="p-3 text-xs rounded-md bg-destructive/10 border border-destructive/20 text-destructive flex items-center gap-2">
-          <AlertCircle size={15} /> {error}
+        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#dc2626', marginBottom: 16 }}>
+          {error}
         </div>
       )}
       {success && (
-        <div className="p-3 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center gap-2">
-          <CheckCircle2 size={15} /> {success}
+        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#16a34a', marginBottom: 16 }}>
+          ✓ {success}
         </div>
       )}
 
       {/* Filter Row matching Screenshot 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-card p-3 rounded-lg border border-border text-xs">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 14,
+          background: 'var(--surface)',
+          padding: '14px 18px',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          marginBottom: 20,
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Status</label>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+            Status
+          </label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+            style={{
+              width: '100%',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              color: 'var(--text)',
+              fontSize: '0.82rem',
+              padding: '6px 10px',
+              minHeight: 34,
+              height: 34,
+            }}
           >
             <option value="all">All</option>
             <option value="new">New request</option>
@@ -410,62 +461,94 @@ export default function RidesPage() {
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Search Name, Phone or Ref</label>
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-2.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="e.g. Morgan Hale, (732)..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-8 pl-8 pr-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">From</label>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+            Search Name, Phone or Ref
+          </label>
           <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+            type="text"
+            placeholder="e.g. Morgan Hale, (732)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              color: 'var(--text)',
+              fontSize: '0.82rem',
+              padding: '6px 10px',
+              minHeight: 34,
+              height: 34,
+            }}
           />
         </div>
 
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">To</label>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+            From
+          </label>
+          <input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            style={{
+              width: '100%',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              color: 'var(--text)',
+              fontSize: '0.82rem',
+              padding: '6px 10px',
+              minHeight: 34,
+              height: 34,
+            }}
+          />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+            To
+          </label>
           <input
             type="date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+            style={{
+              width: '100%',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              color: 'var(--text)',
+              fontSize: '0.82rem',
+              padding: '6px 10px',
+              minHeight: 34,
+              height: 34,
+            }}
           />
         </div>
       </div>
 
       {/* Main Table Layout */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
             <thead>
-              <tr className="border-b border-border bg-muted/40 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="p-3">Request</th>
-                <th className="p-3">Ride Schedule & Service</th>
-                <th className="p-3">Status</th>
+              <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <th style={{ padding: '12px 16px' }}>Request</th>
+                <th style={{ padding: '12px 16px' }}>Ride Schedule & Service</th>
+                <th style={{ padding: '12px 16px' }}>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="p-8 text-center text-muted-foreground">
-                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
                     Loading ride requests...
                   </td>
                 </tr>
               ) : filteredRides.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={3} style={{ padding: 30, textAlign: 'center', color: 'var(--muted)' }}>
                     No ride requests found matching current filter.
                   </td>
                 </tr>
@@ -478,35 +561,40 @@ export default function RidesPage() {
                     <tr
                       key={ride.id}
                       onClick={() => openDrawer(ride)}
-                      className={`cursor-pointer transition hover:bg-muted/50 ${isSelected ? 'bg-primary/5 border-l-4 border-primary font-medium' : ''}`}
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        cursor: 'pointer',
+                        background: isSelected ? 'rgba(228, 130, 67, 0.08)' : 'transparent',
+                        borderLeft: isSelected ? '4px solid #E48243' : '4px solid transparent',
+                      }}
                     >
-                      <td className="p-3">
-                        <div className="font-bold text-foreground text-xs">
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.84rem' }}>
                           {ride.first_name} {ride.last_name || ''}
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                        <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span>{ride.phone}</span>
                           <span>·</span>
-                          <span className="font-mono text-[10px] text-primary">{ride.reference}</span>
+                          <span style={{ fontFamily: 'monospace', color: '#d97706' }}>{ride.reference}</span>
                           <span>·</span>
-                          <span className="capitalize text-[10px] bg-muted px-1.5 py-0.5 rounded">{source}</span>
+                          <span style={{ textTransform: 'capitalize', background: 'var(--surface-2)', padding: '1px 6px', borderRadius: 3, border: '1px solid var(--border)' }}>{source}</span>
                         </div>
                       </td>
 
-                      <td className="p-3">
-                        <div className="text-foreground text-xs">
-                          <span className="font-semibold">{ride.ride_date}</span> at <span className="font-semibold">{ride.ride_time}</span>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ color: 'var(--text)', fontSize: '0.84rem' }}>
+                          <span style={{ fontWeight: 600 }}>{ride.ride_date}</span> at <span style={{ fontWeight: 600 }}>{ride.ride_time}</span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
-                          <span className="capitalize">{ride.service_type.replace('_', ' ')}</span>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: 2 }}>
+                          <span style={{ textTransform: 'capitalize' }}>{ride.service_type.replace('_', ' ')}</span>
                           {' · '}
                           <span>{ride.vehicle}</span>
                           {' · '}
-                          <span className="font-semibold text-primary">T{ride.driver_tier}</span>
+                          <span style={{ fontWeight: 600, color: '#d97706' }}>T{ride.driver_tier}</span>
                         </div>
                       </td>
 
-                      <td className="p-3">
+                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                         {renderStatusBadge(ride.status)}
                       </td>
                     </tr>

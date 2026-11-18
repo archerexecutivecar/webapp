@@ -112,19 +112,19 @@ export default function SettingsPage() {
             P1
           </span>
         </div>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f3f4f6' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
           Settings
         </h1>
       </div>
 
       {successMsg && (
-        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#4ade80', marginBottom: 16 }}>
+        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#16a34a', marginBottom: 16 }}>
           ✓ {successMsg}
         </div>
       )}
 
       {error && (
-        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#f87171', marginBottom: 16 }}>
+        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#ef4444', marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -132,13 +132,13 @@ export default function SettingsPage() {
       {/* 4 Configuration Panels matching Screenshot 11 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
         {/* Panel 1: BOOKING NOTICE */}
-        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 14 }}>
             Booking Notice
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Minimum notice for website requests
             </label>
             <select
@@ -146,10 +146,10 @@ export default function SettingsPage() {
               onChange={(e) => handleSave({ min_booking_notice_hours: Number(e.target.value) })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '8px 10px',
                 fontSize: '0.84rem',
               }}
@@ -161,19 +161,19 @@ export default function SettingsPage() {
             </select>
           </div>
 
-          <p style={{ margin: 0, fontSize: '0.76rem', color: '#6b7280', lineHeight: 1.45 }}>
+          <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--muted)', lineHeight: 1.45 }}>
             This applies to new requests. The website forms check and message update right away.
           </p>
         </div>
 
         {/* Panel 2: ALERTS AND CANCELLATIONS */}
-        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 14 }}>
             Alerts and Cancellations
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Alert dispatch when a ride sits unaccepted for (hours)
             </label>
             <input
@@ -183,10 +183,10 @@ export default function SettingsPage() {
               onChange={(e) => handleSave({ unaccepted_alert_hours: Number(e.target.value) })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '8px 10px',
                 fontSize: '0.84rem',
               }}
@@ -194,7 +194,7 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Client cancellation window (hours before pickup)
             </label>
             <input
@@ -204,10 +204,10 @@ export default function SettingsPage() {
               onChange={(e) => handleSave({ cancellation_window_hours: Number(e.target.value) })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '8px 10px',
                 fontSize: '0.84rem',
               }}
@@ -215,7 +215,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Customer notice channel
             </label>
             <select
@@ -223,10 +223,10 @@ export default function SettingsPage() {
               onChange={(e) => handleSave({ customer_notice_channel: e.target.value })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '8px 10px',
                 fontSize: '0.84rem',
               }}
@@ -239,13 +239,13 @@ export default function SettingsPage() {
         </div>
 
         {/* Panel 3: DRIVER APP BUTTON LABELS */}
-        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 14 }}>
             Driver App Button Labels
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
               Step 1
             </label>
             <input
@@ -255,10 +255,10 @@ export default function SettingsPage() {
               onBlur={() => handleSave({ driver_btn_step1: settings.driver_btn_step1 })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '7px 10px',
                 fontSize: '0.84rem',
               }}
@@ -266,7 +266,7 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
               Step 2
             </label>
             <input
@@ -276,10 +276,10 @@ export default function SettingsPage() {
               onBlur={() => handleSave({ driver_btn_step2: settings.driver_btn_step2 })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '7px 10px',
                 fontSize: '0.84rem',
               }}
@@ -287,7 +287,7 @@ export default function SettingsPage() {
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
               Step 3
             </label>
             <input
@@ -297,10 +297,10 @@ export default function SettingsPage() {
               onBlur={() => handleSave({ driver_btn_step3: settings.driver_btn_step3 })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '7px 10px',
                 fontSize: '0.84rem',
               }}
@@ -308,7 +308,7 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
               Step 4
             </label>
             <input
@@ -318,10 +318,10 @@ export default function SettingsPage() {
               onBlur={() => handleSave({ driver_btn_step4: settings.driver_btn_step4 })}
               style={{
                 width: '100%',
-                background: '#242424',
-                border: '1px solid #383838',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
-                color: '#f3f4f6',
+                color: 'var(--text)',
                 padding: '7px 10px',
                 fontSize: '0.84rem',
               }}
@@ -330,12 +330,12 @@ export default function SettingsPage() {
         </div>
 
         {/* Panel 4: PROTOTYPE */}
-        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 14 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 14 }}>
               Prototype
             </div>
-            <p style={{ margin: '0 0 20px 0', fontSize: '0.82rem', color: '#9ca3af', lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 20px 0', fontSize: '0.82rem', color: 'var(--muted)', lineHeight: 1.5 }}>
               All data is sample data saved in this browser only.
             </p>
           </div>

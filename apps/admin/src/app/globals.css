@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Archer Executive Official Palette & Hospitable Clean Workflow Hybrid */
 :root, :root[data-theme='dark'] {
   color-scheme: dark;
