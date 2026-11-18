@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 /* Archer Executive Official Palette & Hospitable Clean Workflow Hybrid */
+:root {
+  --font-figtree: 'Figtree', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-zoho-heading: 'Epilogue', Georgia, serif;
+  --font-zoho-sans: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 :root, :root[data-theme='dark'] {
   color-scheme: dark;
   --bg: #0b0d10;

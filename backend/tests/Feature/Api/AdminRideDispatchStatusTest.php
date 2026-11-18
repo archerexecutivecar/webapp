@@ -32,7 +32,7 @@ class AdminRideDispatchStatusTest extends TestCase
             'email' => $email,
             'phone' => '7325550100',
             'customer_id' => $customerId,
-            'status' => 'pending',
+            'status' => 'dispatched',
             'pickup_location' => '100 Main St, Newark, NJ',
             'dropoff_location' => 'JFK Airport, NY',
             'ride_date' => '2026-11-20',
@@ -46,7 +46,7 @@ class AdminRideDispatchStatusTest extends TestCase
         [, $headers] = $this->actingAsRole('dispatcher');
         $ride = $this->createRide('test1@example.com');
 
-        $this->assertSame('pending', $ride->status);
+        $this->assertSame('dispatched', $ride->status);
 
         $res = $this->putJson("/api/v1/admin/rides/{$ride->id}", [
             'status' => 'in_progress',
@@ -65,7 +65,7 @@ class AdminRideDispatchStatusTest extends TestCase
         [, $headers] = $this->actingAsRole('dispatcher');
         $ride = $this->createRide('test2@example.com');
 
-        $this->assertSame('pending', $ride->status);
+        $this->assertSame('dispatched', $ride->status);
 
         // Simulate client sending double-stringified payload
         $doubleJson = json_encode(json_encode([
@@ -106,7 +106,7 @@ class AdminRideDispatchStatusTest extends TestCase
 
         // Check customer rides initial status
         $custRides = $this->getJson('/api/v1/customer/rides', $customerHeaders)->assertOk();
-        $this->assertSame('pending', $custRides->json('data.rides.0.status'));
+        $this->assertSame('dispatched', $custRides->json('data.rides.0.status'));
 
         // Admin updates status to in_progress
         $this->putJson("/api/v1/admin/rides/{$ride->id}", [
