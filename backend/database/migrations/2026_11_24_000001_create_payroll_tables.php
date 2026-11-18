@@ -7,9 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        Schema::dropIfExists('payroll_disbursements');
         Schema::create('payroll_disbursements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('driver_id')->constrained('drivers')->cascadeOnDelete();
+            $table->string('driver_id')->index();
             $table->string('pay_week_start'); // e.g. 2026-11-16
             $table->string('pay_week_end');   // e.g. 2026-11-22
             $table->decimal('gross_earnings', 10, 2);

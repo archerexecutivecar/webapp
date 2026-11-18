@@ -10,12 +10,21 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class CustomerNoticeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureSeedNoticesExist();
+        if (!Schema::hasTable('customer_notices')) {
+            return ApiResponse::data(['notices' => []]);
+        }
+
+        try {
+            $this->ensureSeedNoticesExist();
+        } catch (\Throwable $e) {
+            // Non-blocking fallback
+        }
 
         $query = CustomerNotice::query()->orderBy('sent_at', 'desc');
 
@@ -110,6 +119,10 @@ class CustomerNoticeController extends Controller
 
     private function ensureSeedNoticesExist(): void
     {
+        if (!Schema::hasTable('customer_notices')) {
+            return;
+        }
+
         if (CustomerNotice::count() > 0) {
             return;
         }

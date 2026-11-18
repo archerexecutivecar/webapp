@@ -10,12 +10,17 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SecuritySuiteController extends Controller
 {
     // --- 1. LEADS ---
     public function leads(): JsonResponse
     {
+        if (!Schema::hasTable('security_leads')) {
+            return ApiResponse::data(['leads' => [], 'new_count' => 0]);
+        }
+
         $leads = DB::table('security_leads')->orderByDesc('id')->get();
         $newCount = DB::table('security_leads')->where('status', 'new')->count();
 
@@ -50,13 +55,13 @@ class SecuritySuiteController extends Controller
     // --- 2. CONTRACTS & SHIFTS ---
     public function contractsAndShifts(): JsonResponse
     {
-        $shifts = DB::table('security_shifts')->orderBy('id')->get();
+        $shifts = Schema::hasTable('security_shifts') ? DB::table('security_shifts')->orderBy('id')->get() : collect();
         $drivers = Driver::orderBy('name')->get(['id', 'name']);
 
         // Count unclaimed shifts < 48 hours
-        $unclaimedUrgentCount = DB::table('security_shifts')
-            ->where('status', 'open')
-            ->count();
+        $unclaimedUrgentCount = Schema::hasTable('security_shifts') 
+            ? DB::table('security_shifts')->where('status', 'open')->count() 
+            : 0;
 
         return ApiResponse::data([
             'shifts' => $shifts,
@@ -163,7 +168,7 @@ class SecuritySuiteController extends Controller
     // --- 3. SWAPS ---
     public function swaps(): JsonResponse
     {
-        $swaps = DB::table('security_swaps')->where('status', 'waiting_admin')->get();
+        $swaps = Schema::hasTable('security_swaps') ? DB::table('security_swaps')->where('status', 'waiting_admin')->get() : collect();
 
         return ApiResponse::data([
             'swaps' => $swaps,
@@ -214,7 +219,7 @@ class SecuritySuiteController extends Controller
     // --- 4. CREDENTIALS ---
     public function credentials(): JsonResponse
     {
-        $credentials = DB::table('security_credentials')->get();
+        $credentials = Schema::hasTable('security_credentials') ? DB::table('security_credentials')->get() : collect();
 
         return ApiResponse::data([
             'credentials' => $credentials,
@@ -227,7 +232,7 @@ class SecuritySuiteController extends Controller
     // --- 5. ANNOUNCEMENTS ---
     public function announcements(): JsonResponse
     {
-        $announcements = DB::table('security_announcements')->orderByDesc('id')->get();
+        $announcements = Schema::hasTable('security_announcements') ? DB::table('security_announcements')->orderByDesc('id')->get() : collect();
 
         return ApiResponse::data([
             'announcements' => $announcements,
