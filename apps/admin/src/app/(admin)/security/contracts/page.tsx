@@ -58,10 +58,10 @@ function ContractsContent() {
           drivers: DriverOption[];
           unclaimed_urgent_count: number;
         };
-      }>('/security/contracts', { auth: true });
+      }>('/admin/security/contracts', { auth: true });
 
-      setShifts(res.data.shifts);
-      setDrivers(res.data.drivers.length ? res.data.drivers : [
+      setShifts(res.data?.shifts || []);
+      setDrivers(res.data?.drivers && res.data.drivers.length ? res.data.drivers : [
         { id: 1, name: 'Paul Malesky' },
         { id: 2, name: 'Joseph Klein' },
         { id: 3, name: 'Chris Jaeger' },
@@ -83,7 +83,7 @@ function ContractsContent() {
 
     try {
       setError(null);
-      await api(`/security/shifts/${shiftId}/assign`, {
+      await api(`/admin/security/shifts/${shiftId}/assign`, {
         method: 'PUT',
         auth: true,
         body: { driver_name: driverName },
@@ -101,7 +101,7 @@ function ContractsContent() {
     try {
       setSubmitting(true);
       setError(null);
-      await api('/security/contracts', {
+      await api('/admin/security/contracts', {
         method: 'POST',
         auth: true,
         body: {
@@ -152,7 +152,7 @@ function ContractsContent() {
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
               background: 'rgba(59, 130, 246, 0.15)',
-              color: '#60a5fa',
+              color: '#3b82f6',
               padding: '3px 8px',
               borderRadius: 4,
             }}
@@ -160,10 +160,10 @@ function ContractsContent() {
             P2
           </span>
         </div>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f3f4f6' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
           Contracts & shifts
         </h1>
-        <p style={{ margin: 0, fontSize: '0.86rem', color: '#9ca3af' }}>
+        <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
           Enter a closed contract and the system builds the shift calendar. Short contracts (7 days or less) release every shift right away. Longer ones release on a rolling 7-day window. Rides and shifts never overlap for the same person.
         </p>
       </div>
@@ -171,9 +171,9 @@ function ContractsContent() {
       {/* Urgent Warning Banner matching Screenshot 13 */}
       <div
         style={{
-          background: 'rgba(239, 68, 68, 0.15)',
-          border: '1px solid rgba(239, 68, 68, 0.35)',
-          color: '#fca5a5',
+          background: 'rgba(239, 68, 68, 0.12)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#dc2626',
           borderRadius: 6,
           padding: '12px 18px',
           fontSize: '0.84rem',
@@ -185,13 +185,13 @@ function ContractsContent() {
       </div>
 
       {successMsg && (
-        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#4ade80', marginBottom: 16 }}>
+        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#16a34a', marginBottom: 16 }}>
           ✓ {successMsg}
         </div>
       )}
 
       {error && (
-        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#f87171', marginBottom: 16 }}>
+        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#dc2626', marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -199,10 +199,10 @@ function ContractsContent() {
       {/* Two Column Layout matching Screenshot 13 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 24 }}>
         {/* Left Column: Shifts Table */}
-        <div style={{ background: '#171717', border: '1px solid #262626', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: '#1f1f1f', borderBottom: '1px solid #2a2a2a', color: '#9ca3af', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>Shift</th>
                 <th style={{ padding: '12px 14px', textAlign: 'left' }}>When</th>
                 <th style={{ padding: '12px 14px', textAlign: 'center' }}>Tier</th>
@@ -213,13 +213,13 @@ function ContractsContent() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 30, textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={5} style={{ padding: 30, textAlign: 'center', color: 'var(--muted)' }}>
                     Loading shifts calendar...
                   </td>
                 </tr>
               ) : shifts.map((shift) => (
-                <tr key={shift.id} style={{ borderBottom: '1px solid #222' }}>
-                  <td style={{ padding: '12px 14px', color: '#f3f4f6' }}>
+                <tr key={shift.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '12px 14px', color: 'var(--text)' }}>
                     <div style={{ fontWeight: 600 }}>
                       {shift.name}{' '}
                       {shift.is_critical && (
@@ -228,38 +228,38 @@ function ContractsContent() {
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{shift.site_address}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 2 }}>{shift.site_address}</div>
                   </td>
 
-                  <td style={{ padding: '12px 14px', color: '#d1d5db', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '12px 14px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     {shift.shift_date_label}
                   </td>
 
                   <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: 3, background: '#262626', color: '#d97706', border: '1px solid #3d3d3d' }}>
+                    <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: 3, background: 'var(--surface-2)', color: '#d97706', border: '1px solid var(--border)' }}>
                       {shift.tier}
                     </span>
                   </td>
 
                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                     {shift.status === 'completed' ? (
-                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80' }}>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', fontWeight: 600 }}>
                         Completed
                       </span>
                     ) : shift.status === 'open' ? (
-                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(217, 119, 6, 0.15)', color: '#f59e0b' }}>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(217, 119, 6, 0.15)', color: '#d97706', fontWeight: 600 }}>
                         Open
                       </span>
                     ) : shift.status === 'swap_pending' ? (
-                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' }}>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'rgba(59, 130, 246, 0.15)', color: '#2563eb', fontWeight: 600 }}>
                         {shift.assigned_driver_name}
                       </span>
                     ) : shift.status === 'assigned' ? (
-                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: '#262626', color: '#d1d5db' }}>
+                      <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: 10, background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)' }}>
                         {shift.assigned_driver_name}
                       </span>
                     ) : (
-                      <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
                         Not released yet
                       </span>
                     )}
@@ -272,12 +272,14 @@ function ContractsContent() {
                           value={selectedDriverMap[shift.id] || ''}
                           onChange={(e) => setSelectedDriverMap({ ...selectedDriverMap, [shift.id]: e.target.value })}
                           style={{
-                            background: '#242424',
-                            border: '1px solid #383838',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
                             borderRadius: 4,
-                            color: '#f3f4f6',
+                            color: 'var(--text)',
                             fontSize: '0.74rem',
                             padding: '4px 6px',
+                            minHeight: 28,
+                            height: 28,
                           }}
                         >
                           <option value="">Select driver</option>
@@ -288,22 +290,25 @@ function ContractsContent() {
                           ))}
                         </select>
                         <button
+                          type="button"
                           onClick={() => handleAssign(shift.id)}
                           style={{
-                            padding: '4px 8px',
+                            padding: '3px 8px',
                             fontSize: '0.72rem',
-                            background: '#333',
-                            color: '#f3f4f6',
-                            border: '1px solid #444',
+                            background: 'var(--surface-2)',
+                            color: 'var(--text)',
+                            border: '1px solid var(--border)',
                             borderRadius: 4,
                             cursor: 'pointer',
+                            minHeight: 28,
+                            height: 28,
                           }}
                         >
                           Assign
                         </button>
                       </div>
                     ) : (
-                      <span style={{ color: '#555', fontSize: '0.72rem' }}>—</span>
+                      <span style={{ color: 'var(--muted)', fontSize: '0.72rem' }}>—</span>
                     )}
                   </td>
                 </tr>
@@ -313,14 +318,14 @@ function ContractsContent() {
         </div>
 
         {/* Right Column: CONTRACT ENTRY (BOOKING AGENT) Form matching Screenshot 13 */}
-        <div style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 16 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 16 }}>
             Contract Entry (Booking Agent)
           </div>
 
           <form onSubmit={handleCreateContract}>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                 Client
               </label>
               <input
@@ -329,12 +334,12 @@ function ContractsContent() {
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
                 placeholder="Client organization or VIP name"
-                style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                 Contact
               </label>
               <input
@@ -342,12 +347,12 @@ function ContractsContent() {
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 placeholder="Contact person & phone"
-                style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                 Site Address
               </label>
               <input
@@ -356,19 +361,19 @@ function ContractsContent() {
                 value={siteAddress}
                 onChange={(e) => setSiteAddress(e.target.value)}
                 placeholder="Coverage address or venue location"
-                style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
               />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Tier
                 </label>
                 <select
                   value={tier}
                   onChange={(e) => setTier(e.target.value)}
-                  style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
                 >
                   <option value="T1">T1 Essential</option>
                   <option value="T2">T2 Executive</option>
@@ -378,7 +383,7 @@ function ContractsContent() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Headcount
                 </label>
                 <input
@@ -386,14 +391,14 @@ function ContractsContent() {
                   min={1}
                   value={headcount}
                   onChange={(e) => setHeadcount(Number(e.target.value))}
-                  style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
                 />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 12, marginBottom: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Start Date
                 </label>
                 <input
@@ -401,12 +406,12 @@ function ContractsContent() {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Length (Days)
                 </label>
                 <input
@@ -414,14 +419,14 @@ function ContractsContent() {
                   min={1}
                   value={lengthDays}
                   onChange={(e) => setLengthDays(Number(e.target.value))}
-                  style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
                 />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Start Time
                 </label>
                 <input
@@ -429,12 +434,12 @@ function ContractsContent() {
                   required
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Hours per shift
                 </label>
                 <input
@@ -442,19 +447,19 @@ function ContractsContent() {
                   min={1}
                   value={hoursPerShift}
                   onChange={(e) => setHoursPerShift(Number(e.target.value))}
-                  style={{ width: '100%', background: '#242424', border: '1px solid #383838', borderRadius: 4, color: '#fff', padding: '7px 10px', fontSize: '0.82rem' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', padding: '7px 10px', fontSize: '0.82rem' }}
                 />
               </div>
             </div>
 
             {/* Day of Week Checkboxes */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
                 Days of Week
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-                  <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.76rem', color: '#d1d5db', cursor: 'pointer' }}>
+                  <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.76rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={daysOfWeek.includes(d)}
@@ -468,7 +473,7 @@ function ContractsContent() {
 
             {/* Event Critical Checkbox */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: '#fca5a5', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: '#dc2626', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={isEventCritical}
@@ -504,7 +509,7 @@ function ContractsContent() {
 
 export default function ContractsAndShiftsPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, color: '#666' }}>Loading contracts...</div>}>
+    <Suspense fallback={<div style={{ padding: 40, color: 'var(--muted)' }}>Loading contracts...</div>}>
       <ContractsContent />
     </Suspense>
   );

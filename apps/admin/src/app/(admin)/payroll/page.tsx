@@ -156,10 +156,10 @@ export default function PayrollPage() {
               P1 · YOUR MONEY
             </span>
           </div>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f3f4f6' }}>
+          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
             Weekly payroll
           </h1>
-          <p style={{ margin: 0, fontSize: '0.86rem', color: '#9ca3af' }}>
+          <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
             Pay week is Monday through Sunday; disbursements run on Friday. Archer pays out net earnings after deducting any cash the driver kept on cash rides. Check numbers and ACH refs are recorded here for the bookkeeper.
           </p>
         </div>
@@ -196,12 +196,12 @@ export default function PayrollPage() {
       )}
 
       {/* Pay Week Selector Bar */}
-      <div style={{ background: '#171717', border: '1px solid #262626', borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase' }}>
             PAY WEEK:
           </span>
-          <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#f3f4f6' }}>
+          <span style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text)' }}>
             {data?.pay_week.label ?? 'Nov 16 – Nov 22, 2026 (current)'}
           </span>
         </div>
@@ -212,47 +212,47 @@ export default function PayrollPage() {
 
       {/* 4 Summary KPI Cards */}
       {data && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-          <div style={{ background: '#1c1c1c', border: '1px solid #2d2d2d', borderRadius: 8, padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 24 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Total Payout Ready
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: '#22c55e', marginBottom: 4 }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: '#16a34a', marginBottom: 4 }}>
               ${data.kpis.total_payout_ready.toFixed(2)}
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#6b7280' }}>
+            <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>
               {data.kpis.ready_count} {data.kpis.ready_count === 1 ? 'driver' : 'drivers'} ready for Friday check
             </div>
           </div>
 
-          <div style={{ background: '#1c1c1c', border: '1px solid #2d2d2d', borderRadius: 8, padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Cash Kept by Drivers
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: '#f3f4f6', marginBottom: 4 }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
               ${data.kpis.total_cash_kept.toFixed(2)}
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#6b7280' }}>deducted directly from pay ledger</div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>deducted directly from pay ledger</div>
           </div>
 
-          <div style={{ background: '#1c1c1c', border: '1px solid #2d2d2d', borderRadius: 8, padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Carried Balances
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: '#f59e0b', marginBottom: 4 }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: '#d97706', marginBottom: 4 }}>
               ${Math.abs(data.kpis.total_carried_forward).toFixed(2)}
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#6b7280' }}>owed back to Archer from cash rides</div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>owed back to Archer from cash rides</div>
           </div>
 
-          <div style={{ background: '#1c1c1c', border: '1px solid #2d2d2d', borderRadius: 8, padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
               Next Disbursement
             </div>
-            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: '#f3f4f6', marginBottom: 4 }}>
+            <div style={{ fontSize: '1.65rem', fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
               Fri, Nov 27
             </div>
-            <div style={{ fontSize: '0.74rem', color: '#6b7280' }}>weekly ACH and check run</div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>weekly ACH and check run</div>
           </div>
         </div>
       )}
@@ -260,22 +260,22 @@ export default function PayrollPage() {
       {/* Driver Payroll Cards List matching Screenshot 8 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#6b7280', background: '#171717', borderRadius: 8 }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
             Loading payroll calculation...
           </div>
         ) : data?.drivers.map((driver) => (
-          <div key={driver.id} style={{ background: '#181818', border: '1px solid #282828', borderRadius: 8, padding: 20 }}>
+          <div key={driver.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
             {/* Driver Card Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#f3f4f6', fontWeight: 600 }}>{driver.name}</h3>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#262626', color: '#d97706', border: '1px solid #383838' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text)', fontWeight: 600 }}>{driver.name}</h3>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'var(--surface-2)', color: '#d97706', border: '1px solid var(--border)' }}>
                     {driver.tier} (${driver.tier_rate}/hr)
                   </span>
-                  <span style={{ fontSize: '0.74rem', color: '#9ca3af' }}>{driver.phone}</span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>{driver.phone}</span>
                 </div>
-                <div style={{ fontSize: '0.76rem', color: '#6b7280', marginTop: 4 }}>
+                <div style={{ fontSize: '0.76rem', color: 'var(--muted)', marginTop: 4 }}>
                   {driver.status}
                 </div>
               </div>
@@ -283,10 +283,10 @@ export default function PayrollPage() {
 
             {/* Completed Rides Table */}
             {driver.rides.length > 0 ? (
-              <div style={{ background: '#141414', border: '1px solid #222', borderRadius: 6, marginBottom: 16, overflowX: 'auto' }}>
+              <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 16, overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #222', background: '#1a1a1a', color: '#9ca3af', textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--muted)', textTransform: 'uppercase', fontSize: '0.7rem' }}>
                       <th style={{ padding: '8px 12px', textAlign: 'left' }}>Ride & Client</th>
                       <th style={{ padding: '8px 12px', textAlign: 'left' }}>Date</th>
                       <th style={{ padding: '8px 12px', textAlign: 'right' }}>Hours</th>
@@ -298,15 +298,15 @@ export default function PayrollPage() {
                   </thead>
                   <tbody>
                     {driver.rides.map((ride, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #1c1c1c' }}>
-                        <td style={{ padding: '10px 12px', color: '#f3f4f6' }}>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '10px 12px', color: 'var(--text)' }}>
                           <span style={{ fontWeight: 600 }}>{ride.ride_reference}</span> · {ride.client_name}
                         </td>
-                        <td style={{ padding: '10px 12px', color: '#9ca3af' }}>{ride.date}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#d1d5db' }}>{ride.hours} hrs</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#d1d5db' }}>${ride.fleet_pay.toFixed(2)}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', color: '#d1d5db' }}>${ride.tip.toFixed(2)}</td>
-                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#f3f4f6' }}>${ride.total.toFixed(2)}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--muted)' }}>{ride.date}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text)' }}>{ride.hours} hrs</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text)' }}>${ride.fleet_pay.toFixed(2)}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text)' }}>${ride.tip.toFixed(2)}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: 'var(--text)' }}>${ride.total.toFixed(2)}</td>
                         <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                           <span
                             style={{
@@ -315,7 +315,7 @@ export default function PayrollPage() {
                               fontSize: '0.7rem',
                               fontWeight: 600,
                               background: ride.method === 'Card' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                              color: ride.method === 'Card' ? '#60a5fa' : '#4ade80',
+                              color: ride.method === 'Card' ? '#2563eb' : '#16a34a',
                             }}
                           >
                             {ride.method} {ride.cash_collected > 0 ? `(Driver kept $${ride.cash_collected.toFixed(2)})` : ''}
@@ -327,36 +327,36 @@ export default function PayrollPage() {
                 </table>
               </div>
             ) : (
-              <div style={{ padding: '12px 14px', background: '#141414', border: '1px solid #222', borderRadius: 6, color: '#6b7280', fontSize: '0.78rem', marginBottom: 16 }}>
+              <div style={{ padding: '12px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--muted)', fontSize: '0.78rem', marginBottom: 16 }}>
                 No rides dispatched or completed in this pay period.
               </div>
             )}
 
             {/* Reconciliation Math Summary */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, background: '#141414', border: '1px solid #222', borderRadius: 6, padding: '12px 16px', marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '12px 16px', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase' }}>Gross Earned</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#f3f4f6' }}>${driver.gross_earnings.toFixed(2)}</div>
-                <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>${driver.fleet_pay_total.toFixed(2)} pay + ${driver.tips_total.toFixed(2)} tip</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Gross Earned</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)' }}>${driver.gross_earnings.toFixed(2)}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>${driver.fleet_pay_total.toFixed(2)} pay + ${driver.tips_total.toFixed(2)} tip</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase' }}>Cash Kept by Driver</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: driver.cash_deductions > 0 ? '#f87171' : '#f3f4f6' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Cash Kept by Driver</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: driver.cash_deductions > 0 ? '#ef4444' : 'var(--text)' }}>
                   -${driver.cash_deductions.toFixed(2)}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>physical cash collected</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>physical cash collected</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase' }}>Carried Balance</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: '#f3f4f6' }}>${driver.carried_balance.toFixed(2)}</div>
-                <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>from previous weeks</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Carried Balance</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)' }}>${driver.carried_balance.toFixed(2)}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>from previous weeks</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.7rem', color: '#9ca3af', textTransform: 'uppercase' }}>Net Balance Due</div>
-                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: driver.net_amount > 0 ? '#22c55e' : driver.net_amount < 0 ? '#f59e0b' : '#9ca3af' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase' }}>Net Balance Due</div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: driver.net_amount > 0 ? '#16a34a' : driver.net_amount < 0 ? '#d97706' : 'var(--muted)' }}>
                   ${driver.net_amount.toFixed(2)}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: '#6b7280' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>
                   {driver.net_amount > 0 ? 'Archer pays driver' : driver.net_amount < 0 ? 'Driver owes Archer' : 'Zero balance'}
                 </div>
               </div>
@@ -366,10 +366,10 @@ export default function PayrollPage() {
             {driver.payment_status === 'paid' ? (
               <div style={{ padding: '12px 16px', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 600, color: '#4ade80', fontSize: '0.88rem' }}>
+                  <div style={{ fontWeight: 600, color: '#16a34a', fontSize: '0.88rem' }}>
                     ✓ Disbursed ${driver.net_amount.toFixed(2)} via {driver.disbursement?.payment_method?.toUpperCase()}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#86efac', marginTop: 2 }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--muted)', marginTop: 2 }}>
                     Reference #{driver.disbursement?.reference_number} · Recorded on file
                   </div>
                 </div>
@@ -380,10 +380,10 @@ export default function PayrollPage() {
             ) : driver.payment_status === 'ready' ? (
               <div style={{ padding: '14px 18px', background: 'rgba(217, 119, 6, 0.1)', border: '1px solid #d97706', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: '0.92rem' }}>
+                  <div style={{ fontWeight: 600, color: '#d97706', fontSize: '0.92rem' }}>
                     Archer owes {driver.name} ${driver.net_amount.toFixed(2)}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#d1d5db', marginTop: 2 }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--muted)', marginTop: 2 }}>
                     Check / ACH ready Fri, Nov 27
                   </div>
                 </div>
@@ -404,21 +404,21 @@ export default function PayrollPage() {
                 </button>
               </div>
             ) : driver.payment_status === 'carried_forward' ? (
-              <div style={{ padding: '12px 16px', background: '#202020', border: '1px solid #333', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 600, color: '#f59e0b', fontSize: '0.88rem' }}>
+                  <div style={{ fontWeight: 600, color: '#d97706', fontSize: '0.88rem' }}>
                     Driver owes Archer ${Math.abs(driver.net_amount).toFixed(2)}
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#9ca3af', marginTop: 2 }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--muted)', marginTop: 2 }}>
                     Carried forward to next pay week (cash kept on AR-1045 exceeds earned pay)
                   </div>
                 </div>
-                <span style={{ fontSize: '0.74rem', background: '#333', color: '#d1d5db', padding: '3px 8px', borderRadius: 4, fontWeight: 600 }}>
+                <span style={{ fontSize: '0.74rem', background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)', padding: '3px 8px', borderRadius: 4, fontWeight: 600 }}>
                   CARRIED FORWARD
                 </span>
               </div>
             ) : (
-              <div style={{ padding: '10px 14px', background: '#181818', border: '1px solid #222', borderRadius: 6, color: '#6b7280', fontSize: '0.76rem' }}>
+              <div style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--muted)', fontSize: '0.76rem' }}>
                 No payment action required for this driver this week.
               </div>
             )}
@@ -428,36 +428,36 @@ export default function PayrollPage() {
 
       {/* Record Check Modal */}
       {modalOpen && selectedDriver && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#1c1c1c', border: '1px solid #333', borderRadius: 8, padding: 24, width: '100%', maxWidth: 480 }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: '1.3rem', margin: '0 0 8px 0', color: '#f3f4f6' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 24, width: '100%', maxWidth: 480, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
+            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: '1.3rem', margin: '0 0 8px 0', color: 'var(--text)' }}>
               Record Disbursement
             </h2>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: '#9ca3af' }}>
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--muted)' }}>
               Confirm payment issuance to <strong>{selectedDriver.name}</strong> for pay week {data?.pay_week.label}.
             </p>
 
             <form onSubmit={handleRecordDisbursement}>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Net Amount Due
                 </label>
                 <input
                   type="text"
                   disabled
                   value={`$${selectedDriver.net_amount.toFixed(2)}`}
-                  style={{ width: '100%', background: '#262626', border: '1px solid #404040', color: '#22c55e', fontWeight: 700, padding: '8px 10px', borderRadius: 4 }}
+                  style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#16a34a', fontWeight: 700, padding: '8px 10px', borderRadius: 4 }}
                 />
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Payment Method
                 </label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as 'check' | 'ach')}
-                  style={{ width: '100%', background: '#262626', border: '1px solid #404040', color: '#fff', padding: '8px 10px', borderRadius: 4 }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 10px', borderRadius: 4 }}
                 >
                   <option value="check">Archer Check</option>
                   <option value="ach">ACH Direct Deposit</option>
@@ -465,7 +465,7 @@ export default function PayrollPage() {
               </div>
 
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Reference Number (Check # or ACH Trace)
                 </label>
                 <input
@@ -474,12 +474,13 @@ export default function PayrollPage() {
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="e.g. CHK-10892"
-                  style={{ width: '100%', background: '#262626', border: '1px solid #404040', color: '#fff', padding: '8px 10px', borderRadius: 4 }}
-                />
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 10px', borderRadius: 4 }}
+                >
+                </input>
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Bookkeeper Notes (Optional)
                 </label>
                 <textarea
@@ -487,7 +488,7 @@ export default function PayrollPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g. Signed by Director, mailed on Friday"
-                  style={{ width: '100%', background: '#262626', border: '1px solid #404040', color: '#fff', padding: '8px 10px', borderRadius: 4, resize: 'vertical' }}
+                  style={{ width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 10px', borderRadius: 4, resize: 'vertical' }}
                 />
               </div>
 
@@ -498,9 +499,9 @@ export default function PayrollPage() {
                   style={{
                     padding: '8px 16px',
                     fontSize: '0.82rem',
-                    background: '#262626',
-                    color: '#d1d5db',
-                    border: '1px solid #404040',
+                    background: 'var(--surface-2)',
+                    color: 'var(--text)',
+                    border: '1px solid var(--border)',
                     borderRadius: 4,
                     cursor: 'pointer',
                   }}
