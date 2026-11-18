@@ -20,6 +20,10 @@ class QuoteController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if ($request->has('size') && !$request->has('vehicle_size')) {
+            $request->merge(['vehicle_size' => $request->input('size')]);
+        }
+
         $data = $request->validate([
             'service' => ['required', Rule::in(PricingSetting::SERVICES)],
             'tier' => ['required', 'integer', 'between:1,9'],

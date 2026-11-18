@@ -61,8 +61,9 @@ export default function CustomerNoticesPage() {
       if (search.trim()) params.append('search', search.trim());
 
       const qs = params.toString() ? `?${params.toString()}` : '';
-      const res = await api<{ notices: CustomerNoticeItem[] }>(`/admin/notices${qs}`, { auth: true });
-      setNotices(res.notices);
+      const res = await api<any>(`/admin/notices${qs}`, { auth: true });
+      const list = res?.notices ?? res?.data?.notices ?? [];
+      setNotices(list);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load customer notices.');
     } finally {

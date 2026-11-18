@@ -24,8 +24,9 @@ export default function SwapApprovalsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: { swaps: SwapRequest[]; pending_count: number } }>('/admin/security/swaps', { auth: true });
-      setSwaps(res.data?.swaps || []);
+      const res = await api<any>('/admin/security/swaps', { auth: true });
+      const payload = res?.swaps ? res : (res?.data ?? {});
+      setSwaps(payload.swaps || []);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load swap requests.');
     } finally {

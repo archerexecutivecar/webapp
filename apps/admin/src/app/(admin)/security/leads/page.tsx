@@ -31,8 +31,9 @@ export default function SecurityLeadsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: { leads: SecurityLead[]; new_count: number } }>('/admin/security/leads', { auth: true });
-      setLeads(res.data?.leads || []);
+      const res = await api<any>('/admin/security/leads', { auth: true });
+      const payload = res?.leads ? res : (res?.data ?? {});
+      setLeads(payload.leads || []);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load security leads.');
     } finally {

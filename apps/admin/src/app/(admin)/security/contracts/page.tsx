@@ -52,16 +52,11 @@ function ContractsContent() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{
-        data: {
-          shifts: Shift[];
-          drivers: DriverOption[];
-          unclaimed_urgent_count: number;
-        };
-      }>('/admin/security/contracts', { auth: true });
+      const res = await api<any>('/admin/security/contracts', { auth: true });
+      const payload = res?.shifts ? res : (res?.data ?? {});
 
-      setShifts(res.data?.shifts || []);
-      setDrivers(res.data?.drivers && res.data.drivers.length ? res.data.drivers : [
+      setShifts(payload.shifts || []);
+      setDrivers(payload.drivers && payload.drivers.length ? payload.drivers : [
         { id: 1, name: 'Paul Malesky' },
         { id: 2, name: 'Joseph Klein' },
         { id: 3, name: 'Chris Jaeger' },

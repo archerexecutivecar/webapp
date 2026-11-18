@@ -22,8 +22,9 @@ export default function AnnouncementsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: { announcements: Announcement[] } }>('/admin/security/announcements', { auth: true });
-      setAnnouncements(res.data?.announcements || []);
+      const res = await api<any>('/admin/security/announcements', { auth: true });
+      const payload = res?.announcements ? res : (res?.data ?? {});
+      setAnnouncements(payload.announcements || []);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load announcements.');
     } finally {

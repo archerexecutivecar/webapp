@@ -157,8 +157,10 @@ export default function RidesPage() {
         api<{ rides: RideRequest[] }>(`/admin/rides?${params.toString()}`, { auth: true }),
         api<{ drivers: Driver[] }>('/admin/drivers', { auth: true }).catch(() => ({ drivers: [] })),
       ]);
-      setRides(ridesRes.rides);
-      setDrivers(driversRes.drivers.filter((d) => d.is_active));
+      const ridesList = (ridesRes as any)?.rides ?? (ridesRes as any)?.data?.rides ?? (Array.isArray(ridesRes) ? ridesRes : []);
+      const driversList = (driversRes as any)?.drivers ?? (driversRes as any)?.data?.drivers ?? (Array.isArray(driversRes) ? driversRes : []);
+      setRides(ridesList);
+      setDrivers(driversList.filter((d: any) => d.is_active));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load dispatch requests.');
     } finally {

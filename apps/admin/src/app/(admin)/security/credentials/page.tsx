@@ -21,15 +21,9 @@ export default function CredentialsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{
-        data: {
-          credentials: CredentialItem[];
-          expiring_count: number;
-          impacted_shifts_count: number;
-          impacted_shifts_note: string;
-        };
-      }>('/admin/security/credentials', { auth: true });
-      setCredentials(res.data?.credentials || []);
+      const res = await api<any>('/admin/security/credentials', { auth: true });
+      const payload = res?.credentials ? res : (res?.data ?? {});
+      setCredentials(payload.credentials || []);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load credentials.');
     } finally {

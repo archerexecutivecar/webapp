@@ -78,8 +78,8 @@ export default function PayrollPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: PayrollData }>('/admin/payroll', { auth: true });
-      setData(res.data);
+      const res = await api<any>('/admin/payroll', { auth: true });
+      setData(res?.drivers ? res : (res?.data ?? res));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load payroll data.');
     } finally {

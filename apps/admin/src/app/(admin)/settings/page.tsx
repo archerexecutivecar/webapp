@@ -36,9 +36,10 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: { settings: PlatformSettings } }>('/admin/platform-settings', { auth: true });
-      if (res.data?.settings) {
-        setSettings(res.data.settings);
+      const res = await api<any>('/admin/platform-settings', { auth: true });
+      const s = res?.settings || res?.data?.settings;
+      if (s) {
+        setSettings(s);
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load settings.');
@@ -76,12 +77,13 @@ export default function SettingsPage() {
     try {
       setSaving(true);
       setError(null);
-      const res = await api<{ data: { settings: PlatformSettings } }>('/admin/platform-settings/reset', {
+      const res = await api<any>('/admin/platform-settings/reset', {
         method: 'POST',
         auth: true,
       });
-      if (res.data?.settings) {
-        setSettings(res.data.settings);
+      const s = res?.settings || res?.data?.settings;
+      if (s) {
+        setSettings(s);
       }
       setSuccessMsg('Sample configuration data reset to defaults.');
       setTimeout(() => setSuccessMsg(null), 3500);

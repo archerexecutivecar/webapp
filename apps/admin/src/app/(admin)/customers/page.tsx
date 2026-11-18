@@ -105,7 +105,8 @@ export default function CustomersPage() {
       setLoading(true);
       const q = searchTerm.trim() ? `?search=${encodeURIComponent(searchTerm.trim())}` : '';
       const res = await api<{ customers: CustomerRow[] }>(`/admin/customers${q}`, { auth: true });
-      setCustomers(res.customers);
+      const list = (res as any)?.customers ?? (res as any)?.data?.customers ?? (Array.isArray(res) ? res : []);
+      setCustomers(list);
       setError(null);
 
       // Auto-select first customer if none selected
@@ -152,8 +153,8 @@ export default function CustomersPage() {
     setDetailLoading(true);
     setSuccessNotice(null);
     try {
-      const res = await api<{ customer: CustomerDetail }>(`/admin/customers/${id}`, { auth: true });
-      const c = res.customer;
+      const res = await api<any>(`/admin/customers/${id}`, { auth: true });
+      const c = res?.customer ?? res?.data?.customer ?? res;
       setSelectedDetail(c);
       setEditName(c.name || '');
       setEditPhone(c.phone || '');

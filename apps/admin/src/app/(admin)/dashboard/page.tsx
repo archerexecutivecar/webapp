@@ -60,8 +60,8 @@ export default function DashboardPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api<DashboardData>('/admin/dashboard', { auth: true });
-      setData(res);
+      const res = await api<any>('/admin/dashboard', { auth: true });
+      setData(res?.metrics ? res : (res?.data ?? res));
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to refresh dashboard telemetry.');

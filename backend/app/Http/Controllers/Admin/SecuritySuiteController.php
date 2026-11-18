@@ -55,6 +55,8 @@ class SecuritySuiteController extends Controller
     // --- 2. CONTRACTS & SHIFTS ---
     public function contractsAndShifts(): JsonResponse
     {
+        $this->ensureSecuritySeedsExist();
+
         $shifts = Schema::hasTable('security_shifts') ? DB::table('security_shifts')->orderBy('id')->get() : collect();
         $drivers = Driver::orderBy('name')->get(['id', 'name']);
 
@@ -261,5 +263,130 @@ class SecuritySuiteController extends Controller
             'message' => 'Announcement broadcasted.',
             'announcement' => DB::table('security_announcements')->find($id),
         ], 201);
+    }
+
+    private function ensureSecuritySeedsExist(): void
+    {
+        if (!Schema::hasTable('security_shifts')) {
+            return;
+        }
+
+        if (DB::table('security_shifts')->count() > 0) {
+            return;
+        }
+
+        try {
+            $contractId = DB::table('security_contracts')->insertGetId([
+                'client_name' => 'Shore Day Camp',
+                'contact_name' => 'Camp Director',
+                'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                'tier' => 'T2',
+                'headcount' => 1,
+                'start_date' => '2026-11-17',
+                'length_days' => 14,
+                'start_time' => '09:00',
+                'hours_per_shift' => 7,
+                'days_of_week' => json_encode(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']),
+                'is_event_critical' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('security_shifts')->insert([
+                [
+                    'contract_id' => $contractId,
+                    'name' => 'Shore Day Camp (sample)',
+                    'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                    'shift_date_label' => 'Tue, Nov 17, 9:00 AM to 4:00 PM',
+                    'tier' => 'T2',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => null,
+                    'status' => 'completed',
+                    'is_critical' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'contract_id' => $contractId,
+                    'name' => 'Shore Day Camp (sample)',
+                    'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                    'shift_date_label' => 'Wed, Nov 18, 9:00 AM to 4:00 PM',
+                    'tier' => 'T2',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => null,
+                    'status' => 'completed',
+                    'is_critical' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'contract_id' => $contractId,
+                    'name' => 'Shore Day Camp (sample)',
+                    'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                    'shift_date_label' => 'Thu, Nov 19, 9:00 AM to 4:00 PM',
+                    'tier' => 'T2',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => null,
+                    'status' => 'open',
+                    'is_critical' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'contract_id' => null,
+                    'name' => 'Gala door coverage',
+                    'site_address' => 'Navesink Country Club, Red Bank, NJ',
+                    'shift_date_label' => 'Fri, Nov 20, 7:17 PM to 1:17 AM',
+                    'tier' => 'T3',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => null,
+                    'status' => 'open',
+                    'is_critical' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'contract_id' => $contractId,
+                    'name' => 'Shore Day Camp (sample)',
+                    'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                    'shift_date_label' => 'Fri, Nov 20, 9:00 AM to 4:00 PM',
+                    'tier' => 'T2',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => 'Chris Jaeger',
+                    'status' => 'assigned',
+                    'is_critical' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'contract_id' => $contractId,
+                    'name' => 'Shore Day Camp (sample)',
+                    'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                    'shift_date_label' => 'Mon, Nov 23, 9:00 AM to 4:30 PM',
+                    'tier' => 'T2',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => 'Paul Malesky · swap',
+                    'status' => 'swap_pending',
+                    'is_critical' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'contract_id' => $contractId,
+                    'name' => 'Shore Day Camp (sample)',
+                    'site_address' => '40 Seaview Ave, Monmouth Beach, NJ',
+                    'shift_date_label' => 'Tue, Nov 24, 9:00 AM to 4:00 PM',
+                    'tier' => 'T2',
+                    'assigned_driver_id' => null,
+                    'assigned_driver_name' => null,
+                    'status' => 'open',
+                    'is_critical' => false,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Ignore
+        }
     }
 }

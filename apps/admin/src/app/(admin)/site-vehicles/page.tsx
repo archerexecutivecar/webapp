@@ -83,15 +83,12 @@ export default function FleetAvailabilityPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{
-        counters: Record<string, CounterItem>;
-        vehicles: VehicleItem[];
-        timeline: { date: string; tracks: TimelineTrack[] };
-      }>(`/admin/fleet/schedule?date=${dateStr}`, { auth: true });
+      const res = await api<any>(`/admin/fleet/schedule?date=${dateStr}`, { auth: true });
+      const payload = res?.counters ? res : (res?.data ?? {});
 
-      setCounters(res.counters);
-      setVehicles(res.vehicles);
-      setTimelineTracks(res.timeline.tracks);
+      setCounters(payload.counters ?? {});
+      setVehicles(payload.vehicles ?? []);
+      setTimelineTracks(payload.timeline?.tracks ?? []);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load fleet schedule.');
     } finally {

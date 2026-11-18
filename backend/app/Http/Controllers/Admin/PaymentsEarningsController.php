@@ -19,6 +19,51 @@ class PaymentsEarningsController extends Controller
 
         $drivers = Driver::orderBy('name')->get(['id', 'name']);
 
+        // Real completed rides from database
+        $realLedger = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('ride_requests')) {
+            try {
+                $completedRides = RideRequest::with('assignedDriver')
+                    ->where('status', 'completed')
+                    ->orderByDesc('updated_at')
+                    ->get();
+
+                foreach ($completedRides as $r) {
+                    $fare = floatval($r->details['fare'] ?? $r->details['booked_price'] ?? 200.00);
+                    $promo = floatval($r->details['promo'] ?? 0.00);
+                    $bookingFee = floatval($r->details['booking_fee'] ?? 5.00);
+                    $tax = floatval($r->details['tax'] ?? round(max(0, $fare - $promo) * 0.06625, 2));
+                    $tip = floatval($r->details['tip'] ?? 0.00);
+                    $clientPaid = round($fare - $promo + $bookingFee + $tax + $tip, 2);
+                    $method = $r->details['payment_method'] ?? 'Card';
+                    $cardFee = $method === 'Card' ? round($clientPaid * 0.035 + 0.15, 2) : 0.00;
+                    $driverPay = floatval($r->details['driver_pay'] ?? 75.00);
+                    $archerProfit = round($clientPaid - $tax - $cardFee - $driverPay - $tip, 2);
+
+                    $realLedger[] = [
+                        'id' => (string) $r->id,
+                        'date' => $r->ride_date ? Carbon::parse($r->ride_date)->format('D, M j') : $r->created_at->format('D, M j'),
+                        'ride_reference' => $r->reference,
+                        'client_name' => trim(($r->first_name ?? '') . ' ' . ($r->last_name ?? '')) ?: 'Client',
+                        'driver_id' => (string) ($r->assigned_driver_id ?? 'd-1'),
+                        'driver_name' => $r->assignedDriver?->name ?? 'Assigned Chauffeur',
+                        'method' => $method,
+                        'fare' => $fare,
+                        'promo' => $promo,
+                        'booking_fee' => $bookingFee,
+                        'tax' => $tax,
+                        'tip' => $tip,
+                        'client_paid' => $clientPaid,
+                        'card_fee' => $cardFee,
+                        'driver_pay' => $driverPay,
+                        'archer_profit' => $archerProfit,
+                    ];
+                }
+            } catch (\Throwable $e) {
+                // Graceful fallback
+            }
+        }
+
         // Prototype verified close-out transactions matching Screenshot 6
         $sampleLedger = [
             [
@@ -59,10 +104,12 @@ class PaymentsEarningsController extends Controller
             ],
         ];
 
+        $combinedLedger = array_merge($realLedger, $sampleLedger);
+
         // Filter by driver if specified
-        $filteredLedger = $sampleLedger;
+        $filteredLedger = $combinedLedger;
         if (!empty($driverId) && $driverId !== 'all') {
-            $filteredLedger = array_values(array_filter($sampleLedger, function ($item) use ($driverId) {
+            $filteredLedger = array_values(array_filter($combinedLedger, function ($item) use ($driverId) {
                 return $item['driver_name'] === $driverId || $item['driver_id'] === $driverId;
             }));
         }

@@ -8,12 +8,39 @@ use App\Models\PlatformSetting;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class PlatformSettingsController extends Controller
 {
+    private function defaultSettings(): array
+    {
+        return [
+            'min_booking_notice_hours' => 48,
+            'unaccepted_alert_hours' => 24,
+            'cancellation_window_hours' => 24,
+            'customer_notice_channel' => 'SMS + email',
+            'driver_btn_step1' => 'On my way',
+            'driver_btn_step2' => 'At your doorstep',
+            'driver_btn_step3' => 'Ride started',
+            'driver_btn_step4' => 'Ride ends',
+        ];
+    }
+
     public function show(): JsonResponse
     {
-        $settings = PlatformSetting::current();
+        if (!Schema::hasTable('platform_settings')) {
+            return ApiResponse::data([
+                'settings' => $this->defaultSettings(),
+            ]);
+        }
+
+        try {
+            $settings = PlatformSetting::current();
+        } catch (\Throwable $e) {
+            return ApiResponse::data([
+                'settings' => $this->defaultSettings(),
+            ]);
+        }
 
         return ApiResponse::data([
             'settings' => $settings,

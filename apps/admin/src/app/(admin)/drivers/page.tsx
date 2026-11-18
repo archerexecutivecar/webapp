@@ -101,7 +101,7 @@ export default function DriversPage() {
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
 
   // Active view: 'list' or 'profile'
-  const [viewMode, setViewMode] = useState<'list' | 'profile'>('profile');
+  const [viewMode, setViewMode] = useState<'list' | 'profile'>('list');
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<DriverDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -131,13 +131,14 @@ export default function DriversPage() {
   const fetchDrivers = async () => {
     try {
       setLoading(true);
-      const res = await api<{ drivers: DriverSummary[] }>('/admin/drivers', { auth: true });
-      setDrivers(res.drivers);
+      const res = await api<any>('/admin/drivers', { auth: true });
+      const driverList = res?.drivers ?? res?.data?.drivers ?? (Array.isArray(res) ? res : []);
+      setDrivers(driverList);
       setError(null);
 
-      // Auto-load first driver into profile if available
-      if (res.drivers.length > 0 && !selectedDriverId) {
-        loadDriverDetail(res.drivers[0].id);
+      // Auto-load first driver into profile state without switching view
+      if (driverList.length > 0 && !selectedDriverId) {
+        loadDriverDetail(driverList[0].id, false);
       }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load driver roster.');
@@ -150,13 +151,13 @@ export default function DriversPage() {
     fetchDrivers();
   }, []);
 
-  const loadDriverDetail = async (id: string) => {
+  const loadDriverDetail = async (id: string, switchView = true) => {
     setSelectedDriverId(id);
     setDetailLoading(true);
     setSuccessNotice(null);
     try {
-      const res = await api<{ driver: DriverDetail }>(`/admin/drivers/${id}`, { auth: true });
-      const d = res.driver;
+      const res = await api<any>(`/admin/drivers/${id}`, { auth: true });
+      const d = res?.driver ?? res?.data?.driver ?? res;
       setSelectedDetail(d);
       setEditPhone(d.phone || '');
       setEditEmail(d.email || '');
@@ -170,7 +171,9 @@ export default function DriversPage() {
       setOwnerInsExpires(d.owner_vehicle_ins_expires || '2026-11-20');
       setOwnerInspected(Boolean(d.owner_vehicle_inspected));
       setSelectedTier(d.service_tier || 3);
-      setViewMode('profile');
+      if (switchView) {
+        setViewMode('profile');
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load driver profile.');
     } finally {
@@ -476,6 +479,14 @@ export default function DriversPage() {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Fallback if in profile mode while detail loads */}
+      {viewMode === 'profile' && !selectedDetail && (
+        <div className="p-12 text-center text-muted-foreground">
+          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+          Loading driver profile...
         </div>
       )}
 

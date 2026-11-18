@@ -67,6 +67,7 @@ export default function PaymentsEarningsPage() {
     service: 'hourly',
     hours: 4,
     vehicle_class: 'exec',
+    vehicle_size: 'suv',
     size: 'suv',
     tier: 1,
     passengers: 2,
@@ -79,11 +80,11 @@ export default function PaymentsEarningsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{ data: PaymentsData }>(
+      const res = await api<any>(
         `/admin/payments-earnings?period=${encodeURIComponent(period)}&driver=${encodeURIComponent(driver)}`,
         { auth: true }
       );
-      setData(res.data);
+      setData(res?.ledger ? res : (res?.data ?? res));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load payments and earnings data.');
     } finally {
@@ -138,12 +139,12 @@ export default function PaymentsEarningsPage() {
   const runSimulation = async () => {
     try {
       setSimulating(true);
-      const res = await api<{ quote: Quote }>('/admin/pricing/simulate', {
+      const res = await api<any>('/admin/pricing/simulate', {
         method: 'POST',
         body: quoteInput,
         auth: true,
       });
-      setQuoteResult(res.quote);
+      setQuoteResult(res?.quote ?? res);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Simulation failed.');
     } finally {
@@ -253,6 +254,18 @@ export default function PaymentsEarningsPage() {
               >
                 <option value="exec">Executive Class</option>
                 <option value="first">1st Class</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 4 }}>SIZE</label>
+              <select
+                value={quoteInput.vehicle_size}
+                onChange={(e) => setQuoteInput({ ...quoteInput, vehicle_size: e.target.value, size: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 8px', borderRadius: 4 }}
+              >
+                <option value="suv">SUV</option>
+                <option value="sedan">Sedan</option>
+                <option value="van">Van / Sprinter</option>
               </select>
             </div>
             <div>
