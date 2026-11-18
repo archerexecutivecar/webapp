@@ -177,6 +177,20 @@ Route::prefix('v1')->group(function (): void {
 
     });
 
+    // Support both /api/v1/security/* and /api/v1/admin/security/* aliases
+    Route::prefix('security')->middleware('auth:api')->group(function (): void {
+        Route::get('/leads', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'leads']);
+        Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
+        Route::get('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'contractsAndShifts']);
+        Route::post('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeContract']);
+        Route::put('/shifts/{id}/assign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'assignShift']);
+        Route::get('/swaps', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swaps']);
+        Route::post('/swaps/{id}/decision', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swapDecision']);
+        Route::get('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'credentials']);
+        Route::get('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'announcements']);
+        Route::post('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeAnnouncement']);
+    });
+
     // Driver Portal APIs (Authenticated Driver)
     Route::prefix('driver')->middleware('auth:api')->group(function (): void {
         Route::get('/profile', [DriverPortalController::class, 'profile']);

@@ -9,6 +9,7 @@ use App\Models\PayrollDisbursement;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PayrollController extends Controller
@@ -17,8 +18,15 @@ class PayrollController extends Controller
     {
         $week = $request->query('week', '2026-11-16');
 
-        // Look up registered disbursements
-        $disbursements = PayrollDisbursement::where('pay_week_start', $week)->get()->keyBy('driver_id');
+        // Look up registered disbursements safely
+        $disbursements = collect();
+        if (Schema::hasTable('payroll_disbursements')) {
+            try {
+                $disbursements = PayrollDisbursement::where('pay_week_start', $week)->get()->keyBy('driver_id');
+            } catch (\Throwable $e) {
+                $disbursements = collect();
+            }
+        }
 
         $driverPaul = Driver::where('name', 'like', '%Paul Malesky%')->first();
         $driverJoseph = Driver::where('name', 'like', '%Joseph Klein%')->first();

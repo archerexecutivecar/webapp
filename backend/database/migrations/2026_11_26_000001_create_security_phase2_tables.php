@@ -8,6 +8,13 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        Schema::dropIfExists('security_announcements');
+        Schema::dropIfExists('security_credentials');
+        Schema::dropIfExists('security_swaps');
+        Schema::dropIfExists('security_shifts');
+        Schema::dropIfExists('security_contracts');
+        Schema::dropIfExists('security_leads');
+
         // 1. Security Leads
         Schema::create('security_leads', function (Blueprint $table) {
             $table->id();
@@ -51,7 +58,7 @@ return new class extends Migration {
             $table->string('site_address');
             $table->string('shift_date_label'); // e.g. "Thu, Nov 19, 9:00 AM to 4:00 PM"
             $table->string('tier')->default('T2');
-            $table->foreignId('assigned_driver_id')->nullable()->constrained('drivers')->nullOnDelete();
+            $table->string('assigned_driver_id')->nullable()->index();
             $table->string('assigned_driver_name')->nullable();
             $table->string('status')->default('open'); // completed, open, not_released_yet, swap_pending
             $table->boolean('is_critical')->default(false);
@@ -75,7 +82,7 @@ return new class extends Migration {
         // 5. Security Credentials
         Schema::create('security_credentials', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('driver_id')->nullable()->constrained('drivers')->nullOnDelete();
+            $table->string('driver_id')->nullable()->index();
             $table->string('employee_name');
             $table->string('credential_name');
             $table->string('expires_label'); // e.g. "Mon, Nov 23 (4 days)"
