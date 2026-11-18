@@ -9,6 +9,7 @@ use App\Models\RideRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\ApiResponse;
+use App\Support\RideCloseoutMath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -108,20 +109,16 @@ class DriverController extends Controller
             // Hostinger migrate cannot turn roster create into a 500.
             if (Schema::hasColumn('drivers', 'is_fleet_operator')) {
                 $driverData['is_fleet_operator'] = $validated['is_fleet_operator'] ?? true;
-                $driverData['is_client_car_operator'] = $validated['is_client_car_operator'] ?? true;
+                $driverData['is_client_car_operator'] = $validated['is_client_car_operator'] ?? false;
                 $driverData['is_owner_operator'] = $validated['is_owner_operator'] ?? false;
                 $driverData['owner_vehicle_model'] = $validated['owner_vehicle_model'] ?? null;
-                $driverData['owner_vehicle_class'] = $validated['owner_vehicle_class'] ?? 'Executive Class · SUV';
+                $driverData['owner_vehicle_class'] = $validated['owner_vehicle_class'] ?? null;
                 $driverData['owner_vehicle_plate'] = $validated['owner_vehicle_plate'] ?? null;
                 $driverData['owner_vehicle_reg_expires'] = $validated['owner_vehicle_reg_expires'] ?? null;
                 $driverData['owner_vehicle_ins_expires'] = $validated['owner_vehicle_ins_expires'] ?? null;
                 $driverData['owner_vehicle_inspected'] = (bool) ($validated['owner_vehicle_inspected'] ?? false);
-                $driverData['compliance_credentials'] = [
-                    'soar_certification' => ['status' => 'active', 'days_remaining' => 203],
-                    'driver_license' => ['status' => 'active', 'days_remaining' => 519],
-                    'carry_permit' => ['status' => 'renewal_due', 'days_remaining' => 21],
-                ];
-                $driverData['availability_schedule'] = 'Mon, Tue, Wed, Thu, Fri: 07:00-19:00';
+                $driverData['compliance_credentials'] = null;
+                $driverData['availability_schedule'] = $validated['availability_schedule'] ?? null;
             }
 
             $driver = Driver::create($driverData);
@@ -265,6 +262,8 @@ class DriverController extends Controller
 
     private function formatDriverSummary(Driver $d): array
     {
+        $pay = $this->payWeekForDriver($d);
+
         return [
             'id' => $d->id,
             'name' => $d->name,
@@ -276,103 +275,224 @@ class DriverController extends Controller
             'bio' => $d->bio,
             'is_active' => (bool) $d->is_active,
             'is_fleet_operator' => (bool) ($d->is_fleet_operator ?? true),
-            'is_client_car_operator' => (bool) ($d->is_client_car_operator ?? true),
+            'is_client_car_operator' => (bool) ($d->is_client_car_operator ?? false),
             'is_owner_operator' => (bool) ($d->is_owner_operator ?? false),
-            'weekly_balance' => 424.50, // Prototype exact balance
+            'weekly_balance' => $pay['net_balance'],
             'active_rides_count' => (int) ($d->active_rides_count ?? 0),
         ];
     }
 
     private function formatDriverDetail(Driver $d): array
     {
-        $regExpires = $d->owner_vehicle_reg_expires ? Carbon::parse($d->owner_vehicle_reg_expires)->format('Y-m-d') : '2027-09-14';
-        $insExpires = $d->owner_vehicle_ins_expires ? Carbon::parse($d->owner_vehicle_ins_expires)->format('Y-m-d') : '2026-11-20';
+        $regExpires = $d->owner_vehicle_reg_expires
+            ? Carbon::parse($d->owner_vehicle_reg_expires)->format('Y-m-d')
+            : null;
+        $insExpires = $d->owner_vehicle_ins_expires
+            ? Carbon::parse($d->owner_vehicle_ins_expires)->format('Y-m-d')
+            : null;
 
-        // Upcoming and active ride matching Screenshot 4
-        $activeRide = [
-            'id' => 'ride-1048',
-            'reference' => 'AR-1048',
-            'client_name' => 'Morgan Hale',
-            'client_phone' => '(732) 555-0199',
-            'date_time_label' => 'Thu, Nov 19, 7:17 AM',
-            'tier_label' => 'T3 Elite',
-            'status_label' => 'Driver assigned',
-            'pickup_address' => '14 Riverside Dr, Rumson, NJ 07760',
-            'dropoff_address' => 'Newark Liberty Intl (EWR), Terminal B',
-            'service_description' => 'Airport transfer · 1st Class SUV · Cadillac Escalade · 1 pax',
-            'archer_vehicle' => 'Cadillac Escalade #1',
-            'route_note' => 'United 1422 to Denver, departs 9:40 AM',
-        ];
+        $activeRide = $this->activeRideForDriver($d);
+        $rideHistory = $this->rideHistoryForDriver($d);
+        $payWeek = $this->payWeekForDriver($d, $rideHistory);
 
-        // Ride history matching Screenshot 4
-        $rideHistory = [
-            [
-                'id' => 'hist-1',
-                'date' => 'Tue, Nov 17',
-                'client' => 'Priya Nair',
-                'reference' => 'AR-1046',
-                'job' => 'Hourly · T2 Executive',
-                'paid_by' => 'Card',
-                'earned' => 157.50,
-            ],
-            [
-                'id' => 'hist-2',
-                'date' => 'Tue, Nov 10',
-                'client' => 'Priya Nair',
-                'reference' => 'AR-1041',
-                'job' => 'Point to point · T3 Elite',
-                'paid_by' => 'Card',
-                'earned' => 157.00,
-            ],
-        ];
-
-        // Weekly pay card matching Screenshot 4
-        $payWeek = [
-            'earned_pay_tips' => 267.50,
-            'cash_kept' => 0.00,
-            'carried_earlier_weeks' => 157.00,
-            'net_balance' => 424.50,
-            'check_date' => 'Fri, Nov 27',
-            'status_banner' => 'Archer owes $424.50 check ready Fri, Nov 27',
-            'lifetime_earnings' => 424.50,
-        ];
+        $modes = [];
+        if ($d->is_fleet_operator ?? true) {
+            $modes[] = 'fleet';
+        }
+        if ($d->is_client_car_operator ?? false) {
+            $modes[] = 'client-car';
+        }
+        if ($d->is_owner_operator ?? false) {
+            $modes[] = 'owner-operator';
+        }
+        $status = ($d->is_active ? 'Active' : 'Inactive');
+        $employmentType = $modes === []
+            ? $status
+            : ('Archer chauffeur · ' . implode(' · ', $modes) . ' · ' . $status);
 
         return [
             'id' => $d->id,
             'name' => $d->name,
-            'email' => $d->email ?: 'paul.m@example.com',
-            'phone' => $d->phone ?: '(732) 555-0141',
-            'service_tier' => $d->service_tier ?: 3,
-            'tier' => $d->tier ? ['tier' => $d->tier->tier, 'name' => $d->tier->label] : ['tier' => 3, 'name' => 'T3 Elite'],
+            'email' => $d->email,
+            'phone' => $d->phone,
+            'service_tier' => $d->service_tier,
+            'tier' => $d->tier ? ['tier' => $d->tier->tier, 'name' => $d->tier->label] : null,
             'avatar_url' => $d->avatar_url,
             'bio' => $d->bio,
             'is_active' => (bool) $d->is_active,
-            'employment_type' => 'Archer employee · owner-operator rights · Active · online now',
-            // Operating switches
+            'employment_type' => $employmentType,
             'is_fleet_operator' => (bool) ($d->is_fleet_operator ?? true),
-            'is_client_car_operator' => (bool) ($d->is_client_car_operator ?? true),
-            'is_owner_operator' => (bool) ($d->is_owner_operator ?? true),
-            // Owner-operator vehicle
-            'owner_vehicle_model' => $d->owner_vehicle_model ?: '2022 Chevrolet Suburban',
-            'owner_vehicle_class' => $d->owner_vehicle_class ?: 'Executive Class · SUV',
-            'owner_vehicle_plate' => $d->owner_vehicle_plate ?: 'NJ PLM-221',
+            'is_client_car_operator' => (bool) ($d->is_client_car_operator ?? false),
+            'is_owner_operator' => (bool) ($d->is_owner_operator ?? false),
+            'owner_vehicle_model' => $d->owner_vehicle_model,
+            'owner_vehicle_class' => $d->owner_vehicle_class,
+            'owner_vehicle_plate' => $d->owner_vehicle_plate,
             'owner_vehicle_reg_expires' => $regExpires,
             'owner_vehicle_ins_expires' => $insExpires,
-            'owner_vehicle_inspected' => $d->owner_vehicle_inspected !== null ? (bool) $d->owner_vehicle_inspected : true,
-            // Compliance credentials
-            'compliance_credentials' => $d->compliance_credentials ?: [
-                'soar_certification' => ['status' => 'active', 'label' => 'Active · 203 days'],
-                'driver_license' => ['status' => 'active', 'label' => 'Active · 519 days'],
-                'carry_permit' => ['status' => 'renewal_due', 'label' => 'Renewal due · 21 days'],
-            ],
-            'availability_schedule' => $d->availability_schedule ?: 'Mon, Tue, Wed, Thu, Fri: 07:00–19:00',
-            'claimed_shifts' => [
-                'title' => 'Shore Day Camp (sample)',
-                'schedule' => 'Mon, Nov 23, 8:00 AM – 4:00 PM · T2',
-            ],
+            'owner_vehicle_inspected' => (bool) ($d->owner_vehicle_inspected ?? false),
+            'compliance_credentials' => $this->formatComplianceCredentials($d->compliance_credentials),
+            'availability_schedule' => $d->availability_schedule,
+            'claimed_shifts' => null,
             'active_ride' => $activeRide,
             'ride_history' => $rideHistory,
             'pay_week' => $payWeek,
         ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function activeRideForDriver(Driver $d): ?array
+    {
+        if (! Schema::hasTable('ride_requests')) {
+            return null;
+        }
+
+        $ride = RideRequest::query()
+            ->where('assigned_driver_id', $d->id)
+            ->whereIn('status', ['dispatched', 'driver_assigned', 'in_progress'])
+            ->orderByDesc('ride_date')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $ride) {
+            return null;
+        }
+
+        $details = is_array($ride->details) ? $ride->details : [];
+        $clientName = trim(($ride->first_name ?? '') . ' ' . ($ride->last_name ?? '')) ?: 'Client';
+        $dateLabel = $ride->ride_date
+            ? Carbon::parse($ride->ride_date . ' ' . ($ride->ride_time ?: '00:00'))->format('D, M j, g:i A')
+            : ($ride->created_at?->format('D, M j, g:i A') ?? '');
+
+        return [
+            'id' => (string) $ride->id,
+            'reference' => $ride->reference,
+            'client_name' => $clientName,
+            'client_phone' => $ride->phone,
+            'date_time_label' => $dateLabel,
+            'tier_label' => $ride->driver_tier ?: ($details['tier_label'] ?? null),
+            'status_label' => str_replace('_', ' ', ucfirst((string) $ride->status)),
+            'pickup_address' => $ride->pickup_location,
+            'dropoff_address' => $ride->dropoff_location,
+            'service_description' => $ride->service_type ?: ($details['service_description'] ?? null),
+            'archer_vehicle' => $ride->vehicle ?: ($details['vehicle'] ?? null),
+            'route_note' => $details['route_note'] ?? $ride->dispatch_notes,
+        ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function rideHistoryForDriver(Driver $d): array
+    {
+        if (! Schema::hasTable('ride_requests')) {
+            return [];
+        }
+
+        return RideRequest::query()
+            ->where('assigned_driver_id', $d->id)
+            ->where('status', 'completed')
+            ->orderByDesc('ride_date')
+            ->orderByDesc('updated_at')
+            ->limit(25)
+            ->get()
+            ->map(function (RideRequest $ride) {
+                $row = RideCloseoutMath::ledgerRow($ride);
+                $details = is_array($ride->details) ? $ride->details : [];
+                $job = trim(implode(' · ', array_filter([
+                    $ride->service_type,
+                    $ride->driver_tier,
+                ]))) ?: 'Completed ride';
+
+                return [
+                    'id' => (string) $ride->id,
+                    'date' => $ride->ride_date
+                        ? Carbon::parse($ride->ride_date)->format('D, M j')
+                        : ($ride->updated_at?->format('D, M j') ?? ''),
+                    'client' => $row['client_name'] ?? (trim(($ride->first_name ?? '') . ' ' . ($ride->last_name ?? '')) ?: 'Client'),
+                    'reference' => $ride->reference,
+                    'job' => $job,
+                    'paid_by' => $row['method'] ?? ($details['payment_method'] ?? '—'),
+                    'earned' => round((float) ($row['driver_pay'] ?? $details['driver_pay'] ?? 0) + (float) ($row['tip'] ?? $details['tip'] ?? 0), 2),
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>|null  $rideHistory
+     * @return array<string, mixed>
+     */
+    private function payWeekForDriver(Driver $d, ?array $rideHistory = null): array
+    {
+        $weekStart = now()->startOfWeek()->startOfDay();
+        $weekEnd = $weekStart->copy()->endOfWeek();
+        $earned = 0.0;
+        $cashKept = 0.0;
+
+        if (Schema::hasTable('ride_requests')) {
+            $rides = RideRequest::query()
+                ->where('assigned_driver_id', $d->id)
+                ->where('status', 'completed')
+                ->where(function ($q) use ($weekStart, $weekEnd) {
+                    $q->whereBetween('ride_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                        ->orWhereBetween('updated_at', [$weekStart, $weekEnd]);
+                })
+                ->get();
+
+            foreach ($rides as $ride) {
+                $row = RideCloseoutMath::ledgerRow($ride);
+                if ($row === null) {
+                    continue;
+                }
+                $earned += (float) $row['driver_pay'] + (float) $row['tip'];
+                if (strcasecmp((string) $row['method'], 'Cash') === 0) {
+                    $cashKept += (float) $row['client_paid'];
+                }
+            }
+        }
+
+        $earned = round($earned, 2);
+        $cashKept = round($cashKept, 2);
+        $net = round($earned - $cashKept, 2);
+        $lifetime = collect($rideHistory ?? $this->rideHistoryForDriver($d))->sum('earned');
+
+        return [
+            'earned_pay_tips' => $earned,
+            'cash_kept' => $cashKept,
+            'carried_earlier_weeks' => 0.0,
+            'net_balance' => $net,
+            'check_date' => null,
+            'status_banner' => $net > 0
+                ? ('Archer owes $' . number_format($net, 2) . ' this week')
+                : 'No payroll balance this week',
+            'lifetime_earnings' => round((float) $lifetime, 2),
+        ];
+    }
+
+    /** @param  array<string, mixed>|null  $credentials */
+    private function formatComplianceCredentials(?array $credentials): ?array
+    {
+        if ($credentials === null || $credentials === []) {
+            return null;
+        }
+
+        $out = [];
+        foreach ($credentials as $key => $value) {
+            if (! is_array($value)) {
+                continue;
+            }
+            $status = (string) ($value['status'] ?? 'unknown');
+            $label = $value['label'] ?? null;
+            if ($label === null && isset($value['days_remaining'])) {
+                $days = (int) $value['days_remaining'];
+                $label = $status === 'renewal_due'
+                    ? ('Renewal due · ' . $days . ' days')
+                    : (ucfirst(str_replace('_', ' ', $status)) . ' · ' . $days . ' days');
+            }
+            $out[$key] = [
+                'status' => $status,
+                'label' => $label ?? ucfirst(str_replace('_', ' ', $status)),
+            ];
+        }
+
+        return $out === [] ? null : $out;
     }
 }

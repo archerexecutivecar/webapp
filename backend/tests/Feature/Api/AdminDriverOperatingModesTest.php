@@ -59,7 +59,7 @@ class AdminDriverOperatingModesTest extends TestCase
         $response->assertJsonPath('data.drivers.0.is_fleet_operator', true);
         $response->assertJsonPath('data.drivers.0.is_client_car_operator', true);
         $response->assertJsonPath('data.drivers.0.is_owner_operator', true);
-        $response->assertJsonPath('data.drivers.0.weekly_balance', 424.50);
+        $response->assertJsonPath('data.drivers.0.weekly_balance', 0);
     }
 
     public function test_driver_show_returns_full_profile_and_operating_vehicle(): void
@@ -86,8 +86,33 @@ class AdminDriverOperatingModesTest extends TestCase
         $response->assertJsonPath('data.driver.name', 'Paul Malesky');
         $response->assertJsonPath('data.driver.owner_vehicle_model', '2022 Chevrolet Suburban');
         $response->assertJsonPath('data.driver.owner_vehicle_plate', 'NJ PLM-221');
-        $response->assertJsonPath('data.driver.pay_week.net_balance', 424.50);
-        $response->assertJsonPath('data.driver.active_ride.reference', 'AR-1048');
+        $response->assertJsonPath('data.driver.pay_week.net_balance', 0);
+        $response->assertJsonPath('data.driver.active_ride', null);
+        $response->assertJsonPath('data.driver.ride_history', []);
+        $response->assertJsonPath('data.driver.claimed_shifts', null);
+    }
+
+    public function test_new_driver_has_empty_history_and_zero_balance(): void
+    {
+        [, $h] = $this->actingAsRole('super_admin');
+        $this->seed(SiteContentSeeder::class);
+
+        $response = $this->postJson('/api/v1/admin/drivers', [
+            'name' => 'Mike Paul',
+            'email' => 'mike@yopmail.com',
+            'phone' => '7276681911',
+            'service_tier' => 1,
+            'is_fleet_operator' => true,
+            'is_client_car_operator' => false,
+            'is_owner_operator' => false,
+        ], $h);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.driver.active_ride', null);
+        $response->assertJsonPath('data.driver.ride_history', []);
+        $response->assertJsonPath('data.driver.pay_week.net_balance', 0);
+        $response->assertJsonPath('data.driver.owner_vehicle_model', null);
+        $response->assertJsonPath('data.driver.is_client_car_operator', false);
     }
 
     public function test_driver_update_mutates_operating_switches_and_vehicle(): void

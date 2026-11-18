@@ -52,15 +52,15 @@ export interface DriverDetail extends DriverSummary {
   owner_vehicle_ins_expires: string | null;
   owner_vehicle_inspected: boolean;
   compliance_credentials: {
-    soar_certification: { status: string; label: string };
-    driver_license: { status: string; label: string };
-    carry_permit: { status: string; label: string };
-  };
-  availability_schedule: string;
+    soar_certification?: { status: string; label: string };
+    driver_license?: { status: string; label: string };
+    carry_permit?: { status: string; label: string };
+  } | null;
+  availability_schedule: string | null;
   claimed_shifts: {
     title: string;
     schedule: string;
-  };
+  } | null;
   active_ride: {
     id: string;
     reference: string;
@@ -118,14 +118,14 @@ export default function DriversPage() {
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [isFleetOp, setIsFleetOp] = useState(true);
-  const [isClientCarOp, setIsClientCarOp] = useState(true);
-  const [isOwnerOp, setIsOwnerOp] = useState(true);
-  const [ownerVehicleModel, setOwnerVehicleModel] = useState('2022 Chevrolet Suburban');
-  const [ownerVehicleClass, setOwnerVehicleClass] = useState('Executive Class · SUV');
-  const [ownerVehiclePlate, setOwnerVehiclePlate] = useState('NJ PLM-221');
-  const [ownerRegExpires, setOwnerRegExpires] = useState('2027-09-14');
-  const [ownerInsExpires, setOwnerInsExpires] = useState('2026-11-20');
-  const [ownerInspected, setOwnerInspected] = useState(true);
+  const [isClientCarOp, setIsClientCarOp] = useState(false);
+  const [isOwnerOp, setIsOwnerOp] = useState(false);
+  const [ownerVehicleModel, setOwnerVehicleModel] = useState('');
+  const [ownerVehicleClass, setOwnerVehicleClass] = useState('');
+  const [ownerVehiclePlate, setOwnerVehiclePlate] = useState('');
+  const [ownerRegExpires, setOwnerRegExpires] = useState('');
+  const [ownerInsExpires, setOwnerInsExpires] = useState('');
+  const [ownerInspected, setOwnerInspected] = useState(false);
   const [selectedTier, setSelectedTier] = useState<number>(3);
 
   // New Driver Onboarding Modal
@@ -182,11 +182,11 @@ export default function DriversPage() {
       setIsFleetOp(d.is_fleet_operator);
       setIsClientCarOp(d.is_client_car_operator);
       setIsOwnerOp(d.is_owner_operator);
-      setOwnerVehicleModel(d.owner_vehicle_model || '2022 Chevrolet Suburban');
-      setOwnerVehicleClass(d.owner_vehicle_class || 'Executive Class · SUV');
-      setOwnerVehiclePlate(d.owner_vehicle_plate || 'NJ PLM-221');
-      setOwnerRegExpires(d.owner_vehicle_reg_expires || '2027-09-14');
-      setOwnerInsExpires(d.owner_vehicle_ins_expires || '2026-11-20');
+      setOwnerVehicleModel(d.owner_vehicle_model || '');
+      setOwnerVehicleClass(d.owner_vehicle_class || '');
+      setOwnerVehiclePlate(d.owner_vehicle_plate || '');
+      setOwnerRegExpires(d.owner_vehicle_reg_expires || '');
+      setOwnerInsExpires(d.owner_vehicle_ins_expires || '');
       setOwnerInspected(Boolean(d.owner_vehicle_inspected));
       setSelectedTier(d.service_tier || 3);
       if (switchView) {
@@ -334,7 +334,7 @@ export default function DriversPage() {
           service_tier: newTier,
           is_active: true,
           is_fleet_operator: true,
-          is_client_car_operator: true,
+          is_client_car_operator: false,
           is_owner_operator: false,
         }),
       });
@@ -506,7 +506,7 @@ export default function DriversPage() {
                         </td>
 
                         <td className="py-3 px-3 font-bold text-foreground">
-                          ${Number(d.weekly_balance || 424.50).toFixed(2)}
+                          ${Number(d.weekly_balance ?? 0).toFixed(2)}
                         </td>
 
                         <td className="py-3 px-3">
@@ -927,28 +927,36 @@ export default function DriversPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                          {selectedDetail.ride_history?.map((h) => (
-                            <tr key={h.id} className="hover:bg-muted/30">
-                              <td className="py-2 px-3 text-foreground whitespace-nowrap">{h.date}</td>
-                              <td className="py-2 px-3">
-                                <div className="font-semibold text-foreground">{h.client}</div>
-                                <Link href={`/rides?q=${encodeURIComponent(h.reference)}`} className="font-mono text-[10px] text-primary hover:underline">
-                                  {h.reference}
-                                </Link>
-                              </td>
-                              <td className="py-2 px-3 text-muted-foreground">{h.job}</td>
-                              <td className="py-2 px-2 text-muted-foreground">{h.paid_by}</td>
-                              <td className="py-2 px-3 text-right font-bold text-foreground whitespace-nowrap">
-                                ${Number(h.earned).toFixed(2)}
+                          {(selectedDetail.ride_history?.length ?? 0) === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="py-4 px-3 text-muted-foreground italic">
+                                No completed rides assigned to this driver.
                               </td>
                             </tr>
-                          ))}
+                          ) : (
+                            selectedDetail.ride_history?.map((h) => (
+                              <tr key={h.id} className="hover:bg-muted/30">
+                                <td className="py-2 px-3 text-foreground whitespace-nowrap">{h.date}</td>
+                                <td className="py-2 px-3">
+                                  <div className="font-semibold text-foreground">{h.client}</div>
+                                  <Link href={`/rides?q=${encodeURIComponent(h.reference)}`} className="font-mono text-[10px] text-primary hover:underline">
+                                    {h.reference}
+                                  </Link>
+                                </td>
+                                <td className="py-2 px-3 text-muted-foreground">{h.job}</td>
+                                <td className="py-2 px-2 text-muted-foreground">{h.paid_by}</td>
+                                <td className="py-2 px-3 text-right font-bold text-foreground whitespace-nowrap">
+                                  ${Number(h.earned).toFixed(2)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
                           <tr className="bg-muted/20 font-bold">
                             <td colSpan={4} className="py-2.5 px-3 text-foreground">
                               Lifetime earnings
                             </td>
                             <td className="py-2.5 px-3 text-right text-foreground">
-                              ${Number(selectedDetail.pay_week?.lifetime_earnings || 424.50).toFixed(2)}
+                              ${Number(selectedDetail.pay_week?.lifetime_earnings ?? 0).toFixed(2)}
                             </td>
                           </tr>
                         </tbody>
@@ -967,32 +975,32 @@ export default function DriversPage() {
 
                     {/* Green status banner matching Screenshot 4 */}
                     <div className="p-2.5 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
-                      {selectedDetail.pay_week?.status_banner || 'Archer owes $424.50 check ready Fri, Nov 27'}
+                      {selectedDetail.pay_week?.status_banner || 'No payroll balance this week'}
                     </div>
 
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between text-muted-foreground">
                         <span>Earned (pay + tips)</span>
                         <span className="text-foreground font-medium">
-                          ${Number(selectedDetail.pay_week?.earned_pay_tips || 267.50).toFixed(2)}
+                          ${Number(selectedDetail.pay_week?.earned_pay_tips ?? 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between text-muted-foreground">
                         <span>Cash kept by driver</span>
                         <span className="text-foreground font-medium">
-                          ${Number(selectedDetail.pay_week?.cash_kept || 0).toFixed(2)}
+                          ${Number(selectedDetail.pay_week?.cash_kept ?? 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between text-muted-foreground">
                         <span>Carried from earlier weeks</span>
                         <span className="text-foreground font-medium">
-                          ${Number(selectedDetail.pay_week?.carried_earlier_weeks || 157.00).toFixed(2)}
+                          ${Number(selectedDetail.pay_week?.carried_earlier_weeks ?? 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between pt-2 border-t border-border font-bold text-foreground">
                         <span>Balance</span>
                         <span className="text-emerald-700 dark:text-emerald-400">
-                          Archer owes ${Number(selectedDetail.pay_week?.net_balance || 424.50).toFixed(2)}
+                          Archer owes ${Number(selectedDetail.pay_week?.net_balance ?? 0).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -1020,26 +1028,36 @@ export default function DriversPage() {
                     </Link>
 
                     <div className="space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground font-medium">SOAR certification</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          Active · 203 days
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground font-medium">NJ driver license</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                          Active · 519 days
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-foreground font-medium">Carry permit</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
-                          Renewal due · 21 days
-                        </span>
-                      </div>
+                      {selectedDetail.compliance_credentials ? (
+                        <>
+                          {selectedDetail.compliance_credentials.soar_certification && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-foreground font-medium">SOAR certification</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                {selectedDetail.compliance_credentials.soar_certification.label}
+                              </span>
+                            </div>
+                          )}
+                          {selectedDetail.compliance_credentials.driver_license && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-foreground font-medium">Driver license</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                {selectedDetail.compliance_credentials.driver_license.label}
+                              </span>
+                            </div>
+                          )}
+                          {selectedDetail.compliance_credentials.carry_permit && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-foreground font-medium">Carry permit</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                {selectedDetail.compliance_credentials.carry_permit.label}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-muted-foreground italic py-1">No credentials on file yet.</div>
+                      )}
                     </div>
                   </div>
 
@@ -1051,7 +1069,7 @@ export default function DriversPage() {
                       </span>
                     </div>
                     <div className="p-2.5 rounded bg-muted/30 border border-border/60 text-xs text-foreground font-mono">
-                      {selectedDetail.availability_schedule || 'Mon, Tue, Wed, Thu, Fri: 07:00–19:00'}
+                      {selectedDetail.availability_schedule || 'No availability schedule set.'}
                     </div>
                   </div>
 
@@ -1063,12 +1081,18 @@ export default function DriversPage() {
                       </span>
                     </div>
                     <div className="p-2.5 rounded bg-muted/30 border border-border/60 space-y-1">
-                      <div className="text-xs font-bold text-foreground">
-                        {selectedDetail.claimed_shifts?.title || 'Shore Day Camp (sample)'}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {selectedDetail.claimed_shifts?.schedule || 'Mon, Nov 23, 8:00 AM – 4:00 PM · T2'}
-                      </div>
+                      {selectedDetail.claimed_shifts ? (
+                        <>
+                          <div className="text-xs font-bold text-foreground">
+                            {selectedDetail.claimed_shifts.title}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {selectedDetail.claimed_shifts.schedule}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-muted-foreground italic">No claimed shifts.</div>
+                      )}
                     </div>
                   </div>
 
