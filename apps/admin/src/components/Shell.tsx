@@ -1,8 +1,10 @@
 'use client';
 
 import {
-  Bell, Car, ChevronsLeft, ChevronsRight, ExternalLink, LogOut,
-  type LucideIcon, Menu, Monitor, Moon, Sun, X,
+  ArrowLeftRight, BadgeCheck, Bell, Calculator, CalendarCheck, Car,
+  ChevronsLeft, ChevronsRight, CreditCard, ExternalLink, LayoutDashboard,
+  LogOut, type LucideIcon, Megaphone, Menu, Monitor, Moon, Route,
+  Settings, ShieldAlert, Sun, Tag, UserCheck, Users, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,6 +20,7 @@ export interface NavItemConfig {
   key: string;
   label: string;
   href: string;
+  icon: LucideIcon;
   badge?: number | string;
   matchHrefs?: string[];
   description?: string;
@@ -34,39 +37,39 @@ export const ADMIN_SIDEBAR_GROUPS: NavGroupConfig[] = [
     key: 'operations',
     label: 'OPERATIONS',
     items: [
-      { key: 'dashboard', label: 'Dashboard', href: '/dashboard', matchHrefs: ['/dashboard', '/'] },
-      { key: 'rides', label: 'Ride requests', href: '/rides', badge: 4, matchHrefs: ['/rides'] },
-      { key: 'customers', label: 'Clients', href: '/customers', matchHrefs: ['/customers'] },
-      { key: 'drivers', label: 'Drivers', href: '/drivers', badge: 1, matchHrefs: ['/drivers'] },
-      { key: 'notices', label: 'Customer notices', href: '/notices', description: 'Broadcast notices, SMS updates, and customer advisories' },
+      { key: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, matchHrefs: ['/dashboard', '/'] },
+      { key: 'rides', label: 'Ride requests', href: '/rides', icon: Route, badge: 4, matchHrefs: ['/rides'] },
+      { key: 'customers', label: 'Clients', href: '/customers', icon: Users, matchHrefs: ['/customers'] },
+      { key: 'drivers', label: 'Drivers', href: '/drivers', icon: UserCheck, badge: 1, matchHrefs: ['/drivers'] },
+      { key: 'notices', label: 'Customer notices', href: '/notices', icon: Bell, description: 'Broadcast notices, SMS updates, and customer advisories' },
     ],
   },
   {
     key: 'money',
     label: 'MONEY',
     items: [
-      { key: 'pricing', label: 'Payments & earnings', href: '/pricing', matchHrefs: ['/pricing', '/payments'] },
-      { key: 'payroll', label: 'Weekly payroll', href: '/payroll', description: 'Weekly chauffeur payroll calculations and direct disbursements' },
+      { key: 'pricing', label: 'Payments & earnings', href: '/pricing', icon: CreditCard, matchHrefs: ['/pricing', '/payments'] },
+      { key: 'payroll', label: 'Weekly payroll', href: '/payroll', icon: Calculator, description: 'Weekly chauffeur payroll calculations and direct disbursements' },
     ],
   },
   {
     key: 'setup',
     label: 'SETUP',
     items: [
-      { key: 'fleet', label: 'Fleet & availability', href: '/site-vehicles', matchHrefs: ['/site-vehicles', '/fleet'] },
-      { key: 'rates', label: 'Vehicles & rates', href: '/site-rates', matchHrefs: ['/site-rates', '/rates'] },
-      { key: 'settings', label: 'Settings', href: '/settings', matchHrefs: ['/settings', '/site-content', '/site-tiers', '/testimonials'] },
+      { key: 'fleet', label: 'Fleet & availability', href: '/site-vehicles', icon: Car, matchHrefs: ['/site-vehicles', '/fleet'] },
+      { key: 'rates', label: 'Vehicles & rates', href: '/site-rates', icon: Tag, matchHrefs: ['/site-rates', '/rates'] },
+      { key: 'settings', label: 'Settings', href: '/settings', icon: Settings, matchHrefs: ['/settings', '/site-content', '/site-tiers', '/testimonials'] },
     ],
   },
   {
     key: 'security_phase_2',
     label: 'SECURITY · PHASE 2',
     items: [
-      { key: 'security-leads', label: 'Security leads', href: '/security/leads', badge: 1, description: 'Executive protection client inquiries, threat intake, and armed detail leads' },
-      { key: 'contracts-shifts', label: 'Contracts & shifts', href: '/security/contracts', badge: 2, description: 'Security detail assignments, recurring client contracts, and armed officer shifts' },
-      { key: 'swap-approvals', label: 'Swap approvals', href: '/security/swaps', badge: 1, description: 'Driver and security guard shift exchange requests and supervisor sign-offs' },
-      { key: 'credentials', label: 'Credentials', href: '/security/credentials', badge: 2, description: 'Armed guard carry permits, law enforcement credentials, and background checks' },
-      { key: 'announcements', label: 'Announcements', href: '/security/announcements', description: 'Operational bulletins, safety advisories, and driver briefing announcements' },
+      { key: 'security-leads', label: 'Security leads', href: '/security/leads', icon: ShieldAlert, badge: 1, description: 'Executive protection client inquiries, threat intake, and armed detail leads' },
+      { key: 'contracts-shifts', label: 'Contracts & shifts', href: '/security/contracts', icon: CalendarCheck, badge: 2, description: 'Security detail assignments, recurring client contracts, and armed officer shifts' },
+      { key: 'swap-approvals', label: 'Swap approvals', href: '/security/swaps', icon: ArrowLeftRight, badge: 1, description: 'Driver and security guard shift exchange requests and supervisor sign-offs' },
+      { key: 'credentials', label: 'Credentials', href: '/security/credentials', icon: BadgeCheck, badge: 2, description: 'Armed guard carry permits, law enforcement credentials, and background checks' },
+      { key: 'announcements', label: 'Announcements', href: '/security/announcements', icon: Megaphone, description: 'Operational bulletins, safety advisories, and driver briefing announcements' },
     ],
   },
 ];
@@ -76,7 +79,7 @@ export const DRIVER_SIDEBAR_GROUPS: NavGroupConfig[] = [
     key: 'operations',
     label: 'OPERATIONS',
     items: [
-      { key: 'driver-portal', label: 'My Assigned Rides', href: '/my-rides', matchHrefs: ['/my-rides'] },
+      { key: 'driver-portal', label: 'My Assigned Rides', href: '/my-rides', icon: Car, matchHrefs: ['/my-rides'] },
     ],
   },
 ];
@@ -99,10 +102,10 @@ export function useCurrentItem() {
       }
     }
     // Check aliases
-    if (pathname === '/site-content') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-content', label: 'Page Content', href: '/site-content', description: 'Public website content, hero messaging, and service copy' } };
-    if (pathname === '/site-tiers') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-tiers', label: 'Website Tiers', href: '/site-tiers', description: 'Chauffeur security credentials and Tier 1-4 requirements' } };
-    if (pathname === '/testimonials') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'testimonials', label: 'Testimonials', href: '/testimonials', description: 'Verified executive and celebrity client reviews' } };
-    if (pathname === '/my-rides') return { group: { key: 'operations', label: 'OPERATIONS' }, item: { key: 'my-rides', label: 'My Assigned Rides', href: '/my-rides', description: 'Assigned chauffeur dispatch manifests and trip notes' } };
+    if (pathname === '/site-content') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-content', label: 'Page Content', href: '/site-content', icon: Tag, description: 'Public website content, hero messaging, and service copy' } };
+    if (pathname === '/site-tiers') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-tiers', label: 'Website Tiers', href: '/site-tiers', icon: ShieldAlert, description: 'Chauffeur security credentials and Tier 1-4 requirements' } };
+    if (pathname === '/testimonials') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'testimonials', label: 'Testimonials', href: '/testimonials', icon: Tag, description: 'Verified executive and celebrity client reviews' } };
+    if (pathname === '/my-rides') return { group: { key: 'operations', label: 'OPERATIONS' }, item: { key: 'my-rides', label: 'My Assigned Rides', href: '/my-rides', icon: Car, description: 'Assigned chauffeur dispatch manifests and trip notes' } };
 
     return null;
   }, [groups, pathname]);
@@ -135,7 +138,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* Sleek Obsidian Single Sidebar (matching approved prototype) */}
       <aside className="sidebar" id="sidebar" aria-label="Main navigation">
         <div className="sb-head">
-          <Link href="/dashboard" className="wordmark" aria-label="Archer Admin home">
+          <Link href="/dashboard" className="wordmark" aria-label="Archer Admin home" title="Archer Admin Home">
             <ArcherLogo size={26} />
             <div className="wm-text-group">
               <span className="wm-rest">ARCHER</span>
@@ -154,13 +157,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <ul className="sb-list">
                 {group.items.map((item) => {
                   const active = current?.item.key === item.key;
+                  const Icon = item.icon;
                   return (
                     <li key={item.key}>
                       <Link
                         href={item.href}
                         className={`sb-link${active ? ' active' : ''}`}
                         aria-current={active ? 'page' : undefined}
+                        title={item.label}
                       >
+                        {Icon && <Icon size={18} className="sb-icon" aria-hidden />}
                         <span className="sb-text">{item.label}</span>
                         {item.badge != null && (
                           <span className="sb-badge">{item.badge}</span>
@@ -180,6 +186,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             onClick={toggleCollapse}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             data-tip={collapsed ? 'Expand' : undefined}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronsRight size={16} /> : <><ChevronsLeft size={16} /><span className="sb-text">Collapse</span></>}
           </button>
@@ -201,15 +208,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
 
-          <div className="crumbs">
-            <nav aria-label="Breadcrumb">
-              <ol>
-                <li>Admin</li>
-                {current && <li>{current.group.label}</li>}
-                {current && <li aria-current="page">{current.item.label}</li>}
-              </ol>
-            </nav>
-            <div className="page-title">{current?.item.label ?? 'Admin'}</div>
+          {/* Clean Top Navbar Title - Breadcrumbs Removed per User Request */}
+          <div className="header-title-wrap">
+            <h1 className="page-title">{current?.item.label ?? 'Admin'}</h1>
           </div>
 
           <div className="header-actions">

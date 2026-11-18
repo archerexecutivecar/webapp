@@ -341,18 +341,76 @@ button.secondary:hover:not(:disabled) {
   flex-shrink: 0;
 }
 
-.shell.is-collapsed .sb-text,
-.shell.is-collapsed .sb-label,
+.sidebar .sb-icon {
+  display: none;
+}
+
+/* Collapsed Sidebar State - Crystal Clear & Functional */
+.shell.is-collapsed .sidebar {
+  width: 68px;
+}
+.shell.is-collapsed .sb-head {
+  justify-content: center;
+  padding: 16px 8px;
+}
+.shell.is-collapsed .sb-head .wordmark {
+  justify-content: center;
+  width: 100%;
+}
+.shell.is-collapsed .sb-head .sb-close {
+  display: none;
+}
 .shell.is-collapsed .wm-text-group {
+  display: none;
+}
+.shell.is-collapsed .sb-group {
+  margin-bottom: 14px;
+}
+.shell.is-collapsed .sb-label {
+  display: none;
+}
+.shell.is-collapsed .sb-text {
   display: none;
 }
 .shell.is-collapsed .sb-link {
   justify-content: center;
-  padding: 8px 0;
-  margin: 0 4px;
+  padding: 9px 0;
+  margin: 0 8px;
+  position: relative;
+  min-height: 38px;
+}
+.shell.is-collapsed .sb-link.active {
+  background: #332118;
+  border-left: 3px solid #F2803A;
+  padding-left: 0;
+}
+.shell.is-collapsed .sb-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #D4D4D8;
+  flex-shrink: 0;
+}
+.shell.is-collapsed .sb-link:hover .sb-icon {
+  color: #FFFFFF;
+}
+.shell.is-collapsed .sb-link.active .sb-icon {
+  color: #F2803A;
 }
 .shell.is-collapsed .sb-badge {
-  display: none;
+  display: inline-flex;
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  min-width: 15px;
+  height: 15px;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 0 3px;
+  border-radius: 9999px;
+  background: #E87722;
+  color: #0E0F11;
+  line-height: 1;
 }
 
 .sb-footer {
@@ -380,7 +438,23 @@ button.secondary:hover:not(:disabled) {
 }
 .shell.is-collapsed .sb-collapse-btn {
   justify-content: center;
-  padding: 4px 0;
+  padding: 6px 0;
+}
+.shell.is-collapsed .sb-collapse-btn .sb-text {
+  display: none;
+}
+
+/* Header Title Wrap without breadcrumbs */
+.header-title-wrap {
+  display: flex;
+  align-items: center;
+}
+.header-title-wrap .page-title {
+  font-family: var(--font-zoho-heading), sans-serif;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--text);
+  line-height: 1.2;
 }
 
 /* Column 3: Main Workspace */
