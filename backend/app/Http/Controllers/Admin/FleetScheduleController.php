@@ -239,6 +239,57 @@ class FleetScheduleController extends Controller
         return ApiResponse::data(['blockout' => $blockout], 201);
     }
 
+    public function storeVehicle(Request $request): JsonResponse
+    {
+        if (!Schema::hasTable('vehicles')) {
+            return ApiResponse::error('SCHEMA_MISSING', 'Fleet vehicles table is not available.', 503);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'plate' => 'nullable|string|max:50',
+            'class_type' => 'nullable|string|in:exec,first',
+            'category' => 'nullable|string|max:100',
+            'available_from' => 'nullable|string|max:10',
+            'available_until' => 'nullable|string|max:10',
+            'available_days' => 'nullable|array',
+            'is_out_of_service' => 'nullable|boolean',
+            'sort_order' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $class = $validated['class_type'] ?? 'exec';
+        $category = $validated['category'] ?? 'SUV';
+
+        $vehicle = Vehicle::create([
+            'name' => $validated['name'],
+            'slug' => Str::slug($validated['name']) . '-' . Str::lower(Str::random(4)),
+            'plate' => $validated['plate'] ?? null,
+            'class_type' => $class,
+            'category' => $category,
+            'form_value' => $class . '|' . Str::slug($category),
+            'available_from' => $validated['available_from'] ?? '00:00',
+            'available_until' => $validated['available_until'] ?? '23:59',
+            'available_days' => $validated['available_days'] ?? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+            'is_out_of_service' => (bool) ($validated['is_out_of_service'] ?? false),
+            'sort_order' => $validated['sort_order'] ?? (Vehicle::max('sort_order') + 1),
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        AuditLog::record('vehicle.created', $request->user()?->getKey(), ['vehicle_id' => $vehicle->id], $vehicle);
+
+        return ApiResponse::data(['vehicle' => $vehicle], 201);
+    }
+
+    public function destroyVehicle(Request $request, string $id): JsonResponse
+    {
+        $vehicle = Vehicle::findOrFail($id);
+        $vehicle->delete();
+        AuditLog::record('vehicle.deleted', $request->user()?->getKey(), ['vehicle_id' => $id]);
+
+        return ApiResponse::data(['message' => 'Vehicle deleted.']);
+    }
+
     public function updateVehicle(Request $request, string $id): JsonResponse
     {
         $vehicle = Vehicle::findOrFail($id);

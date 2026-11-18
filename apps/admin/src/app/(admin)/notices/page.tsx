@@ -16,6 +16,7 @@ import {
   X,
   Filter
 } from 'lucide-react';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface CustomerNoticeItem {
   id: number;
@@ -141,7 +142,7 @@ export default function CustomerNoticesPage() {
           </h1>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed max-w-4xl">
-          Texts and emails sent automatically when a driver is assigned, when the driver taps &ldquo;On my way&rdquo;, and when they tap &ldquo;At your doorstep&rdquo;. Channel: SMS + email (Appinventiv still has to confirm this). This prototype only logs them; nothing is actually sent.
+          Notices when a chauffeur is allocated, taps &ldquo;On my way&rdquo;, or &ldquo;At your doorstep&rdquo;. Email channels are sent when a recipient email is present; SMS remains logged until an SMS provider key is set under Settings → Integrations.
         </p>
       </div>
 
@@ -310,22 +311,33 @@ export default function CustomerNoticesPage() {
         </div>
       </div>
 
-      {/* Simulate / Broadcast Modal */}
-      {isSimulateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-lg bg-card rounded-lg border border-border shadow-xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <h3 className="font-bold text-foreground text-sm">Simulate Customer Notification</h3>
-              <button
-                type="button"
-                onClick={() => setIsSimulateOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSimulate} className="space-y-3.5 text-xs">
+      <RightDrawer
+        open={isSimulateOpen}
+        onClose={() => setIsSimulateOpen(false)}
+        title="Simulate Customer Notification"
+        width={520}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setIsSimulateOpen(false)}
+              className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="simulate-notice-form"
+              disabled={simulating}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
+            >
+              <Send size={13} />
+              <span>{simulating ? 'Logging...' : 'Log & Simulate Notice'}</span>
+            </button>
+          </div>
+        }
+      >
+            <form id="simulate-notice-form" onSubmit={handleSimulate} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
@@ -411,27 +423,8 @@ export default function CustomerNoticesPage() {
                 />
               </div>
 
-              <div className="flex gap-2 justify-end pt-2 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsSimulateOpen(false)}
-                  className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={simulating}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
-                >
-                  <Send size={13} />
-                  <span>{simulating ? 'Logging...' : 'Log & Simulate Notice'}</span>
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+      </RightDrawer>
     </div>
   );
 }

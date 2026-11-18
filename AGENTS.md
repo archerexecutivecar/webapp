@@ -22,30 +22,25 @@ This repository contains the production Archer Executive Services platform. Trea
 16. Claude Code reviews the actual diff/code after Codex implementation. Do not have both agents independently implement the same feature.
 
 ## Architecture
-- Public Website: Next.js
-- Admin/Operations: Next.js
-- Client PWA: Next.js
-- Driver PWA: Next.js
-- Backend/API/domain core: Laravel
-- Database: PostgreSQL
+- Public Website: Next.js (`src/`)
+- Admin/Operations: Next.js (`apps/admin`) — also hosts the chauffeur “My Assigned Rides” portal
+- Client PWA: Next.js (`apps/client`)
+- Driver experience: Admin-hosted portal (`/my-rides`), not a separate `apps/driver` package
+- Backend/API/domain core: Laravel (`backend/`)
+- Database: MySQL (ADR-003)
 - Private documents: S3-compatible object storage
-- Payments: Square, subject to final production credential/provider confirmation
+- Payments: Stripe (ADR-006 CHG-2026-11-18; Square retained as history only)
+- Maps: Google Places / Maps keys via Admin → Integrations
 - Mobile distribution: WebView/hybrid iOS + Android packaging
-- Testing: Playwright + Laravel/PHP automated tests
+- Testing: Laravel/PHP automated tests (Playwright planned)
 - CI/CD: GitHub Actions
 
 ## Repository layout
+src/                 # Public marketing website (Next.js)
 apps/
-  web/
-  admin/
-  client/
-  driver/
-backend/
-  laravel/
-packages/
-  ui/
-  types/
-  config/
+  admin/             # Operations portal + driver my-rides
+  client/            # Customer PWA
+backend/             # Laravel API (authoritative domain)
 docs/
   architecture/
   api/

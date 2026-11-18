@@ -231,6 +231,82 @@ class SecuritySuiteController extends Controller
         ]);
     }
 
+    public function storeCredential(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'driver_id' => 'nullable|string|max:36',
+            'employee_name' => 'required|string|max:150',
+            'credential_name' => 'required|string|max:150',
+            'expires_at' => 'required|date',
+            'status' => 'nullable|string|in:valid,suspended,renewal_due',
+        ]);
+
+        $expiresAt = Carbon::parse($validated['expires_at']);
+        $expiresLabel = $expiresAt->format('D, M j') . ' (' . now()->diffInDays($expiresAt, false) . ' days)';
+
+        $id = DB::table('security_credentials')->insertGetId([
+            'driver_id' => $validated['driver_id'] ?? null,
+            'employee_name' => $validated['employee_name'],
+            'credential_name' => $validated['credential_name'],
+            'expires_label' => $expiresLabel,
+            'expires_at' => $expiresAt->toDateString(),
+            'status' => $validated['status'] ?? 'valid',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        AuditLog::record('security.credential_created', $request->user()?->id, [
+            'credential_id' => $id,
+            'employee_name' => $validated['employee_name'],
+            'credential_name' => $validated['credential_name'],
+        ], null);
+
+        return ApiResponse::data([
+            'message' => 'Credential recorded.',
+            'credential' => DB::table('security_credentials')->find($id),
+        ], 201);
+    }
+
+    public function updateCredential(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'employee_name' => 'sometimes|string|max:150',
+            'credential_name' => 'sometimes|string|max:150',
+            'expires_at' => 'sometimes|date',
+            'status' => 'sometimes|string|in:valid,suspended,renewal_due',
+        ]);
+
+        $existing = DB::table('security_credentials')->find($id);
+        if (! $existing) {
+            return ApiResponse::error('NOT_FOUND', 'Credential not found.', 404);
+        }
+
+        $update = array_filter([
+            'employee_name' => $validated['employee_name'] ?? null,
+            'credential_name' => $validated['credential_name'] ?? null,
+            'status' => $validated['status'] ?? null,
+            'updated_at' => now(),
+        ], fn ($v) => $v !== null);
+
+        if (isset($validated['expires_at'])) {
+            $expiresAt = Carbon::parse($validated['expires_at']);
+            $update['expires_at'] = $expiresAt->toDateString();
+            $update['expires_label'] = $expiresAt->format('D, M j') . ' (' . now()->diffInDays($expiresAt, false) . ' days)';
+        }
+
+        DB::table('security_credentials')->where('id', $id)->update($update);
+
+        AuditLog::record('security.credential_updated', $request->user()?->id, [
+            'credential_id' => $id,
+            'fields' => array_keys($update),
+        ], null);
+
+        return ApiResponse::data([
+            'message' => 'Credential updated.',
+            'credential' => DB::table('security_credentials')->find($id),
+        ]);
+    }
+
     // --- 5. ANNOUNCEMENTS ---
     public function announcements(): JsonResponse
     {

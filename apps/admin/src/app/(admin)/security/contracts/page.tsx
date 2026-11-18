@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface Shift {
   id: number;
@@ -47,6 +48,7 @@ function ContractsContent() {
   const [hoursPerShift, setHoursPerShift] = useState(8);
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   const [isEventCritical, setIsEventCritical] = useState(false);
+  const [createContractOpen, setCreateContractOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -119,6 +121,7 @@ function ContractsContent() {
       setClientName('');
       setContactName('');
       setSiteAddress('');
+      setCreateContractOpen(false);
       await loadData();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to create contract.');
@@ -158,9 +161,28 @@ function ContractsContent() {
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
           Contracts & shifts
         </h1>
-        <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
-          Enter a closed contract and the system builds the shift calendar. Short contracts (7 days or less) release every shift right away. Longer ones release on a rolling 7-day window. Rides and shifts never overlap for the same person.
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+          <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)', flex: '1 1 280px' }}>
+            Enter a closed contract and the system builds the shift calendar. Short contracts (7 days or less) release every shift right away. Longer ones release on a rolling 7-day window. Rides and shifts never overlap for the same person.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreateContractOpen(true)}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              background: '#d97706',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            Create contract
+          </button>
+        </div>
       </div>
 
       {/* Urgent Warning Banner matching Screenshot 13 */}
@@ -191,9 +213,7 @@ function ContractsContent() {
         </div>
       )}
 
-      {/* Two Column Layout matching Screenshot 13 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.45fr 1fr', gap: 24 }}>
-        {/* Left Column: Shifts Table */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
@@ -311,14 +331,36 @@ function ContractsContent() {
             </tbody>
           </table>
         </div>
+      </div>
 
-        {/* Right Column: CONTRACT ENTRY (BOOKING AGENT) Form matching Screenshot 13 */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 16 }}>
-            Contract Entry (Booking Agent)
-          </div>
-
-          <form onSubmit={handleCreateContract}>
+      <RightDrawer
+        open={createContractOpen}
+        onClose={() => setCreateContractOpen(false)}
+        title="Create contract"
+        subtitle="Contract entry (booking agent)"
+        width={520}
+        footer={
+          <button
+            type="submit"
+            form="create-contract-form"
+            disabled={submitting}
+            style={{
+              width: '100%',
+              padding: '10px 14px',
+              fontSize: '0.84rem',
+              fontWeight: 600,
+              background: '#d97706',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            {submitting ? 'Generating Shifts...' : 'Create contract and shifts'}
+          </button>
+        }
+      >
+          <form id="create-contract-form" onSubmit={handleCreateContract}>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                 Client
@@ -478,26 +520,8 @@ function ContractsContent() {
               </label>
             </div>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                background: '#d97706',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 6,
-                cursor: 'pointer',
-              }}
-            >
-              {submitting ? 'Generating Shifts...' : 'Create contract and shifts'}
-            </button>
           </form>
-        </div>
-      </div>
+      </RightDrawer>
     </div>
   );
 }

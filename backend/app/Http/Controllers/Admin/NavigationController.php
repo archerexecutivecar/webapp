@@ -8,6 +8,7 @@ use App\Models\RideRequest;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class NavigationController extends Controller
 {
@@ -25,14 +26,26 @@ class NavigationController extends Controller
                 $q->whereNull('user_id');
             })->count();
 
-        $badges = [
-            'rides' => max(1, $pendingRides),
-            'drivers' => max(1, $pendingDrivers),
-            'security-leads' => 1,
-            'contracts-shifts' => 2,
-            'swap-approvals' => 1,
-            'credentials' => 2,
-        ];
+        $badges = [];
+        if ($pendingRides > 0) {
+            $badges['rides'] = $pendingRides;
+        }
+        if ($pendingDrivers > 0) {
+            $badges['drivers'] = $pendingDrivers;
+        }
+
+        if (Schema::hasTable('security_leads')) {
+            $openLeads = (int) \DB::table('security_leads')->whereIn('status', ['new', 'open', 'pending'])->count();
+            if ($openLeads > 0) {
+                $badges['security-leads'] = $openLeads;
+            }
+        }
+        if (Schema::hasTable('security_swap_requests')) {
+            $pendingSwaps = (int) \DB::table('security_swap_requests')->where('status', 'pending')->count();
+            if ($pendingSwaps > 0) {
+                $badges['swap-approvals'] = $pendingSwaps;
+            }
+        }
 
         $groups = collect(config('navigation.groups'))
             ->map(function (array $group) use ($held, $badges) {
@@ -54,8 +67,7 @@ class NavigationController extends Controller
 
         return ApiResponse::data([
             'groups' => $groups,
-            'badges' => $badges,
+            'badges' => (object) $badges,
         ]);
     }
 }
-

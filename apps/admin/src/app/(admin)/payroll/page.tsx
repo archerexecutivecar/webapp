@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import Link from 'next/link';
+import { api, ApiError, API_BASE, tokenStore } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface CompletedRide {
   ride_reference: string;
@@ -131,8 +133,25 @@ export default function PayrollPage() {
     }
   };
 
-  const downloadCsv = () => {
-    window.location.href = '/api/v1/admin/payroll/export';
+  const downloadCsv = async () => {
+    try {
+      const token = tokenStore.get();
+      const res = await fetch(`${API_BASE}/admin/payroll/export`, {
+        headers: token ? { Authorization: `Bearer ${token}`, Accept: 'text/csv' } : { Accept: 'text/csv' },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `archer-payroll-${data?.pay_week?.start ?? 'export'}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Failed to download payroll export.');
+    }
   };
 
   return (
@@ -269,7 +288,11 @@ export default function PayrollPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text)', fontWeight: 600 }}>{driver.name}</h3>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text)', fontWeight: 600 }}>
+                    <Link href={`/drivers?id=${driver.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                      {driver.name}
+                    </Link>
+                  </h3>
                   <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: 'var(--surface-2)', color: '#d97706', border: '1px solid var(--border)' }}>
                     {driver.tier} (${driver.tier_rate}/hr)
                   </span>
@@ -300,7 +323,10 @@ export default function PayrollPage() {
                     {driver.rides.map((ride, idx) => (
                       <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '10px 12px', color: 'var(--text)' }}>
-                          <span style={{ fontWeight: 600 }}>{ride.ride_reference}</span> · {ride.client_name}
+                          <Link href={`/rides?q=${encodeURIComponent(ride.ride_reference)}`} style={{ fontWeight: 600, color: 'var(--text)', textDecoration: 'none' }}>
+                            {ride.ride_reference}
+                          </Link>{' '}
+                          · {ride.client_name}
                         </td>
                         <td style={{ padding: '10px 12px', color: 'var(--muted)' }}>{ride.date}</td>
                         <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text)' }}>{ride.hours} hrs</td>
@@ -426,18 +452,59 @@ export default function PayrollPage() {
         ))}
       </div>
 
-      {/* Record Check Modal */}
-      {modalOpen && selectedDriver && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 24, width: '100%', maxWidth: 480, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
-            <h2 style={{ fontFamily: 'Georgia, serif', fontSize: '1.3rem', margin: '0 0 8px 0', color: 'var(--text)' }}>
-              Record Disbursement
-            </h2>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--muted)' }}>
-              Confirm payment issuance to <strong>{selectedDriver.name}</strong> for pay week {data?.pay_week.label}.
-            </p>
-
-            <form onSubmit={handleRecordDisbursement}>
+      <RightDrawer
+        open={modalOpen && !!selectedDriver}
+        onClose={() => setModalOpen(false)}
+        title="Record Disbursement"
+        subtitle={
+          selectedDriver && data ? (
+            <>
+              Confirm payment issuance to <strong>{selectedDriver.name}</strong> for pay week {data.pay_week.label}.
+            </>
+          ) : undefined
+        }
+        width={480}
+        footer={
+          selectedDriver ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '0.82rem',
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="record-disbursement-form"
+                disabled={recording}
+                style={{
+                  padding: '8px 18px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  background: '#d97706',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                {recording ? 'Saving...' : 'Confirm Disbursement'}
+              </button>
+            </div>
+          ) : undefined
+        }
+      >
+            {selectedDriver && (
+            <form id="record-disbursement-form" onSubmit={handleRecordDisbursement}>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
                   Net Amount Due
@@ -492,43 +559,9 @@ export default function PayrollPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '0.82rem',
-                    background: 'var(--surface-2)',
-                    color: 'var(--text)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={recording}
-                  style={{
-                    padding: '8px 18px',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
-                    background: '#d97706',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {recording ? 'Saving...' : 'Confirm Disbursement'}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+            )}
+      </RightDrawer>
     </div>
   );
 }

@@ -86,6 +86,7 @@ Route::prefix('v1')->group(function (): void {
 
             // Customer directory (read-only; opening a customer is audited)
             Route::get('/customers', [CustomerController::class, 'index']);
+            Route::post('/customers', [CustomerController::class, 'store']);
             Route::get('/customers/{id}', [CustomerController::class, 'show'])->whereNumber('id');
             Route::put('/customers/{id}', [CustomerController::class, 'update'])->whereNumber('id');
             Route::get('/notices', [\App\Http\Controllers\Admin\CustomerNoticeController::class, 'index']);
@@ -134,65 +135,93 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/site-vehicles/{id}', [SiteVehicleController::class, 'destroy']);
             Route::get('/fleet/schedule', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'index']);
             Route::post('/fleet/blockout', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'blockout']);
+            Route::post('/fleet/vehicles', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'storeVehicle']);
             Route::put('/fleet/vehicles/{id}', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'updateVehicle']);
+            Route::delete('/fleet/vehicles/{id}', [\App\Http\Controllers\Admin\FleetScheduleController::class, 'destroyVehicle']);
         });
         Route::middleware('permission:pricing.manage')->group(function (): void {
             Route::get('/rates', [RateCardController::class, 'index']);
             Route::put('/rates', [RateCardController::class, 'update']);
             Route::get('/site-rates/matrix', [RateCardController::class, 'matrix']);
             Route::put('/site-rates/matrix', [RateCardController::class, 'updateMatrix']);
-            Route::get('/payments-earnings', [\App\Http\Controllers\Admin\PaymentsEarningsController::class, 'index']);
-            Route::get('/payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index']);
-            Route::post('/payroll/disbursements', [\App\Http\Controllers\Admin\PayrollController::class, 'recordDisbursement']);
-            Route::get('/payroll/export', [\App\Http\Controllers\Admin\PayrollController::class, 'export']);
             Route::get('/pricing-settings', [\App\Http\Controllers\Admin\PricingSettingController::class, 'index']);
             Route::put('/pricing-settings/{service}', [\App\Http\Controllers\Admin\PricingSettingController::class, 'update']);
             Route::post('/pricing/simulate', [\App\Http\Controllers\QuoteController::class, 'store']);
+        });
+
+        Route::middleware('permission:payments.view')->group(function (): void {
+            Route::get('/payments-earnings', [\App\Http\Controllers\Admin\PaymentsEarningsController::class, 'index']);
+        });
+        Route::post('/payments/stripe/intent', [\App\Http\Controllers\Admin\StripePaymentController::class, 'createIntent'])
+            ->middleware('permission:payments.manage');
+
+        Route::middleware('permission:payroll.view')->group(function (): void {
+            Route::get('/payroll', [\App\Http\Controllers\Admin\PayrollController::class, 'index']);
+            Route::get('/payroll/export', [\App\Http\Controllers\Admin\PayrollController::class, 'export']);
+        });
+        Route::post('/payroll/disbursements', [\App\Http\Controllers\Admin\PayrollController::class, 'recordDisbursement'])
+            ->middleware('permission:payroll.manage');
+
+        Route::middleware('permission:settings.manage')->group(function (): void {
             Route::get('/platform-settings', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'show']);
             Route::put('/platform-settings', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'update']);
             Route::post('/platform-settings/reset', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'reset']);
+            Route::get('/integrations', [\App\Http\Controllers\Admin\IntegrationSettingsController::class, 'show']);
+            Route::put('/integrations', [\App\Http\Controllers\Admin\IntegrationSettingsController::class, 'update']);
         });
 
-
+        Route::get('/drivers', [DriverController::class, 'index'])->middleware('permission:drivers.view');
+        Route::get('/drivers/{id}', [DriverController::class, 'show'])->middleware('permission:drivers.view');
         Route::middleware('permission:drivers.manage')->group(function (): void {
-            Route::get('/drivers', [DriverController::class, 'index']);
             Route::post('/drivers', [DriverController::class, 'store']);
-            Route::get('/drivers/{id}', [DriverController::class, 'show']);
             Route::put('/drivers/{id}', [DriverController::class, 'update']);
             Route::delete('/drivers/{id}', [DriverController::class, 'destroy']);
         });
 
-        Route::prefix('security')->group(function (): void {
+        Route::prefix('security')->middleware('permission:security.view')->group(function (): void {
             Route::get('/leads', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'leads']);
-            Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
             Route::get('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'contractsAndShifts']);
-            Route::post('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeContract']);
-            Route::put('/shifts/{id}/assign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'assignShift']);
             Route::get('/swaps', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swaps']);
-            Route::post('/swaps/{id}/decision', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swapDecision']);
             Route::get('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'credentials']);
             Route::get('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'announcements']);
+        });
+        Route::prefix('security')->middleware('permission:security.manage')->group(function (): void {
+            Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
+            Route::post('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeContract']);
+            Route::put('/shifts/{id}/assign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'assignShift']);
+            Route::post('/swaps/{id}/decision', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swapDecision']);
+            Route::post('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeCredential']);
+            Route::put('/credentials/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateCredential']);
             Route::post('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeAnnouncement']);
         });
 
     });
 
+    // Public publishable config for Maps / Stripe (never returns secrets)
+    Route::get('/integrations/public', [\App\Http\Controllers\Admin\IntegrationSettingsController::class, 'publicConfig']);
+
+    // Stripe webhooks (signature-verified; no auth middleware)
+    Route::post('/webhooks/stripe', [\App\Http\Controllers\StripeWebhookController::class, 'handle'])
+        ->middleware('throttle:120,1');
+
     // Support both /api/v1/security/* and /api/v1/admin/security/* aliases
-    Route::prefix('security')->middleware('auth:api')->group(function (): void {
+    Route::prefix('security')->middleware(['auth:api', 'permission:security.view'])->group(function (): void {
         Route::get('/leads', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'leads']);
-        Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
         Route::get('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'contractsAndShifts']);
-        Route::post('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeContract']);
-        Route::put('/shifts/{id}/assign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'assignShift']);
         Route::get('/swaps', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swaps']);
-        Route::post('/swaps/{id}/decision', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swapDecision']);
         Route::get('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'credentials']);
         Route::get('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'announcements']);
+    });
+    Route::prefix('security')->middleware(['auth:api', 'permission:security.manage'])->group(function (): void {
+        Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
+        Route::post('/contracts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeContract']);
+        Route::put('/shifts/{id}/assign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'assignShift']);
+        Route::post('/swaps/{id}/decision', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swapDecision']);
         Route::post('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeAnnouncement']);
     });
 
-    // Driver Portal APIs (Authenticated Driver)
-    Route::prefix('driver')->middleware('auth:api')->group(function (): void {
+    // Driver Portal APIs
+    Route::prefix('driver')->middleware(['auth:api', 'permission:driver.portal'])->group(function (): void {
         Route::get('/profile', [DriverPortalController::class, 'profile']);
         Route::get('/rides', [DriverPortalController::class, 'myRides']);
         Route::put('/rides/{rideId}/status', [DriverPortalController::class, 'updateRideStatus']);

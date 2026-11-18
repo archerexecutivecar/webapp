@@ -1,11 +1,16 @@
 # Archer Integrations
 
-## Square
+## Stripe (payments)
 Purpose:
 - payment collection
 - payment status
 - refunds where approved
 - webhook-driven reconciliation
+
+Configuration:
+- Admin → Integrations settings (`GET/PUT /api/v1/admin/integrations`) stores publishable keys in plain text and encrypts secret keys / webhook secrets at rest.
+- Public client config: `GET /api/v1/integrations/public` returns only `google_maps_browser_key`, `stripe_publishable_key`, and `payment_provider` (never secrets).
+- Webhooks: `POST /api/v1/webhooks/stripe` (Stripe-Signature verified, idempotent via `stripe_webhook_events`).
 
 Requirements:
 - verify webhook authenticity
@@ -14,7 +19,18 @@ Requirements:
 - store external IDs with uniqueness constraints
 - log integration failures without leaking secrets
 
-Production Square credentials must be provisioned securely.
+Production Stripe credentials must be provisioned securely (Admin Integrations UI or environment variables).
+
+### Square (historical)
+Square was the prior documented payment direction. It is superseded by Stripe per ADR-006 (CHG-2026-11-18).
+
+## Google Maps / Places
+Purpose:
+- address autocomplete and map display on public booking flows and admin dispatch where approved
+
+Configuration:
+- **Browser key** (`google_maps_browser_key`): publishable; exposed via `/api/v1/integrations/public` for client map widgets.
+- **Server key** (`google_maps_server_key`): secret; encrypted at rest; server-side geocoding/routing only.
 
 ## DocuSign
 Purpose:
@@ -27,6 +43,8 @@ Requirements:
 - store only necessary metadata/status and secure document references
 - webhook/event processing must be verified and idempotent where applicable
 
+Integration keys are managed in Admin → Integrations settings (`docusign_*` fields).
+
 ## SMS / OTP
 Purpose:
 - authentication and operational notifications where approved
@@ -38,6 +56,8 @@ Requirements:
 - do not log OTP secrets
 - provider failures must be handled gracefully
 
+Provider and API key are configured in Admin → Integrations settings (`sms_provider`, `sms_api_key` encrypted).
+
 ## Email
 Use for:
 - authentication/support flows
@@ -45,7 +65,7 @@ Use for:
 - operational notifications where approved
 
 ## Maps / routing
-Use only for approved address/routing/geographic functionality. API keys must remain server-side where possible.
+Use only for approved address/routing/geographic functionality. API keys must remain server-side where possible (see Google Maps above).
 
 ## Apple App Store / Google Play
 Archer owns publisher accounts. Engineering handles:
@@ -62,4 +82,7 @@ Store approval/timing is controlled by Apple/Google and cannot be guaranteed.
 Use for private documents/assets that require controlled access. Never make sensitive documents public by default.
 
 ## Environment variables
-All credentials/configuration must be injected via environment/secret management. Never commit secrets.
+All credentials/configuration must be injected via environment/secret management or Admin Integrations settings (encrypted fields). Never commit secrets.
+
+Fallback environment variables (optional):
+- `STRIPE_WEBHOOK_SECRET` — used when webhook secret is not stored in the database (webhook handler only).

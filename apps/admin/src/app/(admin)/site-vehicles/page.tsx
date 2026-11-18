@@ -16,6 +16,7 @@ import {
   Wrench,
   Check
 } from 'lucide-react';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface VehicleItem {
   id: string;
@@ -64,7 +65,10 @@ export default function FleetAvailabilityPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Selected date for Gantt schedule
-  const [selectedDate, setSelectedDate] = useState<string>('2026-11-18');
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newVehicle, setNewVehicle] = useState({ name: '', plate: '', class_type: 'exec', category: 'SUV' });
+  const [savingVehicle, setSavingVehicle] = useState(false);
 
   // Payload data
   const [counters, setCounters] = useState<Record<string, CounterItem>>({});
@@ -145,6 +149,41 @@ export default function FleetAvailabilityPage() {
     }
   };
 
+  const handleCreateVehicle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVehicle.name.trim()) return;
+    try {
+      setSavingVehicle(true);
+      setError(null);
+      await api('/admin/fleet/vehicles', {
+        method: 'POST',
+        auth: true,
+        body: newVehicle,
+      });
+      setIsCreateOpen(false);
+      setNewVehicle({ name: '', plate: '', class_type: 'exec', category: 'SUV' });
+      setSuccess('Fleet vehicle added.');
+      fetchData(selectedDate);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create vehicle.');
+    } finally {
+      setSavingVehicle(false);
+    }
+  };
+
+  const handleDeleteVehicle = async (v: VehicleItem) => {
+    if (!confirm(`Delete ${v.name} from the operational fleet?`)) return;
+    try {
+      await api(`/admin/fleet/vehicles/${v.id}`, { method: 'DELETE', auth: true });
+      setSuccess(`${v.name} deleted.`);
+      fetchData(selectedDate);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to delete vehicle.');
+    }
+  };
+
   const handleOpenBlockoutModal = (vId: string) => {
     setBlockoutVehicleId(vId);
     setIsBlockoutOpen(true);
@@ -192,10 +231,53 @@ export default function FleetAvailabilityPage() {
             Fleet &amp; availability
           </h1>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed max-w-4xl">
-          Rides in an Archer vehicle can only be booked when a vehicle of that class and size is free. Set each vehicle&apos;s days and hours, block out time for maintenance or other use, or take a vehicle out of service. Client Car rides don&apos;t use the fleet.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="text-xs text-muted-foreground leading-relaxed max-w-4xl">
+            Rides in an Archer vehicle can only be booked when a vehicle of that class and size is free. Set each vehicle&apos;s days and hours, block out time for maintenance or other use, or take a vehicle out of service. Client Car rides don&apos;t use the fleet. Website gallery vehicles are managed under{' '}
+            <Link href="/website-fleet" className="text-primary underline">Website fleet</Link>.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded border border-border bg-card"
+          >
+            <Plus size={14} /> Add vehicle
+          </button>
+        </div>
       </div>
+
+      <RightDrawer
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Add fleet vehicle"
+        width={480}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" className="secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
+            <button type="submit" form="create-fleet-vehicle-form" disabled={savingVehicle}>
+              {savingVehicle ? 'Saving…' : 'Save vehicle'}
+            </button>
+          </div>
+        }
+      >
+        <form id="create-fleet-vehicle-form" onSubmit={handleCreateVehicle} className="space-y-3 text-xs">
+            <label className="block text-xs space-y-1">Name *
+              <input required className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.name} onChange={(e) => setNewVehicle({ ...newVehicle, name: e.target.value })} />
+            </label>
+            <label className="block text-xs space-y-1">Plate
+              <input className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.plate} onChange={(e) => setNewVehicle({ ...newVehicle, plate: e.target.value })} />
+            </label>
+            <label className="block text-xs space-y-1">Class
+              <select className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.class_type} onChange={(e) => setNewVehicle({ ...newVehicle, class_type: e.target.value })}>
+                <option value="exec">Executive</option>
+                <option value="first">1st Class</option>
+              </select>
+            </label>
+            <label className="block text-xs space-y-1">Category
+              <input className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.category} onChange={(e) => setNewVehicle({ ...newVehicle, category: e.target.value })} />
+            </label>
+        </form>
+      </RightDrawer>
 
       {/* Notifications */}
       {error && (
@@ -414,6 +496,13 @@ export default function FleetAvailabilityPage() {
                   >
                     {v.is_out_of_service ? 'Put back in service' : 'Take out of service'}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteVehicle(v)}
+                    className="px-2.5 py-1 text-xs rounded border border-border text-muted-foreground hover:bg-muted transition font-medium"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
 
@@ -569,22 +658,32 @@ export default function FleetAvailabilityPage() {
         </div>
       </div>
 
-      {/* Block Out Time Modal */}
-      {isBlockoutOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-card rounded-lg border border-border shadow-xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <h3 className="font-bold text-foreground text-sm">Block Out Fleet Vehicle Time</h3>
-              <button
-                type="button"
-                onClick={() => setIsBlockoutOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveBlockout} className="space-y-3.5 text-xs">
+      <RightDrawer
+        open={isBlockoutOpen}
+        onClose={() => setIsBlockoutOpen(false)}
+        title="Block Out Fleet Vehicle Time"
+        width={480}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setIsBlockoutOpen(false)}
+              className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="blockout-form"
+              disabled={savingBlockout}
+              className="px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
+            >
+              {savingBlockout ? 'Saving...' : 'Save Blockout'}
+            </button>
+          </div>
+        }
+      >
+            <form id="blockout-form" onSubmit={handleSaveBlockout} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                   Reason / Work Description *
@@ -627,26 +726,8 @@ export default function FleetAvailabilityPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2 justify-end pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsBlockoutOpen(false)}
-                  className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingBlockout}
-                  className="px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
-                >
-                  {savingBlockout ? 'Saving...' : 'Save Blockout'}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+      </RightDrawer>
     </div>
   );
 }

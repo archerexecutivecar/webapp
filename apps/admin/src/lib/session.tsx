@@ -4,7 +4,14 @@ import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api, ApiError, Me, tokenStore } from '@/lib/api';
 
-export type NavItem = { key: string; label: string; href: string; icon: string; available: boolean };
+export type NavItem = {
+  key: string;
+  label: string;
+  href: string;
+  icon: string;
+  available?: boolean;
+  badge?: number | string;
+};
 export type NavGroup = { key: string; label: string; items: NavItem[] };
 
 type State = { me: Me | null; groups: NavGroup[]; loading: boolean; error: string; logout: () => Promise<void> };

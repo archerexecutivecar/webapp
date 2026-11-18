@@ -7,7 +7,9 @@ use App\Models\AssistantProfile;
 use App\Models\AuditLog;
 use App\Models\LoginCode;
 use App\Models\RideRequest;
+use App\Models\Role;
 use App\Models\User;
+use App\Support\CustomerMailer;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,18 +23,23 @@ use Illuminate\Support\Str;
  */
 class CustomerController extends Controller
 {
-    /** GET /admin/customers?search= */
+    /** GET /admin/customers?search= or ?q= */
     public function index(Request $request): JsonResponse
     {
-        $data = $request->validate(['search' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $searchInput = trim((string) ($data['search'] ?? $data['q'] ?? ''));
 
         $query = $this->customers()
             ->withCount('rideRequests')
             ->withMax('rideRequests', 'created_at');
 
-        if (! empty($data['search'])) {
+        if ($searchInput !== '') {
             // Escape LIKE wildcards so a search for "%" or "_" matches literally.
-            $term = '%'.addcslashes(Str::lower(trim($data['search'])), '%_\\').'%';
+            $term = '%'.addcslashes(Str::lower($searchInput), '%_\\').'%';
             $query->where(fn ($q) => $q
                 ->whereRaw('lower(name) like ?', [$term])
                 ->orWhereRaw('lower(email) like ?', [$term])
@@ -43,6 +50,35 @@ class CustomerController extends Controller
             ->map(fn (User $u) => $this->summary($u));
 
         return ApiResponse::data(['customers' => $customers]);
+    }
+
+    /** POST /admin/customers */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|max:150|unique:users,email',
+            'phone' => 'nullable|string|max:50',
+        ]);
+
+        $email = Str::lower(trim($validated['email']));
+        $user = User::create([
+            'name' => trim($validated['name']),
+            'email' => $email,
+            'password' => Str::random(64),
+            'phone' => $validated['phone'] ?? null,
+        ]);
+
+        $role = Role::where('key', 'customer')->first();
+        if ($role) {
+            $user->roles()->attach($role->id);
+        }
+
+        CustomerMailer::sendWelcome($user);
+
+        AuditLog::record('customer.created', $request->user()->getKey(), ['customer_id' => $user->id], $user);
+
+        return ApiResponse::data(['customer' => $this->summary($user->fresh())], 201);
     }
 
     /** GET /admin/customers/{id} */

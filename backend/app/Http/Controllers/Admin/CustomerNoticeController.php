@@ -80,6 +80,27 @@ class CustomerNoticeController extends Controller
             'at_your_doorstep' => 'At your doorstep',
         ];
 
+        $status = 'logged';
+        $channel = $validated['channel'];
+        $wantsEmail = str_contains(strtolower($channel), 'email');
+        $email = $validated['recipient_email'] ?? null;
+
+        if ($wantsEmail && $email) {
+            try {
+                \Illuminate\Support\Facades\Mail::raw($validated['message'], function ($m) use ($email, $validated) {
+                    $m->to($email, $validated['recipient_name'])
+                        ->subject('Archer Executive — ' . ($validated['trigger'] ?? 'Customer notice'));
+                });
+                $status = 'sent';
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Customer notice email failed: ' . $e->getMessage());
+                $status = 'failed';
+            }
+        } elseif (str_contains(strtolower($channel), 'sms')) {
+            // SMS provider is configured via Integrations; until wired, record as logged for ops follow-up.
+            $status = 'logged';
+        }
+
         $notice = CustomerNotice::create([
             'ride_reference' => $validated['ride_reference'] ?? null,
             'recipient_name' => $validated['recipient_name'],
@@ -89,14 +110,15 @@ class CustomerNoticeController extends Controller
             'trigger' => $validated['trigger'],
             'trigger_label' => $triggerLabels[$validated['trigger']] ?? ucfirst(str_replace('_', ' ', $validated['trigger'])),
             'message' => $validated['message'],
-            'status' => 'logged',
+            'status' => $status,
             'sent_at' => now(),
         ]);
 
-        AuditLog::record('customer_notice.logged', $request->user()?->getKey(), [
+        AuditLog::record($status === 'sent' ? 'customer_notice.sent' : 'customer_notice.logged', $request->user()?->getKey(), [
             'notice_id' => $notice->id,
             'trigger' => $notice->trigger,
             'recipient' => $notice->recipient_name,
+            'status' => $status,
         ], null);
 
         return ApiResponse::data([

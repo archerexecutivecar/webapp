@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface Announcement {
   id: number;
@@ -17,6 +18,7 @@ export default function AnnouncementsPage() {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const loadAnnouncements = useCallback(async () => {
     try {
@@ -49,6 +51,7 @@ export default function AnnouncementsPage() {
         body: { message },
       });
       setMessage('');
+      setCreateOpen(false);
       setSuccessMsg('Announcement broadcasted to all drivers and guards.');
       setTimeout(() => setSuccessMsg(null), 3000);
       await loadAnnouncements();
@@ -94,9 +97,28 @@ export default function AnnouncementsPage() {
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
           Announcements
         </h1>
-        <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
-          A company-wide broadcast channel. Every employee sees it in the app's Chat tab.
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+          <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)', flex: '1 1 280px' }}>
+            A company-wide broadcast channel. Every employee sees it in the app&apos;s Chat tab.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              background: '#d97706',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            New announcement
+          </button>
+        </div>
       </div>
 
       {successMsg && (
@@ -111,14 +133,52 @@ export default function AnnouncementsPage() {
         </div>
       )}
 
-      {/* Broadcast Form matching Screenshot 16 */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20, marginBottom: 24, boxShadow: 'var(--shadow-sm)' }}>
-        <form onSubmit={handlePost}>
-          <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 8 }}>
-            Message to all drivers and guards
-          </label>
+      <RightDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Post announcement"
+        subtitle="Message to all drivers and guards"
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setCreateOpen(false)}
+              style={{
+                padding: '8px 16px',
+                fontSize: '0.82rem',
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="post-announcement-form"
+              disabled={posting || !message.trim()}
+              style={{
+                padding: '8px 18px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                background: '#d97706',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              {posting ? 'Broadcasting...' : 'Post announcement'}
+            </button>
+          </div>
+        }
+      >
+        <form id="post-announcement-form" onSubmit={handlePost}>
           <textarea
-            rows={3}
+            rows={6}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Snow protocol in effect tomorrow..."
@@ -131,28 +191,10 @@ export default function AnnouncementsPage() {
               padding: '10px 14px',
               fontSize: '0.84rem',
               resize: 'vertical',
-              marginBottom: 12,
             }}
           />
-
-          <button
-            type="submit"
-            disabled={posting || !message.trim()}
-            style={{
-              padding: '8px 18px',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              background: '#d97706',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            {posting ? 'Broadcasting...' : 'Post announcement'}
-          </button>
         </form>
-      </div>
+      </RightDrawer>
 
       {/* Announcements Feed matching Screenshot 16 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

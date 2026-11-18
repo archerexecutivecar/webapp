@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 import { 
   Search, 
   AlertCircle, 
@@ -69,6 +71,8 @@ interface DriverOption {
 }
 
 export default function CustomersPage() {
+  const searchParams = useSearchParams();
+  const urlBootRef = useRef(false);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [search, setSearch] = useState('');
@@ -99,18 +103,24 @@ export default function CustomersPage() {
   const [newCarPlate, setNewCarPlate] = useState('');
   const [newCarNotes, setNewCarNotes] = useState('');
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [resettingCreds, setResettingCreds] = useState(false);
+
   // Initial load: Fetch customers and drivers list
   const fetchCustomers = async (searchTerm = '') => {
     try {
       setLoading(true);
       const q = searchTerm.trim() ? `?search=${encodeURIComponent(searchTerm.trim())}` : '';
+      // Backend also accepts ?q=
       const res = await api<{ customers: CustomerRow[] }>(`/admin/customers${q}`, { auth: true });
       const list = (res as any)?.customers ?? (res as any)?.data?.customers ?? (Array.isArray(res) ? res : []);
       setCustomers(list);
       setError(null);
 
-      // Auto-select first customer if none selected
-      if (res.customers.length > 0 && selectedCustomerId === null) {
+      if (res.customers.length > 0 && selectedCustomerId === null && !searchParams.get('id')) {
         openCustomer(res.customers[0].id);
       }
     } catch (e) {
@@ -138,6 +148,20 @@ export default function CustomersPage() {
   useEffect(() => {
     fetchDrivers();
   }, []);
+
+  useEffect(() => {
+    if (urlBootRef.current) return;
+    urlBootRef.current = true;
+    const q = searchParams.get('q') ?? searchParams.get('search');
+    const id = searchParams.get('id');
+    if (q) setSearch(q);
+    if (id) {
+      const num = Number(id);
+      if (!Number.isNaN(num)) openCustomer(num);
+    } else if (q) {
+      fetchCustomers(q);
+    }
+  }, [searchParams]);
 
   // Search debounce
   useEffect(() => {
@@ -170,6 +194,12 @@ export default function CustomersPage() {
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  const closeCustomerDrawer = () => {
+    setSelectedCustomerId(null);
+    setSelectedDetail(null);
+    setIsAddingCar(false);
   };
 
   // Save client profile changes
@@ -249,6 +279,46 @@ export default function CustomersPage() {
     handleSaveClient(clientVehicles, nextVal);
   };
 
+  const handleResetCredentials = async () => {
+    if (!selectedCustomerId || !confirm('Reset this client’s sign-in credentials? They will receive an email.')) return;
+    setResettingCreds(true);
+    setError(null);
+    try {
+      await api(`/admin/customers/${selectedCustomerId}/reset-credentials`, { method: 'POST', auth: true });
+      setSuccessNotice('Credentials reset. Client was emailed a fresh sign-in code flow.');
+      setTimeout(() => setSuccessNotice(null), 4000);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to reset credentials.');
+    } finally {
+      setResettingCreds(false);
+    }
+  };
+
+  const handleCreateCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName.trim() || !newClientEmail.trim()) return;
+    setSaving(true);
+    try {
+      const res = await api<{ customer: CustomerRow }>('/admin/customers', {
+        method: 'POST',
+        auth: true,
+        body: { name: newClientName.trim(), email: newClientEmail.trim(), phone: newClientPhone.trim() || null },
+      });
+      setCreateOpen(false);
+      setNewClientName('');
+      setNewClientEmail('');
+      setNewClientPhone('');
+      await fetchCustomers(search);
+      openCustomer(res.customer.id);
+      setSuccessNotice('Client account created.');
+      setTimeout(() => setSuccessNotice(null), 3500);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Failed to create client.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4 max-w-[1600px] mx-auto p-2">
       {/* Page Title & Context */}
@@ -263,6 +333,16 @@ export default function CustomersPage() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Client directory, VIP preferences, client-car registry, and payment approval.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="h-8 px-3 rounded text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700"
+          >
+            + Create client
+          </button>
         </div>
 
         {/* Global search */}
@@ -296,10 +376,7 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* Main Two-Column Layout matching Screenshot 3 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left Column: Clients List Table (Screenshot 3 left side) */}
-        <div className="lg:col-span-5 rounded-lg border border-border bg-card overflow-hidden shadow-xs">
+      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -386,29 +463,23 @@ export default function CustomersPage() {
               </tbody>
             </table>
           </div>
-        </div>
+      </div>
 
-        {/* Right Column: Customer Details Panel (Screenshot 3 right side) */}
-        <div className="lg:col-span-7 rounded-lg border border-border bg-card p-5 shadow-xs space-y-6">
-          {detailLoading ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              Loading client details...
-            </div>
-          ) : !selectedDetail ? (
-            <div className="p-12 text-center text-muted-foreground">
-              Select a client from the list to view their full profile, car agreement, and history.
-            </div>
-          ) : (
-            <>
-              {/* Header: Client Name in Small Uppercase */}
-              <div className="border-b border-border pb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {selectedDetail.name}
-                </span>
-              </div>
-
-              {/* Edit Form */}
+      <RightDrawer
+        open={selectedCustomerId !== null}
+        onClose={closeCustomerDrawer}
+        title={selectedDetail?.name ?? 'Client profile'}
+        width={560}
+      >
+        {detailLoading ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            Loading client details...
+          </div>
+        ) : !selectedDetail ? (
+          <div className="p-8 text-center text-muted-foreground text-xs">Unable to load client details.</div>
+        ) : (
+          <div className="space-y-6">
               <div className="space-y-4">
                 {/* Row 1: Name, Phone, Email */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -511,7 +582,7 @@ export default function CustomersPage() {
                 </div>
 
                 {/* Action: Save Client */}
-                <div className="pt-2">
+                <div className="pt-2 flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     disabled={saving}
@@ -520,6 +591,14 @@ export default function CustomersPage() {
                   >
                     <Save size={13} />
                     <span>{saving ? 'Saving...' : 'Save client'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={resettingCreds}
+                    onClick={handleResetCredentials}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded border border-border text-xs font-medium hover:bg-muted disabled:opacity-50"
+                  >
+                    {resettingCreds ? 'Resetting…' : 'Reset sign-in credentials'}
                   </button>
                 </div>
               </div>
@@ -701,7 +780,7 @@ export default function CustomersPage() {
                               {serviceStr}
                             </span>
                             <span className="text-muted-foreground">·</span>
-                            <Link href={`/rides?search=${ride.reference}`} className="font-mono text-primary hover:underline">
+                            <Link href={`/rides?q=${encodeURIComponent(ride.reference)}`} className="font-mono text-primary hover:underline">
                               {ride.reference}
                             </Link>
                           </div>
@@ -735,10 +814,55 @@ export default function CustomersPage() {
                   )}
                 </div>
               </div>
-            </>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+      </RightDrawer>
+
+      <RightDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Create client account"
+        width={480}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setCreateOpen(false)} className="px-3 py-1.5 rounded border border-border text-xs">
+              Close
+            </button>
+            <button
+              type="submit"
+              form="create-client-form"
+              disabled={saving}
+              className="px-4 py-1.5 rounded bg-amber-600 text-white font-semibold text-xs disabled:opacity-50"
+            >
+              {saving ? 'Creating…' : 'Create'}
+            </button>
+          </div>
+        }
+      >
+        <form id="create-client-form" onSubmit={handleCreateCustomer} className="space-y-3 text-xs">
+            <input
+              className="w-full h-8 px-2.5 rounded border border-border bg-background"
+              placeholder="Full name"
+              required
+              value={newClientName}
+              onChange={(e) => setNewClientName(e.target.value)}
+            />
+            <input
+              className="w-full h-8 px-2.5 rounded border border-border bg-background"
+              type="email"
+              placeholder="Email"
+              required
+              value={newClientEmail}
+              onChange={(e) => setNewClientEmail(e.target.value)}
+            />
+            <input
+              className="w-full h-8 px-2.5 rounded border border-border bg-background"
+              placeholder="Phone (optional)"
+              value={newClientPhone}
+              onChange={(e) => setNewClientPhone(e.target.value)}
+            />
+        </form>
+      </RightDrawer>
     </div>
   );
 }

@@ -12,6 +12,8 @@ use App\Models\SiteVehicle;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Support\RideCloseoutMath;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -102,8 +104,38 @@ class DashboardController extends Controller
             $q->whereNull('user_id');
         })->count() ?: 1;
 
-        $waitingForDriver = RideRequest::whereIn('status', ['broadcast', 'offered'])->count() ?: 3;
-        $allocatedOrInProgress = ($dispatchedRides + $inProgressRides) ?: 3;
+        $waitingForDriver = RideRequest::whereIn('status', ['broadcast', 'offered'])->count();
+        $allocatedOrInProgress = $dispatchedRides + $inProgressRides;
+
+        $weekStart = Carbon::now()->startOfWeek();
+        $weekEnd = Carbon::now()->endOfWeek();
+        $completedThisWeekCount = RideRequest::where('status', 'completed')
+            ->where(function ($q) use ($weekStart, $weekEnd) {
+                $q->whereBetween('ride_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                    ->orWhereBetween('updated_at', [$weekStart, $weekEnd]);
+            })
+            ->count();
+
+        $collectedThisWeek = 0.0;
+        $archerProfitThisWeek = 0.0;
+        $weekRides = RideRequest::with('assignedDriver')
+            ->where('status', 'completed')
+            ->where(function ($q) use ($weekStart, $weekEnd) {
+                $q->whereBetween('ride_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                    ->orWhereBetween('updated_at', [$weekStart, $weekEnd]);
+            })
+            ->get();
+
+        foreach ($weekRides as $ride) {
+            $row = RideCloseoutMath::ledgerRow($ride);
+            if ($row === null) {
+                continue;
+            }
+            $collectedThisWeek += $row['client_paid'];
+            $archerProfitThisWeek += $row['archer_profit'];
+        }
+        $collectedThisWeek = round($collectedThisWeek, 2);
+        $archerProfitThisWeek = round($archerProfitThisWeek, 2);
 
         // Live Now Mission Card
         $liveNow = RideRequest::with('assignedDriver')
@@ -188,12 +220,12 @@ class DashboardController extends Controller
                 'total_fleet' => $totalVehicles,
                 'dispatch_efficiency' => $dispatchEfficiency,
                 // Prototype 9 Cards
-                'new_ride_requests' => $pendingRides > 0 ? $pendingRides : 4,
+                'new_ride_requests' => $pendingRides,
                 'waiting_for_driver' => $waitingForDriver,
                 'allocated_or_in_progress' => $allocatedOrInProgress,
-                'completed_this_week' => $completedRides ?: 7,
-                'collected_this_week' => 1211.58,
-                'archer_profit_this_week' => 526.97,
+                'completed_this_week' => $completedThisWeekCount,
+                'collected_this_week' => $collectedThisWeek,
+                'archer_profit_this_week' => $archerProfitThisWeek,
                 'client_profiles' => $clientProfiles,
                 'driver_applications' => $driverApplications,
             ],
@@ -201,17 +233,17 @@ class DashboardController extends Controller
             'live_now' => $liveNow ? [
                 'id' => $liveNow->id,
                 'reference' => $liveNow->reference,
-                'date_time' => $liveNow->ride_date . ', ' . $liveNow->ride_time,
-                'tier' => 'T' . ($liveNow->driver_tier ?? '1') . ' Essential',
-                'status' => $liveNow->status === 'in_progress' ? 'Ride in progress' : 'Dispatched',
-                'passenger_name' => $liveNow->first_name . ' ' . ($liveNow->last_name ?? ''),
+                'date_time' => trim(($liveNow->ride_date ?? '') . ', ' . ($liveNow->ride_time ?? ''), ', '),
+                'tier' => 'T' . ($liveNow->driver_tier ?? '1'),
+                'status' => $liveNow->status === 'in_progress' ? 'Ride in progress' : ucfirst(str_replace('_', ' ', (string) $liveNow->status)),
+                'passenger_name' => trim($liveNow->first_name . ' ' . ($liveNow->last_name ?? '')),
                 'phone' => $liveNow->phone,
-                'pickup_location' => $liveNow->pickup_location ?: '5 Bellevue Ave, Rumson, NJ 07760',
-                'dropoff_location' => $liveNow->dropoff_location ?: 'Molly Pitcher Inn, Red Bank, NJ',
-                'service_summary' => ucfirst($liveNow->service_type) . ' · 4 hr · Executive Class · ' . ($liveNow->vehicle ?: 'Chevrolet Traverse') . ' · 2 pax',
-                'vehicle_display' => 'Archer vehicle · ' . ($liveNow->vehicle ?: 'Chevrolet Traverse'),
-                'driver_notes' => $liveNow->dispatch_notes ?: 'Dinner, wait on site',
-                'driver_name' => $liveNow->assignedDriver ? $liveNow->assignedDriver->name : 'Joseph Klein',
+                'pickup_location' => $liveNow->pickup_location,
+                'dropoff_location' => $liveNow->dropoff_location,
+                'service_summary' => ucfirst((string) $liveNow->service_type) . ($liveNow->vehicle ? ' · ' . $liveNow->vehicle : ''),
+                'vehicle_display' => $liveNow->vehicle,
+                'driver_notes' => $liveNow->dispatch_notes,
+                'driver_name' => $liveNow->assignedDriver?->name,
             ] : null,
             'staff_users' => $staffUsers,
             'users_by_role' => $usersByRole,

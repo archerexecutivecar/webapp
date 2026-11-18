@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 
@@ -130,6 +131,35 @@ export default function SettingsPage() {
           {error}
         </div>
       )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
+        {[
+          { href: '/settings', label: 'Platform rules', desc: 'Booking notice & dispatch buttons' },
+          { href: '/settings/integrations', label: 'Integrations', desc: 'Maps, Stripe, SMS, DocuSign' },
+          { href: '/site-content', label: 'Page content', desc: 'Homepage & marketing copy' },
+          { href: '/site-tiers', label: 'Website tiers', desc: 'Public tier table' },
+          { href: '/testimonials', label: 'Testimonials', desc: 'Client quotes on site' },
+          { href: '/cms-pages', label: 'CMS pages', desc: 'Marketing pages & sections' },
+          { href: '/website-fleet', label: 'Website fleet', desc: 'Public vehicle gallery' },
+        ].map((card) => (
+          <Link
+            key={card.href + card.label}
+            href={card.href}
+            style={{
+              display: 'block',
+              padding: '14px 16px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              textDecoration: 'none',
+              color: 'var(--text)',
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: 4 }}>{card.label}</div>
+            <div style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>{card.desc}</div>
+          </Link>
+        ))}
+      </div>
 
       {/* 4 Configuration Panels matching Screenshot 11 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>

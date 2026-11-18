@@ -11,6 +11,7 @@ $all = [
     'fleet.manage', 'pricing.manage', 'payments.view', 'payments.manage', 'payroll.view',
     'payroll.manage', 'reports.view', 'audit.view', 'settings.manage', 'content.edit',
     'content.publish', 'self.profile', 'driver.portal',
+    'security.view', 'security.manage',
 ];
 
 return [
@@ -21,13 +22,15 @@ return [
         'operations_manager' => ['name' => 'Operations Manager', 'permissions' => [
             'dashboard.view', 'rides.view', 'rides.manage', 'dispatch.manage', 'drivers.view', 'drivers.manage',
             'tiers.manage', 'fleet.manage', 'pricing.manage', 'payments.view', 'reports.view', 'audit.view',
-            'settings.manage',
+            'settings.manage', 'security.view', 'security.manage',
         ]],
         'dispatcher' => ['name' => 'Dispatcher', 'permissions' => [
             'dashboard.view', 'rides.view', 'rides.manage', 'dispatch.manage', 'drivers.view',
+            'security.view',
         ]],
         'driver_manager' => ['name' => 'Driver Manager', 'permissions' => [
             'dashboard.view', 'drivers.view', 'drivers.manage', 'drivers.switches', 'tiers.manage',
+            'security.view',
         ]],
         'finance_payroll' => ['name' => 'Finance/Payroll', 'permissions' => [
             'dashboard.view', 'rides.view', 'drivers.view', 'payments.view', 'payments.manage',

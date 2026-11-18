@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput';
+import { RightDrawer } from '@/components/RightDrawer';
 import { 
   Search, 
   Car, 
@@ -10,7 +14,6 @@ import {
   Clock, 
   Phone, 
   Mail, 
-  X, 
   Check, 
   ChevronRight, 
   AlertCircle,
@@ -56,6 +59,7 @@ export interface RideRequest {
   security_addon: string | null;
   driver_preference: string | null;
   assigned_driver_id: string | null;
+  customer_id?: number | null;
   assigned_driver?: Driver | null;
   status: 'pending' | 'new' | 'broadcast' | 'dispatched' | 'driver_assigned' | 'in_progress' | 'completed' | 'cancelled';
   dispatch_notes: string | null;
@@ -97,6 +101,8 @@ export interface RideRequest {
 }
 
 export default function RidesPage() {
+  const searchParams = useSearchParams();
+  const deepLinkOpenedRef = useRef<string | null>(null);
   const [rides, setRides] = useState<RideRequest[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [search, setSearch] = useState('');
@@ -144,7 +150,7 @@ export default function RidesPage() {
     dispatch_notes: '',
   });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -152,6 +158,8 @@ export default function RidesPage() {
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (fromDate) params.append('from', fromDate);
       if (toDate) params.append('to', toDate);
+      const q = search.trim();
+      if (q) params.append('q', q);
 
       const [ridesRes, driversRes] = await Promise.all([
         api<{ rides: RideRequest[] }>(`/admin/rides?${params.toString()}`, { auth: true }),
@@ -166,11 +174,18 @@ export default function RidesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, fromDate, toDate, search]);
 
   useEffect(() => {
     fetchData();
-  }, [statusFilter, fromDate, toDate]);
+  }, [fetchData]);
+
+  useEffect(() => {
+    const q = searchParams.get('q') ?? searchParams.get('search');
+    const status = searchParams.get('status');
+    if (q !== null) setSearch(q);
+    if (status) setStatusFilter(status);
+  }, [searchParams]);
 
   const openDrawer = (ride: RideRequest) => {
     setSelectedRide(ride);
@@ -197,6 +212,25 @@ export default function RidesPage() {
   const closeDrawer = () => {
     setSelectedRide(null);
   };
+
+  useEffect(() => {
+    const rideId = searchParams.get('id');
+    if (!rideId || deepLinkOpenedRef.current === rideId) return;
+
+    const fromList = rides.find((r) => r.id === rideId);
+    if (fromList) {
+      deepLinkOpenedRef.current = rideId;
+      openDrawer(fromList);
+      return;
+    }
+
+    if (!loading) {
+      deepLinkOpenedRef.current = rideId;
+      api<{ ride: RideRequest }>(`/admin/rides/${rideId}`, { auth: true })
+        .then((res) => openDrawer(res.ride))
+        .catch(() => setError('Ride not found.'));
+    }
+  }, [searchParams, rides, loading]);
 
   // Concurrency-safe driver assignment / update
   const handleSaveRide = async (assignDriverId?: string) => {
@@ -320,17 +354,28 @@ export default function RidesPage() {
     }
   };
 
-  // Filtered rides
-  const filteredRides = useMemo(() => {
-    return rides.filter((r) => {
-      const q = search.toLowerCase();
-      const fullName = `${r.first_name} ${r.last_name || ''}`.toLowerCase();
-      const ref = (r.reference || '').toLowerCase();
-      const phone = (r.phone || '').toLowerCase();
-      const vehicle = (r.vehicle || '').toLowerCase();
-      return fullName.includes(q) || ref.includes(q) || phone.includes(q) || vehicle.includes(q);
-    });
-  }, [rides, search]);
+  const handleCancelRide = async () => {
+    if (!selectedRide || selectedRide.status === 'cancelled') return;
+    if (!confirm(`Cancel ride ${selectedRide.reference}?`)) return;
+    try {
+      setSaving(true);
+      const res = await api<{ ride: RideRequest }>(`/admin/rides/${selectedRide.id}`, {
+        method: 'PUT',
+        auth: true,
+        body: { status: 'cancelled' },
+      });
+      setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
+      setSelectedRide(res.ride);
+      setSuccess('Ride cancelled.');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to cancel ride.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredRides = rides;
 
   const isClientCar = editServiceType.toLowerCase().includes('client');
   const isAgreementSigned = Boolean(selectedRide?.details?.is_client_car_signed);
@@ -608,32 +653,42 @@ export default function RidesPage() {
         </div>
       </div>
 
-      {/* Slide-Over Context Drawer matching Screenshot 2 & Screenshot 7 */}
-      {selectedRide && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl h-full bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-300">
-            {/* Drawer Header */}
-            <div className="p-4 border-b border-border flex items-center justify-between bg-muted/30">
-              <div className="flex items-center gap-2.5">
-                <span className="font-mono text-sm font-bold text-primary">{selectedRide.reference}</span>
-                {renderStatusBadge(selectedRide.status)}
-              </div>
-              <button
-                type="button"
-                onClick={closeDrawer}
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Drawer Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5 text-xs">
+      <RightDrawer
+        open={!!selectedRide}
+        onClose={closeDrawer}
+        title={
+          selectedRide ? (
+            <span className="font-mono">
+              {selectedRide.reference} · {selectedRide.first_name} {selectedRide.last_name || ''}
+            </span>
+          ) : (
+            'Ride'
+          )
+        }
+        subtitle={selectedRide ? renderStatusBadge(selectedRide.status) : undefined}
+        width={560}
+      >
+        {selectedRide ? (
+            <div className="space-y-5 text-xs">
               {/* Row 1: Client info */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-muted/20 p-3 rounded-lg border border-border">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Client Name</label>
-                  <div className="font-bold text-foreground">{selectedRide.first_name} {selectedRide.last_name || ''}</div>
+                  <div className="font-bold text-foreground">
+                    {selectedRide.first_name} {selectedRide.last_name || ''}
+                  </div>
+                  {(selectedRide.customer_id || selectedRide.email) && (
+                    <Link
+                      href={
+                        selectedRide.customer_id
+                          ? `/customers?id=${selectedRide.customer_id}`
+                          : `/customers?q=${encodeURIComponent(selectedRide.email || '')}`
+                      }
+                      className="text-[10px] text-primary hover:underline"
+                    >
+                      View client profile →
+                    </Link>
+                  )}
                 </div>
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Phone</label>
@@ -813,27 +868,22 @@ export default function RidesPage() {
 
               {/* Pickup & Dropoff Addresses */}
               <div className="space-y-3">
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Pickup Address</label>
-                  <input
-                    type="text"
-                    value={editPickupAddress}
-                    onChange={(e) => setEditPickupAddress(e.target.value)}
-                    placeholder="Enter full pickup address..."
-                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Drop-off Address</label>
-                  <input
-                    type="text"
-                    value={editDropoffAddress}
-                    onChange={(e) => setEditDropoffAddress(e.target.value)}
-                    placeholder="Leave blank for as directed"
-                    className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                  />
-                </div>
+                <LocationAutocompleteInput
+                  label="Pickup Address"
+                  value={editPickupAddress}
+                  onChange={setEditPickupAddress}
+                  placeholder="Enter full pickup address..."
+                  iconType="pickup"
+                  compact
+                />
+                <LocationAutocompleteInput
+                  label="Drop-off Address"
+                  value={editDropoffAddress}
+                  onChange={setEditDropoffAddress}
+                  placeholder="Leave blank for as directed"
+                  iconType="dropoff"
+                  compact
+                />
               </div>
 
               {/* Notes for the Driver */}
@@ -879,14 +929,35 @@ export default function RidesPage() {
               </div>
 
               {/* Save Changes Button */}
-              <button
-                type="button"
-                onClick={() => handleSaveRide()}
-                disabled={saving}
-                className="w-full py-2 px-3 rounded text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm"
-              >
-                {saving ? 'Saving...' : 'Save changes'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleSaveRide()}
+                  disabled={saving}
+                  className="flex-1 py-2 px-3 rounded text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm"
+                >
+                  {saving ? 'Saving...' : 'Save changes'}
+                </button>
+                {selectedRide.status !== 'cancelled' && selectedRide.status !== 'completed' && (
+                  <button
+                    type="button"
+                    onClick={handleCancelRide}
+                    disabled={saving}
+                    className="py-2 px-3 rounded text-xs font-bold border border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
+                  >
+                    Cancel ride
+                  </button>
+                )}
+              </div>
+
+              {selectedRide.assigned_driver_id && (
+                <Link
+                  href={`/drivers?id=${selectedRide.assigned_driver_id}`}
+                  className="text-[10px] text-primary hover:underline inline-block"
+                >
+                  View assigned driver →
+                </Link>
+              )}
 
               {/* Section DISPATCH matching Screenshot 2 */}
               <div className="p-4 rounded-lg border border-border bg-muted/20 space-y-3">
@@ -1019,29 +1090,40 @@ export default function RidesPage() {
                 </div>
               </div>
             </div>
+        ) : null}
+      </RightDrawer>
+
+      <RightDrawer
+        open={phoneBookingOpen}
+        onClose={() => setPhoneBookingOpen(false)}
+        title={
+          <span className="inline-flex items-center gap-2">
+            <Phone size={16} className="text-[#E48243]" />
+            Create Phone Booking
+          </span>
+        }
+        width={520}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPhoneBookingOpen(false)}
+              className="px-3 py-1.5 rounded text-xs font-semibold border border-border hover:bg-muted"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="phone-booking-form"
+              disabled={saving}
+              className="px-4 py-1.5 rounded text-xs font-bold bg-[#E48243] text-white hover:bg-[#d47334] disabled:opacity-50"
+            >
+              {saving ? 'Creating...' : 'Create Booking'}
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* Phone Booking Modal */}
-      {phoneBookingOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <div className="flex items-center gap-2">
-                <Phone size={16} className="text-[#E48243]" />
-                <h2 className="text-sm font-bold text-foreground">Create Phone Booking</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPhoneBookingOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreatePhoneBooking} className="space-y-3 text-xs">
+        }
+      >
+            <form id="phone-booking-form" onSubmit={handleCreatePhoneBooking} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">First Name *</label>
@@ -1123,28 +1205,24 @@ export default function RidesPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Pickup Address *</label>
-                <input
-                  type="text"
-                  required
-                  value={pbForm.pickup_location}
-                  onChange={(e) => setPbForm({ ...pbForm, pickup_location: e.target.value })}
-                  placeholder="Street, City, State ZIP..."
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
-                />
-              </div>
+              <LocationAutocompleteInput
+                label="Pickup Address"
+                value={pbForm.pickup_location}
+                onChange={(v) => setPbForm({ ...pbForm, pickup_location: v })}
+                placeholder="Street, City, State ZIP..."
+                iconType="pickup"
+                required
+                compact
+              />
 
-              <div>
-                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Drop-off Address</label>
-                <input
-                  type="text"
-                  value={pbForm.dropoff_location}
-                  onChange={(e) => setPbForm({ ...pbForm, dropoff_location: e.target.value })}
-                  placeholder="Leave blank for as directed"
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground"
-                />
-              </div>
+              <LocationAutocompleteInput
+                label="Drop-off Address"
+                value={pbForm.dropoff_location}
+                onChange={(v) => setPbForm({ ...pbForm, dropoff_location: v })}
+                placeholder="Leave blank for as directed"
+                iconType="dropoff"
+                compact
+              />
 
               <div>
                 <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Dispatch Notes</label>
@@ -1157,26 +1235,8 @@ export default function RidesPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setPhoneBookingOpen(false)}
-                  className="px-3 py-1.5 rounded text-xs font-semibold border border-border hover:bg-muted"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-1.5 rounded text-xs font-bold bg-[#E48243] text-white hover:bg-[#d47334]"
-                >
-                  {saving ? 'Creating...' : 'Create Booking'}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+      </RightDrawer>
     </div>
   );
 }

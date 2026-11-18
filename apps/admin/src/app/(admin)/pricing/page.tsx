@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { usd, type Quote } from '@/lib/quoteFormat';
@@ -177,7 +178,7 @@ export default function PaymentsEarningsPage() {
             Payments & earnings
           </h1>
           <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
-            Close-out ledger for completed rides. Cards settle to Archer's Square account; tips pass through 100% to drivers. Tax held for quarterly remittance.
+            Close-out ledger for completed rides. Cards settle to Archer’s Stripe account; tips pass through 100% to drivers. Tax held for quarterly remittance.
           </p>
         </div>
 
@@ -398,7 +399,7 @@ export default function PaymentsEarningsPage() {
             <div style={{ fontSize: '1.65rem', fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
               ${data.kpis.card_fees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>Square processing</div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>Stripe processing</div>
           </div>
 
           {/* Card 5: Archer profit (in green) */}
@@ -452,10 +453,16 @@ export default function PaymentsEarningsPage() {
                 <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{row.date}</td>
                   <td style={{ padding: '12px 14px', color: 'var(--text)' }}>
-                    <div style={{ fontWeight: 600 }}>{row.ride_reference}</div>
+                    <Link href={`/rides?q=${encodeURIComponent(row.ride_reference)}`} style={{ fontWeight: 600, color: 'var(--text)', textDecoration: 'none' }}>
+                      {row.ride_reference}
+                    </Link>
                     <div style={{ fontSize: '0.74rem', color: 'var(--muted)' }}>{row.client_name}</div>
                   </td>
-                  <td style={{ padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{row.driver_name}</td>
+                  <td style={{ padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>
+                    <Link href={`/drivers?id=${row.driver_id}`} style={{ color: 'var(--text)', textDecoration: 'none' }}>
+                      {row.driver_name}
+                    </Link>
+                  </td>
                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                     <span
                       style={{
@@ -520,7 +527,7 @@ export default function PaymentsEarningsPage() {
 
       {/* Explanatory Footnote box matching Screenshot 6 */}
       <div style={{ marginTop: 24, padding: '14px 18px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.78rem', color: 'var(--muted)', lineHeight: 1.5 }}>
-        Card payments are charged to the client's Square card on file at ride completion. Cash and Venmo payments are collected in person by the chauffeur and only available to clients with prior admin approval. Processing fees apply only to card transactions.
+        Card payments are charged to the client’s card on file via Stripe at ride completion. Cash and Venmo payments are collected in person by the chauffeur and only available to clients with prior admin approval. Stripe processing fees apply only to card transactions.
       </div>
     </div>
   );

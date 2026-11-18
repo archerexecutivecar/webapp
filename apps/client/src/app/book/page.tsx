@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, errorText } from "@/lib/api";
+import { LocationAutocompleteInput } from "@/components/LocationAutocompleteInput";
+import { useQuote, usd as quoteUsd } from "@/lib/quote";
 import { Shell, useCustomer } from "@/components/Shell";
 import { useCatalog, type Cls as CatalogCls, type Size as CatalogSize } from "@/lib/catalog";
 
@@ -145,6 +147,19 @@ function BookRideForm() {
   const guardHours = isTrip ? (vanTrip ? 4 : 3) : effectiveHours;
   const guardCost = isS ? 0 : guards * GUARD[t] * guardHours;
   const totalEstimate = basePrice + stopsCost + guardCost + FEE;
+
+  const quoteInput = {
+    service,
+    tier,
+    vehicle_class: isC || isS ? undefined : cls,
+    vehicle_size: isC || isS ? undefined : size,
+    hours: effectiveHours,
+    stops: validStops.length,
+    guards: isS ? Math.max(1, guards) : guards,
+    security_tier: tier,
+  };
+  const { quote: liveQuote, loading: quoteLoading } = useQuote(quoteInput);
+  const displayTotal = liveQuote?.total_cents != null ? quoteUsd(liveQuote.total_cents) : money(totalEstimate);
 
   const handleAddStop = () => {
     if (stops.length < 5) {
@@ -311,7 +326,7 @@ function BookRideForm() {
 
           <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #2A2A2E", fontSize: 14 }}>
             <span className="muted">Estimated Fare:</span>
-            <span style={{ fontWeight: 800, color: "#34D399" }}>{money(totalEstimate)}</span>
+            <span style={{ fontWeight: 800, color: "#34D399" }}>{displayTotal}</span>
           </div>
         </div>
 
@@ -424,7 +439,7 @@ function BookRideForm() {
             </span>
             <div style={{ fontSize: 24, fontWeight: 800, color: "#FFF", marginTop: 2 }}>
               {isTrip && !vanTrip ? "From " : ""}
-              <span style={{ color: "#34D399" }}>{money(totalEstimate)}</span>
+              <span style={{ color: "#34D399" }}>{quoteLoading ? "…" : displayTotal}</span>
             </div>
           </div>
           <span style={{ fontSize: 11, color: "#9E9890" }}>Dispatch Confirmed</span>
@@ -539,17 +554,17 @@ function BookRideForm() {
           </div>
         )}
 
-        {/* Pickup Address */}
-        <label className="field">
-          <span>{service === "airport" && airportDirection === "from" ? "Airport Terminal / FBO Location" : "Pickup Location / Address"}</span>
-          <input
-            className="input"
-            required
-            placeholder="Street address, airport, hotel, or private FBO"
-            value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
-          />
-        </label>
+        <LocationAutocompleteInput
+          label={
+            service === "airport" && airportDirection === "from"
+              ? "Airport Terminal / FBO Location"
+              : "Pickup Location / Address"
+          }
+          value={pickup}
+          onChange={setPickup}
+          required
+          placeholder="Street address, airport, hotel, or private FBO"
+        />
 
         {/* Dynamic Stops */}
         {stops.map((stopVal, idx) => (
@@ -608,16 +623,19 @@ function BookRideForm() {
         )}
 
         {/* Dropoff Address (optional for hourly/security) */}
-        <label className="field">
-          <span>{service === "airport" && airportDirection === "to" ? "Airport Destination" : service === "hourly" ? "Drop-off Address (Optional - As-directed)" : "Destination / Drop-off Address"}</span>
-          <input
-            className="input"
-            required={service === "p2p" || service === "airport"}
-            placeholder="Street address, venue, or hotel"
-            value={dropoff}
-            onChange={(e) => setDropoff(e.target.value)}
-          />
-        </label>
+        <LocationAutocompleteInput
+          label={
+            service === "airport" && airportDirection === "to"
+              ? "Airport Destination"
+              : service === "hourly"
+                ? "Drop-off Address (Optional - As-directed)"
+                : "Destination / Drop-off Address"
+          }
+          value={dropoff}
+          onChange={setDropoff}
+          required={service === "p2p" || service === "airport"}
+          placeholder="Street address, venue, or hotel"
+        />
 
         {/* Client Car Personal Vehicle Details */}
         {isC && (
@@ -951,7 +969,7 @@ function BookRideForm() {
           disabled={busy}
           style={{ minHeight: 52, fontSize: 15, fontWeight: 800, padding: "14px 16px" }}
         >
-          {busy ? "Transmitting Reservation…" : `REQUEST RIDE · ${money(totalEstimate)}`}
+          {busy ? "Transmitting Reservation…" : `REQUEST RIDE · ${displayTotal}`}
         </button>
         <p className="muted" style={{ textAlign: "center", fontSize: 12, margin: "10px 0 0" }}>
           Instant transmission to Archer Dispatch. Confirmation sent directly to your portal and email.

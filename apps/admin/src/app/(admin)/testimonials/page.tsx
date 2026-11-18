@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { Plus, Trash2, Edit3, X, MessageSquare } from 'lucide-react';
+import { Plus, Trash2, Edit3, MessageSquare } from 'lucide-react';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface Testimonial {
   id: string;
@@ -138,14 +139,20 @@ export default function TestimonialsPage() {
         )}
       </div>
 
-      {editing && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setEditing(null)}>
-          <aside style={{ background: 'var(--surface)', width: '100%', maxWidth: 480, height: '100vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '1.15rem' }}>{editing.id ? 'Edit testimonial' : 'New testimonial'}</h2>
-                <button type="button" className="secondary" aria-label="Close" onClick={() => setEditing(null)}><X size={16} /></button>
-              </div>
+      <RightDrawer
+        open={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing?.id ? 'Edit testimonial' : 'New testimonial'}
+        width={480}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+            <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button>
+            <button type="submit" form="testimonial-form">Save testimonial</button>
+          </div>
+        }
+      >
+        {editing ? (
+            <form id="testimonial-form" onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <label>Client name *
                 <input required maxLength={255} value={editing.client_name ?? ''} onChange={(e) => setEditing({ ...editing, client_name: e.target.value })} />
               </label>
@@ -168,14 +175,9 @@ export default function TestimonialsPage() {
                 <input type="checkbox" checked={editing.is_active ?? true} onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })} style={{ width: 16, minHeight: 16 }} />
                 Show on website
               </label>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button>
-                <button type="submit">Save testimonial</button>
-              </div>
             </form>
-          </aside>
-        </div>
-      )}
+        ) : null}
+      </RightDrawer>
     </div>
   );
 }

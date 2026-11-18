@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 import { 
   Car, 
   Clock, 
@@ -334,165 +335,155 @@ export default function DriverPortalPage() {
         )}
       </div>
 
-      {/* Status Update Slide-over Drawer */}
-      {drawerOpen && selectedRide && (
-        <div className="zoho-drawer-backdrop" onClick={closeDrawer}>
-          <aside className="zoho-drawer" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={handleUpdateStatus} className="zoho-drawer-form">
-              <div className="zoho-drawer-header">
-                <div>
-                  <span className="drawer-pretitle">Assigned Ride {selectedRide.reference}</span>
-                  <h2>Update Ride Progress</h2>
+      <RightDrawer
+        open={drawerOpen && !!selectedRide}
+        onClose={closeDrawer}
+        title="Update Ride Progress"
+        subtitle={selectedRide ? `Assigned ride ${selectedRide.reference}` : undefined}
+        width={520}
+        footer={
+          <div className="zoho-drawer-footer" style={{ border: 'none', padding: 0 }}>
+            <button type="button" onClick={closeDrawer} className="zoho-btn-secondary" disabled={updating}>
+              Cancel
+            </button>
+            <button type="submit" form="my-ride-status-form" className="zoho-btn-primary" disabled={updating}>
+              {updating ? 'Updating...' : 'Confirm Status Update'}
+            </button>
+          </div>
+        }
+      >
+        {selectedRide && (
+          <form id="my-ride-status-form" onSubmit={handleUpdateStatus} className="zoho-drawer-form">
+            <div className="zoho-drawer-body" style={{ padding: 0 }}>
+              <div className="detail-card">
+                <span className="card-section-title">Passenger</span>
+                <div className="passenger-lead">
+                  <h3>{selectedRide.first_name} {selectedRide.last_name}</h3>
                 </div>
-                <button type="button" onClick={closeDrawer} className="zoho-close-btn" aria-label="Close">
-                  ✕
-                </button>
-              </div>
-
-              <div className="zoho-drawer-body">
-                {/* Passenger Info */}
-                <div className="detail-card">
-                  <span className="card-section-title">Passenger</span>
-                  <div className="passenger-lead">
-                    <h3>{selectedRide.first_name} {selectedRide.last_name}</h3>
+                <div className="detail-grid">
+                  <div className="detail-item">
+                    <span className="detail-label">Direct Phone</span>
+                    <a href={`tel:${selectedRide.phone}`} className="detail-value link">
+                      <Phone size={12} style={{ display: 'inline', marginRight: 4 }} />
+                      {selectedRide.phone}
+                    </a>
                   </div>
-                  <div className="detail-grid">
+                  {selectedRide.email && (
                     <div className="detail-item">
-                      <span className="detail-label">Direct Phone</span>
-                      <a href={`tel:${selectedRide.phone}`} className="detail-value link">
-                        <Phone size={12} style={{ display: 'inline', marginRight: 4 }} />
-                        {selectedRide.phone}
+                      <span className="detail-label">Email</span>
+                      <a href={`mailto:${selectedRide.email}`} className="detail-value link">
+                        <Mail size={12} style={{ display: 'inline', marginRight: 4 }} />
+                        {selectedRide.email}
                       </a>
-                    </div>
-                    {selectedRide.email && (
-                      <div className="detail-item">
-                        <span className="detail-label">Email</span>
-                        <a href={`mailto:${selectedRide.email}`} className="detail-value link">
-                          <Mail size={12} style={{ display: 'inline', marginRight: 4 }} />
-                          {selectedRide.email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Navigation Route & Locations */}
-                <div className="detail-card">
-                  <span className="card-section-title">Navigation & Route</span>
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <span className="detail-label">Pickup Location</span>
-                      <div className="detail-value" style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>●</span>
-                          <span>{selectedRide.pickup_location || 'Confirmed via Phone'}</span>
-                        </div>
-                        {selectedRide.pickup_location && (
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedRide.pickup_location)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="zoho-btn-status"
-                            style={{ padding: '2px 8px', fontSize: '0.7rem' }}
-                          >
-                            Open Maps ↗
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <span className="detail-label">Drop-off Destination</span>
-                      <div className="detail-value" style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ color: '#10b981', fontWeight: 'bold' }}>■</span>
-                          <span>{selectedRide.dropoff_location || 'Confirmed via Phone'}</span>
-                        </div>
-                        {selectedRide.dropoff_location && (
-                          <a
-                            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedRide.dropoff_location)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="zoho-btn-status"
-                            style={{ padding: '2px 8px', fontSize: '0.7rem' }}
-                          >
-                            Open Maps ↗
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ride Details */}
-                <div className="detail-card">
-                  <span className="card-section-title">Schedule & Vehicle</span>
-                  <div className="detail-grid-4">
-                    <div className="detail-item">
-                      <span className="detail-label">Date</span>
-                      <span className="detail-value">{selectedRide.ride_date}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Pickup Time</span>
-                      <span className="detail-value">{selectedRide.ride_time}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Service</span>
-                      <span className="detail-value text-capitalize">{selectedRide.service_type}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Fleet Vehicle</span>
-                      <span className="detail-value">{selectedRide.vehicle}</span>
-                    </div>
-                  </div>
-                  {selectedRide.dispatch_notes && (
-                    <div className="dispatch-notes-box">
-                      <span className="detail-label">Dispatch Instructions:</span>
-                      <p>{selectedRide.dispatch_notes}</p>
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Status Selection */}
-                <div className="dispatch-section">
-                  <span className="card-section-title">Driver Action</span>
-
-                  <div className="form-group">
-                    <label className="zoho-label">Update Your Ride Status <span className="req">*</span></label>
-                    <select
-                      value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value as AssignedRide['status'])}
-                    >
-                      <option value="dispatched">Dispatched (Chauffeur Confirmed & Accepted)</option>
-                      <option value="in_progress">In Progress (En Route to Passenger / Driving)</option>
-                      <option value="completed">Completed (Trip Dropped Off Successfully)</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+              <div className="detail-card">
+                <span className="card-section-title">Navigation & Route</span>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <span className="detail-label">Pickup Location</span>
+                    <div className="detail-value" style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>●</span>
+                        <span>{selectedRide.pickup_location || 'Confirmed via Phone'}</span>
+                      </div>
+                      {selectedRide.pickup_location && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedRide.pickup_location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="zoho-btn-status"
+                          style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                        >
+                          Open Maps ↗
+                        </a>
+                      )}
+                    </div>
                   </div>
-
-                  <div className="form-group">
-                    <label className="zoho-label">Driver Progress Note (Optional)</label>
-                    <textarea
-                      rows={3}
-                      value={driverNote}
-                      onChange={(e) => setDriverNote(e.target.value)}
-                      placeholder="e.g. Passenger on board, proceeding to private terminal. ETA 25 minutes."
-                    />
+                  <div>
+                    <span className="detail-label">Drop-off Destination</span>
+                    <div className="detail-value" style={{ marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: '#10b981', fontWeight: 'bold' }}>■</span>
+                        <span>{selectedRide.dropoff_location || 'Confirmed via Phone'}</span>
+                      </div>
+                      {selectedRide.dropoff_location && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedRide.dropoff_location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="zoho-btn-status"
+                          style={{ padding: '2px 8px', fontSize: '0.7rem' }}
+                        >
+                          Open Maps ↗
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="zoho-drawer-footer">
-                <button type="button" onClick={closeDrawer} className="zoho-btn-secondary" disabled={updating}>
-                  Cancel
-                </button>
-                <button type="submit" className="zoho-btn-primary" disabled={updating}>
-                  {updating ? 'Updating...' : 'Confirm Status Update'}
-                </button>
+              <div className="detail-card">
+                <span className="card-section-title">Schedule & Vehicle</span>
+                <div className="detail-grid-4">
+                  <div className="detail-item">
+                    <span className="detail-label">Date</span>
+                    <span className="detail-value">{selectedRide.ride_date}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Pickup Time</span>
+                    <span className="detail-value">{selectedRide.ride_time}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Service</span>
+                    <span className="detail-value text-capitalize">{selectedRide.service_type}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Fleet Vehicle</span>
+                    <span className="detail-value">{selectedRide.vehicle}</span>
+                  </div>
+                </div>
+                {selectedRide.dispatch_notes && (
+                  <div className="dispatch-notes-box">
+                    <span className="detail-label">Dispatch Instructions:</span>
+                    <p>{selectedRide.dispatch_notes}</p>
+                  </div>
+                )}
               </div>
-            </form>
-          </aside>
-        </div>
-      )}
+
+              <div className="dispatch-section">
+                <span className="card-section-title">Driver Action</span>
+                <div className="form-group">
+                  <label className="zoho-label">Update Your Ride Status <span className="req">*</span></label>
+                  <select
+                    value={newStatus}
+                    onChange={(e) => setNewStatus(e.target.value as AssignedRide['status'])}
+                  >
+                    <option value="dispatched">Dispatched (Chauffeur Confirmed & Accepted)</option>
+                    <option value="on_my_way">On my way</option>
+                    <option value="at_doorstep">At your doorstep</option>
+                    <option value="in_progress">In Progress (En Route / Driving)</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="zoho-label">Driver Progress Note (Optional)</label>
+                  <textarea
+                    rows={3}
+                    value={driverNote}
+                    onChange={(e) => setDriverNote(e.target.value)}
+                    placeholder="e.g. Passenger on board, proceeding to private terminal. ETA 25 minutes."
+                  />
+                </div>
+              </div>
+            </div>
+          </form>
+        )}
+      </RightDrawer>
 
       {/* Scoped Zoho CSS */}
       <style jsx>{`

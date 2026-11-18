@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 import {
   Search,
   Plus,
-  ChevronLeft,
   Check,
   AlertCircle,
   CheckCircle2,
@@ -94,6 +95,8 @@ export interface DriverDetail extends DriverSummary {
 }
 
 export default function DriversPage() {
+  const searchParams = useSearchParams();
+  const urlBootRef = useRef(false);
   const [drivers, setDrivers] = useState<DriverSummary[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -151,6 +154,14 @@ export default function DriversPage() {
     fetchDrivers();
   }, []);
 
+  useEffect(() => {
+    if (urlBootRef.current) return;
+    const id = searchParams.get('id');
+    if (!id) return;
+    urlBootRef.current = true;
+    loadDriverDetail(id);
+  }, [searchParams]);
+
   const loadDriverDetail = async (id: string, switchView = true) => {
     setSelectedDriverId(id);
     setDetailLoading(true);
@@ -179,6 +190,12 @@ export default function DriversPage() {
     } finally {
       setDetailLoading(false);
     }
+  };
+
+  const closeDriverDrawer = () => {
+    setViewMode('list');
+    setSelectedDriverId(null);
+    setSelectedDetail(null);
   };
 
   const handleSaveDetails = async (overrides: Partial<DriverDetail> = {}) => {
@@ -259,6 +276,24 @@ export default function DriversPage() {
     }
   };
 
+  const handleDeleteDriver = async () => {
+    if (!selectedDetail || !confirm(`Remove ${selectedDetail.name} from the roster?`)) return;
+    try {
+      setSaving(true);
+      await api(`/admin/drivers/${selectedDetail.id}`, { method: 'DELETE', auth: true });
+      setViewMode('list');
+      setSelectedDriverId(null);
+      setSelectedDetail(null);
+      await fetchDrivers();
+      setSuccessNotice('Driver removed from roster.');
+      setTimeout(() => setSuccessNotice(null), 3500);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to remove driver.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCreateDriver = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
@@ -323,9 +358,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {/* VIEW MODE 1: All Drivers Roster List */}
-      {viewMode === 'list' && (
-        <div className="space-y-4">
+      <div className="space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-border">
             <div>
               <div className="flex items-center gap-2">
@@ -393,11 +426,15 @@ export default function DriversPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredDrivers.map((d) => (
+                    filteredDrivers.map((d) => {
+                      const isSelected = selectedDriverId === d.id && viewMode === 'profile';
+                      return (
                       <tr
                         key={d.id}
                         onClick={() => loadDriverDetail(d.id)}
-                        className="cursor-pointer transition hover:bg-muted/40"
+                        className={`cursor-pointer transition hover:bg-muted/40 ${
+                          isSelected ? 'bg-amber-500/10 border-l-4 border-amber-600' : ''
+                        }`}
                       >
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
@@ -473,38 +510,32 @@ export default function DriversPage() {
                           </button>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      )}
+      </div>
 
-      {/* Fallback if in profile mode while detail loads */}
-      {viewMode === 'profile' && !selectedDetail && (
-        <div className="p-12 text-center text-muted-foreground">
-          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-          Loading driver profile...
-        </div>
-      )}
-
-      {/* VIEW MODE 2: Driver Detail Profile matching Screenshot 4 */}
-      {viewMode === 'profile' && selectedDetail && (
-        <div className="space-y-4">
-          {/* Top Header: Breadcrumb & Action Buttons */}
-          <div className="flex items-center justify-between pb-2 border-b border-border">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 font-semibold transition"
-            >
-              <ChevronLeft size={15} />
-              <span>All drivers</span>
-            </button>
-
-            <div className="flex items-center gap-2">
+      <RightDrawer
+        open={viewMode === 'profile'}
+        onClose={closeDriverDrawer}
+        title={selectedDetail?.name ?? 'Driver profile'}
+        subtitle={selectedDetail?.employment_type || undefined}
+        width={560}
+      >
+        {detailLoading ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+            Loading driver profile...
+          </div>
+        ) : !selectedDetail ? (
+          <div className="p-8 text-center text-muted-foreground text-xs">Unable to load driver profile.</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-end gap-2 pb-2 border-b border-border flex-wrap">
               <button
                 type="button"
                 onClick={handleToggleActive}
@@ -520,28 +551,16 @@ export default function DriversPage() {
               >
                 View their driver app
               </button>
-            </div>
-          </div>
 
-          {detailLoading ? (
-            <div className="p-12 text-center text-muted-foreground">
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-              Loading driver profile...
+              <button
+                type="button"
+                onClick={handleDeleteDriver}
+                disabled={saving}
+                className="px-3 py-1.5 text-xs rounded border border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
+              >
+                Delete driver
+              </button>
             </div>
-          ) : (
-            <>
-              {/* Driver Profile Header */}
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Driver Profile
-                </span>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground font-serif">
-                  {selectedDetail.name}
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  {selectedDetail.employment_type || 'Archer employee · owner-operator rights · Active · online now'}
-                </p>
-              </div>
 
               {/* Contact Fields: Phone & Email */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
@@ -846,7 +865,7 @@ export default function DriversPage() {
 
                         <div className="pt-1">
                           <Link
-                            href={`/rides?search=${selectedDetail.active_ride.reference}`}
+                            href={`/rides?q=${encodeURIComponent(selectedDetail.active_ride.reference)}`}
                             className="text-[11px] font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:underline"
                           >
                             Driving: Open in Ride requests
@@ -888,7 +907,9 @@ export default function DriversPage() {
                               <td className="py-2 px-3 text-foreground whitespace-nowrap">{h.date}</td>
                               <td className="py-2 px-3">
                                 <div className="font-semibold text-foreground">{h.client}</div>
-                                <div className="font-mono text-[10px] text-primary">{h.reference}</div>
+                                <Link href={`/rides?q=${encodeURIComponent(h.reference)}`} className="font-mono text-[10px] text-primary hover:underline">
+                                  {h.reference}
+                                </Link>
                               </td>
                               <td className="py-2 px-3 text-muted-foreground">{h.job}</td>
                               <td className="py-2 px-2 text-muted-foreground">{h.paid_by}</td>
@@ -972,6 +993,10 @@ export default function DriversPage() {
                       </span>
                     </div>
 
+                    <Link href="/security/credentials" className="text-[10px] text-primary hover:underline">
+                      Open security credentials hub →
+                    </Link>
+
                     <div className="space-y-2 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="text-foreground font-medium">SOAR certification</span>
@@ -1042,27 +1067,36 @@ export default function DriversPage() {
                   </div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </RightDrawer>
 
-      {/* Onboard New Driver Modal */}
-      {isNewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-card rounded-lg border border-border shadow-xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-border pb-2.5">
-              <h3 className="font-bold text-foreground text-sm">Add New Chauffeur</h3>
-              <button
-                type="button"
-                onClick={() => setIsNewModalOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateDriver} className="space-y-3 text-xs">
+      <RightDrawer
+        open={isNewModalOpen}
+        onClose={() => setIsNewModalOpen(false)}
+        title="Add New Chauffeur"
+        width={480}
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setIsNewModalOpen(false)}
+              className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="new-driver-form"
+              disabled={saving}
+              className="px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
+            >
+              {saving ? 'Adding...' : 'Add Chauffeur'}
+            </button>
+          </div>
+        }
+      >
+            <form id="new-driver-form" onSubmit={handleCreateDriver} className="space-y-3 text-xs">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                   Full Name *
@@ -1119,26 +1153,8 @@ export default function DriversPage() {
                 </select>
               </div>
 
-              <div className="flex gap-2 justify-end pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setIsNewModalOpen(false)}
-                  className="px-3 py-1.5 rounded border border-border bg-background text-muted-foreground hover:bg-muted text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-1.5 rounded bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 disabled:opacity-50"
-                >
-                  {saving ? 'Adding...' : 'Add Chauffeur'}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
-      )}
+      </RightDrawer>
     </div>
   );
 }

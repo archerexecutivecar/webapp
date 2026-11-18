@@ -29,10 +29,14 @@
 
 **Reason:** Meet store-distribution requirements without maintaining separate native codebases.
 
-## ADR-006 — Square
-**Decision:** Square is the current required payment direction.
+## ADR-006 — Payments (Stripe)
+**Status:** Supersedes Square (CHG-2026-11-18). Stripe is the production payment provider because the client has an active Stripe account.
 
-**Open confirmation:** Production credentials/provider configuration must be confirmed before live payment processing.
+**Decision:** Stripe is the required payment integration for card collection, payment status, refunds (where approved), and webhook-driven reconciliation.
+
+**History:** Square was previously selected as the payment direction (ADR-006, original). That direction is retained here for audit history only.
+
+**Open confirmation:** Production Stripe credentials (publishable key, secret key, webhook signing secret) must be provisioned via Admin → Integrations settings or environment configuration before live payment processing.
 
 ## ADR-007 — AI engineering workflow
 **Decision:** Codex is primary implementation agent; Claude Code is second-engineer reviewer.

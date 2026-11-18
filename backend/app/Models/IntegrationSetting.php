@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class IntegrationSetting extends Model
+{
+    protected $fillable = [
+        'google_maps_browser_key',
+        'google_maps_server_key',
+        'stripe_publishable_key',
+        'stripe_secret_key',
+        'stripe_webhook_secret',
+        'sms_provider',
+        'sms_api_key',
+        'docusign_integration_key',
+        'docusign_secret',
+        'docusign_account_id',
+        'payment_provider',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'google_maps_server_key' => 'encrypted',
+            'stripe_secret_key' => 'encrypted',
+            'stripe_webhook_secret' => 'encrypted',
+            'sms_api_key' => 'encrypted',
+            'docusign_secret' => 'encrypted',
+        ];
+    }
+
+    public static function current(): self
+    {
+        return self::first() ?? self::create([
+            'payment_provider' => 'stripe',
+        ]);
+    }
+
+    public function resolvedStripeWebhookSecret(): ?string
+    {
+        $fromDb = $this->stripe_webhook_secret;
+
+        return $fromDb ?: (env('STRIPE_WEBHOOK_SECRET') ?: null);
+    }
+}

@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Driver;
 use App\Models\PayrollDisbursement;
+use App\Models\RideRequest;
 use App\Support\ApiResponse;
+use App\Support\RideCloseoutMath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -16,130 +19,146 @@ class PayrollController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $week = $request->query('week', '2026-11-16');
+        $weekStart = Carbon::parse($request->query('week', now()->startOfWeek()->toDateString()))->startOfDay();
+        $weekEnd = $weekStart->copy()->endOfWeek();
 
-        // Look up registered disbursements safely
         $disbursements = collect();
         if (Schema::hasTable('payroll_disbursements')) {
             try {
-                $disbursements = PayrollDisbursement::where('pay_week_start', $week)->get()->keyBy('driver_id');
-            } catch (\Throwable $e) {
+                $disbursements = PayrollDisbursement::where('pay_week_start', $weekStart->toDateString())->get()->keyBy('driver_id');
+            } catch (\Throwable) {
                 $disbursements = collect();
             }
         }
 
-        $driverPaul = Driver::where('name', 'like', '%Paul Malesky%')->first();
-        $driverJoseph = Driver::where('name', 'like', '%Joseph Klein%')->first();
-        $driverChris = Driver::where('name', 'like', '%Chris Jaeger%')->first();
+        $driversOut = [];
+        $totalPayoutReady = 0.0;
+        $totalCashKept = 0.0;
+        $totalCarriedForward = 0.0;
+        $readyCount = 0;
 
-        $paulId = $driverPaul ? $driverPaul->id : 1;
-        $josephId = $driverJoseph ? $driverJoseph->id : 2;
-        $chrisId = $driverChris ? $driverChris->id : 3;
+        $activeDrivers = Driver::with('tier')->where('is_active', true)->orderBy('name')->get();
 
-        $paulDisbursed = isset($disbursements[$paulId]);
+        $ridesByDriver = collect();
+        if (Schema::hasTable('ride_requests')) {
+            $ridesByDriver = RideRequest::with('assignedDriver')
+                ->where('status', 'completed')
+                ->where(function ($q) use ($weekStart, $weekEnd) {
+                    $q->whereBetween('ride_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                        ->orWhereBetween('updated_at', [$weekStart, $weekEnd]);
+                })
+                ->get()
+                ->groupBy('assigned_driver_id');
+        }
 
-        $drivers = [
-            [
-                'id' => $paulId,
-                'name' => 'Paul Malesky',
-                'phone' => '(732) 555-0141',
-                'tier' => 'T2 Executive',
-                'tier_rate' => 30.00,
-                'status' => 'Active · Fleet, Client Car',
-                'rides' => [
-                    [
-                        'ride_reference' => 'AR-1046',
-                        'client_name' => 'Priya Nair',
-                        'date' => 'Tue, Nov 17',
-                        'hours' => 4.5,
-                        'rate' => 30.00,
-                        'fleet_pay' => 135.00,
-                        'tip' => 110.00,
-                        'total' => 245.00,
-                        'method' => 'Card',
-                        'cash_collected' => 0.00,
-                    ]
-                ],
-                'gross_earnings' => 245.00,
-                'fleet_pay_total' => 135.00,
-                'tips_total' => 110.00,
-                'cash_deductions' => 0.00,
+        foreach ($activeDrivers as $driver) {
+            $rides = $ridesByDriver->get($driver->id, collect());
+            $lineItems = [];
+            $fleetPayTotal = 0.0;
+            $tipsTotal = 0.0;
+            $cashDeductions = 0.0;
+            $grossEarnings = 0.0;
+
+            foreach ($rides as $ride) {
+                $row = RideCloseoutMath::ledgerRow($ride);
+                if ($row === null) {
+                    continue;
+                }
+
+                $hours = (float) ($ride->details['hours'] ?? $ride->details['billable_hours'] ?? 0);
+                $rate = (float) ($ride->details['hourly_rate'] ?? $ride->details['tier_rate'] ?? ($hours > 0 ? $row['driver_pay'] / $hours : $row['driver_pay']));
+                $fleetPay = $row['driver_pay'];
+                $tip = $row['tip'];
+                $method = $row['method'];
+                $cashCollected = strcasecmp($method, 'Cash') === 0 ? $row['client_paid'] : 0.0;
+
+                $lineTotal = round($fleetPay + $tip, 2);
+                $fleetPayTotal += $fleetPay;
+                $tipsTotal += $tip;
+                $grossEarnings += $lineTotal;
+                if ($cashCollected > 0) {
+                    $cashDeductions += $cashCollected;
+                }
+
+                $lineItems[] = [
+                    'ride_id' => (string) $ride->id,
+                    'ride_reference' => $ride->reference,
+                    'driver_id' => (string) $driver->id,
+                    'client_name' => $row['client_name'],
+                    'date' => $row['date'],
+                    'hours' => $hours > 0 ? $hours : null,
+                    'rate' => round($rate, 2),
+                    'fleet_pay' => $fleetPay,
+                    'tip' => $tip,
+                    'total' => $lineTotal,
+                    'method' => $method,
+                    'cash_collected' => round($cashCollected, 2),
+                ];
+            }
+
+            $netAmount = round($grossEarnings - $cashDeductions, 2);
+            $disbursed = $disbursements->get($driver->id);
+
+            if ($disbursed) {
+                $paymentStatus = 'paid';
+                $payoutLabel = 'Paid on ' . $disbursed->disbursed_at?->format('M d');
+                $payoutSubtext = 'Ref: ' . $disbursed->reference_number;
+            } elseif ($netAmount > 0) {
+                $paymentStatus = 'ready';
+                $payoutLabel = 'Archer owes ' . $driver->name . ' $' . number_format($netAmount, 2);
+                $payoutSubtext = 'Check / ACH ready';
+                $totalPayoutReady += $netAmount;
+                $readyCount++;
+            } elseif ($netAmount < 0) {
+                $paymentStatus = 'carried_forward';
+                $payoutLabel = 'Driver owes Archer $' . number_format(abs($netAmount), 2);
+                $payoutSubtext = 'Carried forward to next pay week (cash kept exceeds pay)';
+                $totalCarriedForward += $netAmount;
+            } else {
+                $paymentStatus = 'zero';
+                $payoutLabel = $rides->isEmpty() ? 'No active trips this week' : 'Zero balance';
+                $payoutSubtext = 'Zero balance';
+            }
+
+            if ($cashDeductions > 0) {
+                $totalCashKept += $cashDeductions;
+            }
+
+            $driversOut[] = [
+                'id' => $driver->id,
+                'name' => $driver->name,
+                'phone' => $driver->phone,
+                'tier' => $driver->tier?->name,
+                'tier_rate' => $lineItems[0]['rate'] ?? null,
+                'status' => $driver->is_active ? 'Active' : 'Inactive',
+                'rides' => $lineItems,
+                'gross_earnings' => round($grossEarnings, 2),
+                'fleet_pay_total' => round($fleetPayTotal, 2),
+                'tips_total' => round($tipsTotal, 2),
+                'cash_deductions' => round($cashDeductions, 2),
                 'carried_balance' => 0.00,
-                'net_amount' => 245.00,
-                'payment_status' => $paulDisbursed ? 'paid' : 'ready',
-                'disbursement' => $paulDisbursed ? $disbursements[$paulId] : null,
-                'payout_label' => $paulDisbursed ? 'Paid on ' . $disbursements[$paulId]->disbursed_at?->format('M d') : 'Archer owes Paul Malesky $245.00',
-                'payout_subtext' => $paulDisbursed ? 'Ref: ' . $disbursements[$paulId]->reference_number : 'Check / ACH ready Fri, Nov 27',
-            ],
-            [
-                'id' => $josephId,
-                'name' => 'Joseph Klein',
-                'phone' => '(732) 555-0142',
-                'tier' => 'T1 Essential',
-                'tier_rate' => 25.00,
-                'status' => 'Active · Fleet',
-                'rides' => [
-                    [
-                        'ride_reference' => 'AR-1045',
-                        'client_name' => 'Grant Whitfield',
-                        'date' => 'Mon, Nov 16',
-                        'hours' => 3.0,
-                        'rate' => 25.00,
-                        'fleet_pay' => 75.00,
-                        'tip' => 30.00,
-                        'total' => 105.00,
-                        'method' => 'Cash',
-                        'cash_collected' => 200.60,
-                    ]
-                ],
-                'gross_earnings' => 105.00,
-                'fleet_pay_total' => 75.00,
-                'tips_total' => 30.00,
-                'cash_deductions' => 200.60,
-                'carried_balance' => 0.00,
-                'net_amount' => -95.60,
-                'payment_status' => 'carried_forward',
-                'disbursement' => null,
-                'payout_label' => 'Driver owes Archer $95.60',
-                'payout_subtext' => 'Carried forward to next pay week (cash kept exceeds pay)',
-            ],
-            [
-                'id' => $chrisId,
-                'name' => 'Chris Jaeger',
-                'phone' => '(732) 555-0143',
-                'tier' => 'T3 Elite',
-                'tier_rate' => 35.00,
-                'status' => 'Active · Fleet, Owner-Op',
-                'rides' => [],
-                'gross_earnings' => 0.00,
-                'fleet_pay_total' => 0.00,
-                'tips_total' => 0.00,
-                'cash_deductions' => 0.00,
-                'carried_balance' => 0.00,
-                'net_amount' => 0.00,
-                'payment_status' => 'zero',
-                'disbursement' => null,
-                'payout_label' => 'No active trips this week',
-                'payout_subtext' => 'Zero balance',
-            ],
-        ];
-
-        $kpis = [
-            'total_payout_ready' => 245.00,
-            'total_cash_kept' => 200.60,
-            'total_carried_forward' => -95.60,
-            'ready_count' => 1,
-        ];
+                'net_amount' => $netAmount,
+                'payment_status' => $paymentStatus,
+                'disbursement' => $disbursed,
+                'payout_label' => $payoutLabel,
+                'payout_subtext' => $payoutSubtext,
+            ];
+        }
 
         return ApiResponse::data([
             'pay_week' => [
-                'start' => '2026-11-16',
-                'end' => '2026-11-22',
-                'disbursement_date' => '2026-11-27',
-                'label' => 'Nov 16 – Nov 22, 2026 (current)',
+                'start' => $weekStart->toDateString(),
+                'end' => $weekEnd->toDateString(),
+                'disbursement_date' => $weekEnd->copy()->addDays(5)->toDateString(),
+                'label' => $weekStart->format('M j') . ' – ' . $weekEnd->format('M j, Y'),
             ],
-            'kpis' => $kpis,
-            'drivers' => $drivers,
+            'kpis' => [
+                'total_payout_ready' => round($totalPayoutReady, 2),
+                'total_cash_kept' => round($totalCashKept, 2),
+                'total_carried_forward' => round($totalCarriedForward, 2),
+                'ready_count' => $readyCount,
+            ],
+            'drivers' => $driversOut,
         ]);
     }
 
@@ -155,15 +174,9 @@ class PayrollController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        // Find or create driver if testing
         $driver = Driver::find($validated['driver_id']);
-        if (!$driver) {
-            $driver = Driver::first() ?? Driver::create([
-                'name' => 'Paul Malesky',
-                'email' => 'paul@archer.test',
-                'phone' => '(732) 555-0141',
-                'is_active' => true,
-            ]);
+        if (! $driver) {
+            return ApiResponse::error('DRIVER_NOT_FOUND', 'Driver not found.', 422);
         }
 
         $disbursement = PayrollDisbursement::updateOrCreate(
@@ -206,17 +219,30 @@ class PayrollController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
+        $weekStart = Carbon::parse($request->query('week', now()->startOfWeek()->toDateString()))->startOfDay();
+        $payload = $this->index($request)->getData(true)['data'];
+        $drivers = $payload['drivers'] ?? [];
+
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="archer_payroll_' . date('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="archer_payroll_' . $weekStart->toDateString() . '.csv"',
         ];
 
-        return response()->stream(function () {
+        return response()->stream(function () use ($drivers) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, ['Driver Name', 'Tier', 'Fleet Pay', 'Tips', 'Gross Pay', 'Cash Kept', 'Net Amount', 'Status']);
-            fputcsv($handle, ['Paul Malesky', 'T2 Executive', '135.00', '110.00', '245.00', '0.00', '245.00', 'Ready']);
-            fputcsv($handle, ['Joseph Klein', 'T1 Essential', '75.00', '30.00', '105.00', '200.60', '-95.60', 'Carried Forward']);
-            fputcsv($handle, ['Chris Jaeger', 'T3 Elite', '0.00', '0.00', '0.00', '0.00', '0.00', 'Zero']);
+            foreach ($drivers as $driver) {
+                fputcsv($handle, [
+                    $driver['name'],
+                    $driver['tier'] ?? '',
+                    number_format($driver['fleet_pay_total'], 2, '.', ''),
+                    number_format($driver['tips_total'], 2, '.', ''),
+                    number_format($driver['gross_earnings'], 2, '.', ''),
+                    number_format($driver['cash_deductions'], 2, '.', ''),
+                    number_format($driver['net_amount'], 2, '.', ''),
+                    $driver['payment_status'],
+                ]);
+            }
             fclose($handle);
         }, 200, $headers);
     }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation, Search, X } from 'lucide-react';
+import { MapPin, Navigation, X } from 'lucide-react';
+import { API_BASE } from '@/lib/site-api';
 
 interface PlacePrediction {
   description: string;
@@ -41,26 +42,48 @@ export function LocationAutocompleteInput({
 
   // Load Google Maps JavaScript API with Places library if not loaded
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    let cancelled = false;
 
-    if (typeof window !== 'undefined' && (window as any).google?.maps?.places) {
-      autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
-      return;
-    }
+    const boot = async () => {
+      if (typeof window === 'undefined') return;
 
-    if (apiKey && typeof window !== 'undefined' && !document.getElementById('google-maps-script')) {
-      const script = document.createElement('script');
-      script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        if ((window as any).google?.maps?.places) {
-          autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+      if ((window as any).google?.maps?.places) {
+        autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+        return;
+      }
+
+      let apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+      try {
+        const res = await fetch(`${API_BASE}/integrations/public`, { headers: { Accept: 'application/json' } });
+        const json = await res.json().catch(() => null);
+        if (json?.data?.google_maps_browser_key) {
+          apiKey = json.data.google_maps_browser_key;
         }
-      };
-      document.head.appendChild(script);
-    }
+      } catch {
+        // use env fallback
+      }
+
+      if (!apiKey || cancelled) return;
+
+      if (!document.getElementById('google-maps-script')) {
+        const script = document.createElement('script');
+        script.id = 'google-maps-script';
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          if ((window as any).google?.maps?.places) {
+            autocompleteServiceRef.current = new (window as any).google.maps.places.AutocompleteService();
+          }
+        };
+        document.head.appendChild(script);
+      }
+    };
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Handle outside click to close dropdown

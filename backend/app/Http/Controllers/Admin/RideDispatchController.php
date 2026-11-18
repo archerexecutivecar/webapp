@@ -82,7 +82,7 @@ class RideDispatchController extends Controller
             $previousStatus = $ride->status;
 
             $validated = $request->validate([
-                'status' => 'sometimes|required|string|in:pending,new,broadcast,dispatched,driver_assigned,in_progress,completed,cancelled',
+                'status' => 'sometimes|required|string|in:pending,new,broadcast,accepted,dispatched,driver_assigned,on_my_way,at_doorstep,at_your_doorstep,ride_started,in_progress,ride_ended,close_out,completed,cancelled',
                 'assigned_driver_id' => 'nullable|exists:drivers,id',
                 'first_name' => 'nullable|string|max:100',
                 'last_name' => 'nullable|string|max:100',
@@ -99,6 +99,17 @@ class RideDispatchController extends Controller
                 'dispatch_notes' => 'nullable|string',
                 'details' => 'nullable|array',
             ]);
+
+            if (isset($validated['status'])) {
+                try {
+                    $validated['status'] = \App\Support\RideStateMachine::assertTransition(
+                        $previousStatus,
+                        $validated['status']
+                    );
+                } catch (\InvalidArgumentException $e) {
+                    return ApiResponse::error('ILLEGAL_STATUS_TRANSITION', $e->getMessage(), 422);
+                }
+            }
 
             // If updating details, merge with existing details
             if ($request->has('details')) {

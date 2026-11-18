@@ -2,19 +2,42 @@
 
 import {
   ArrowLeftRight, BadgeCheck, Bell, Calculator, CalendarCheck, Car,
-  ChevronsLeft, ChevronsRight, CreditCard, ExternalLink, LayoutDashboard,
-  LogOut, type LucideIcon, Megaphone, Menu, Monitor, Moon, Route,
-  Settings, ShieldAlert, Sun, Tag, UserCheck, Users, X,
+  ChevronsLeft, ChevronsRight, CreditCard, ExternalLink, FileText,
+  LayoutDashboard, LogOut, type LucideIcon, Megaphone, Menu, MessageSquare,
+  Monitor, Moon, Route, Settings, ShieldAlert, ShieldCheck, Sun, Tag,
+  UserCheck, Users, Wallet, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { useSession } from '@/lib/session';
+import { type NavGroup, type NavItem, useSession } from '@/lib/session';
 import { ThemeMode, useTheme } from '@/lib/theme';
 import { ArcherLogo } from './ArcherLogo';
 
 const COLLAPSE_KEY = 'archer_admin_sidebar_collapsed';
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  'layout-dashboard': LayoutDashboard,
+  route: Route,
+  users: Users,
+  'user-check': UserCheck,
+  car: Car,
+  bell: Bell,
+  'credit-card': CreditCard,
+  calculator: Calculator,
+  tag: Tag,
+  settings: Settings,
+  'file-text': FileText,
+  'shield-check': ShieldCheck,
+  'message-square': MessageSquare,
+  'shield-alert': ShieldAlert,
+  'calendar-check': CalendarCheck,
+  'arrow-left-right': ArrowLeftRight,
+  'badge-check': BadgeCheck,
+  megaphone: Megaphone,
+  wallet: Wallet,
+};
 
 export interface NavItemConfig {
   key: string;
@@ -24,6 +47,7 @@ export interface NavItemConfig {
   badge?: number | string;
   matchHrefs?: string[];
   description?: string;
+  available?: boolean;
 }
 
 export interface NavGroupConfig {
@@ -32,91 +56,64 @@ export interface NavGroupConfig {
   items: NavItemConfig[];
 }
 
-export const ADMIN_SIDEBAR_GROUPS: NavGroupConfig[] = [
-  {
-    key: 'operations',
-    label: 'OPERATIONS',
-    items: [
-      { key: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, matchHrefs: ['/dashboard', '/'] },
-      { key: 'rides', label: 'Ride requests', href: '/rides', icon: Route, badge: 4, matchHrefs: ['/rides'] },
-      { key: 'customers', label: 'Clients', href: '/customers', icon: Users, matchHrefs: ['/customers'] },
-      { key: 'drivers', label: 'Drivers', href: '/drivers', icon: UserCheck, badge: 1, matchHrefs: ['/drivers'] },
-      { key: 'notices', label: 'Customer notices', href: '/notices', icon: Bell, description: 'Broadcast notices, SMS updates, and customer advisories' },
-    ],
-  },
-  {
-    key: 'money',
-    label: 'MONEY',
-    items: [
-      { key: 'pricing', label: 'Payments & earnings', href: '/pricing', icon: CreditCard, matchHrefs: ['/pricing', '/payments'] },
-      { key: 'payroll', label: 'Weekly payroll', href: '/payroll', icon: Calculator, description: 'Weekly chauffeur payroll calculations and direct disbursements' },
-    ],
-  },
-  {
-    key: 'setup',
-    label: 'SETUP',
-    items: [
-      { key: 'fleet', label: 'Fleet & availability', href: '/site-vehicles', icon: Car, matchHrefs: ['/site-vehicles', '/fleet'] },
-      { key: 'rates', label: 'Vehicles & rates', href: '/site-rates', icon: Tag, matchHrefs: ['/site-rates', '/rates'] },
-      { key: 'settings', label: 'Settings', href: '/settings', icon: Settings, matchHrefs: ['/settings', '/site-content', '/site-tiers', '/testimonials'] },
-    ],
-  },
-  {
-    key: 'security_phase_2',
-    label: 'SECURITY · PHASE 2',
-    items: [
-      { key: 'security-leads', label: 'Security leads', href: '/security/leads', icon: ShieldAlert, badge: 1, description: 'Executive protection client inquiries, threat intake, and armed detail leads' },
-      { key: 'contracts-shifts', label: 'Contracts & shifts', href: '/security/contracts', icon: CalendarCheck, badge: 2, description: 'Security detail assignments, recurring client contracts, and armed officer shifts' },
-      { key: 'swap-approvals', label: 'Swap approvals', href: '/security/swaps', icon: ArrowLeftRight, badge: 1, description: 'Driver and security guard shift exchange requests and supervisor sign-offs' },
-      { key: 'credentials', label: 'Credentials', href: '/security/credentials', icon: BadgeCheck, badge: 2, description: 'Armed guard carry permits, law enforcement credentials, and background checks' },
-      { key: 'announcements', label: 'Announcements', href: '/security/announcements', icon: Megaphone, description: 'Operational bulletins, safety advisories, and driver briefing announcements' },
-    ],
-  },
-];
+function resolveIcon(name?: string): LucideIcon {
+  if (!name) return LayoutDashboard;
+  return ICON_MAP[name] ?? LayoutDashboard;
+}
 
-export const DRIVER_SIDEBAR_GROUPS: NavGroupConfig[] = [
-  {
-    key: 'operations',
-    label: 'OPERATIONS',
-    items: [
-      { key: 'driver-portal', label: 'My Assigned Rides', href: '/my-rides', icon: Car, matchHrefs: ['/my-rides'] },
-    ],
-  },
-];
+function mapServerGroups(groups: NavGroup[]): NavGroupConfig[] {
+  return groups.map((g) => ({
+    key: g.key,
+    label: g.label,
+    items: g.items.map((i: NavItem) => ({
+      key: i.key,
+      label: i.label,
+      href: i.href,
+      icon: resolveIcon(i.icon),
+      badge: i.badge,
+      available: i.available,
+      matchHrefs: [i.href],
+    })),
+  }));
+}
 
 export function useCurrentItem() {
   const pathname = usePathname();
-  const { me } = useSession();
+  const { groups: serverGroups } = useSession();
 
-  const groups = useMemo(() => {
-    const isOnlyDriver = me?.roles?.includes('driver') && !me?.roles?.some(r => ['super_admin', 'dispatcher', 'driver_manager', 'content_editor', 'content_publisher'].includes(r));
-    return isOnlyDriver ? DRIVER_SIDEBAR_GROUPS : ADMIN_SIDEBAR_GROUPS;
-  }, [me]);
+  const groups = useMemo(() => mapServerGroups(serverGroups), [serverGroups]);
 
   return useMemo(() => {
     for (const g of groups) {
       for (const i of g.items) {
         if (pathname === i.href) return { group: g, item: i };
         if (i.matchHrefs?.includes(pathname)) return { group: g, item: i };
-        if (i.href !== '/dashboard' && i.href !== '/' && pathname.startsWith(i.href + '/')) return { group: g, item: i };
+        if (i.href !== '/dashboard' && i.href !== '/' && pathname.startsWith(i.href + '/')) {
+          return { group: g, item: i };
+        }
       }
     }
-    // Check aliases
-    if (pathname === '/site-content') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-content', label: 'Page Content', href: '/site-content', icon: Tag, description: 'Public website content, hero messaging, and service copy' } };
-    if (pathname === '/site-tiers') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-tiers', label: 'Website Tiers', href: '/site-tiers', icon: ShieldAlert, description: 'Chauffeur security credentials and Tier 1-4 requirements' } };
-    if (pathname === '/testimonials') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'testimonials', label: 'Testimonials', href: '/testimonials', icon: Tag, description: 'Verified executive and celebrity client reviews' } };
-    if (pathname === '/my-rides') return { group: { key: 'operations', label: 'OPERATIONS' }, item: { key: 'my-rides', label: 'My Assigned Rides', href: '/my-rides', icon: Car, description: 'Assigned chauffeur dispatch manifests and trip notes' } };
+
+    // Settings hub aliases when CMS pages are nested under settings UX
+    if (pathname.startsWith('/settings')) {
+      return {
+        group: { key: 'setup', label: 'SETUP', items: [] },
+        item: { key: 'settings', label: 'Settings', href: '/settings', icon: Settings },
+      };
+    }
 
     return null;
   }, [groups, pathname]);
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { me, logout } = useSession();
+  const { me, groups: serverGroups, logout } = useSession();
   const pathname = usePathname();
   const current = useCurrentItem();
   const [collapsed, setCollapsed] = useState(false);
   const [drawer, setDrawer] = useState(false);
+
+  const groups = useMemo(() => mapServerGroups(serverGroups), [serverGroups]);
 
   useEffect(() => { try { setCollapsed(localStorage.getItem(COLLAPSE_KEY) === '1'); } catch { /* ignore */ } }, []);
   useEffect(() => { setDrawer(false); }, [pathname]);
@@ -130,12 +127,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
     setCollapsed((c) => { try { localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1'); } catch { /* ignore */ } return !c; });
   }
 
-  const isOnlyDriver = me?.roles?.includes('driver') && !me?.roles?.some(r => ['super_admin', 'dispatcher', 'driver_manager', 'content_editor', 'content_publisher'].includes(r));
-  const groups = isOnlyDriver ? DRIVER_SIDEBAR_GROUPS : ADMIN_SIDEBAR_GROUPS;
-
   return (
     <div className={`shell${collapsed ? ' is-collapsed' : ''}${drawer ? ' drawer-open' : ''}`}>
-      {/* Sleek Obsidian Single Sidebar (matching approved prototype) */}
       <aside className="sidebar" id="sidebar" aria-label="Main navigation">
         <div className="sb-head">
           <Link href="/dashboard" className="wordmark" aria-label="Archer Admin home" title="Archer Admin Home">
@@ -195,7 +188,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       {drawer && <div className="scrim" onClick={() => setDrawer(false)} aria-hidden />}
 
-      {/* Main Workspace Column */}
       <div className="main-col">
         <header className="header">
           <button
@@ -208,7 +200,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
 
-          {/* Clean Top Navbar Title - Breadcrumbs Removed per User Request */}
           <div className="header-title-wrap">
             <h1 className="page-title">{current?.item.label ?? 'Admin'}</h1>
           </div>
@@ -276,7 +267,8 @@ function ThemeMenu() {
 
 export interface AdminNotification {
   id: string;
-  ride_request_id?: string | null;
+  ride_request_id?: string | number | null;
+  ride_reference?: string | null;
   title: string;
   message: string;
   type: string;
@@ -324,10 +316,23 @@ function NotificationsMenu() {
     }
   };
 
-  const handleNotificationClick = (n: AdminNotification) => {
+  const handleNotificationClick = async (n: AdminNotification) => {
     setOpen(false);
     setLatestToast(null);
-    router.push('/rides');
+    try {
+      if (!n.is_read) {
+        await api(`/admin/notifications/${n.id}/read`, { method: 'PUT', auth: true });
+      }
+    } catch {
+      // ignore
+    }
+    if (n.ride_reference) {
+      router.push(`/rides?q=${encodeURIComponent(n.ride_reference)}`);
+    } else if (n.ride_request_id) {
+      router.push(`/rides?id=${encodeURIComponent(String(n.ride_request_id))}`);
+    } else {
+      router.push('/rides');
+    }
   };
 
   return (
@@ -347,93 +352,33 @@ function NotificationsMenu() {
         </button>
 
         {open && (
-          <div className="popover wide notif-popover" role="dialog" aria-label="Notifications">
-            <div className="notif-header">
-              <div className="pop-title" style={{ margin: 0 }}>
-                Operational Alerts {unreadCount > 0 && <span className="unread-dot"></span>}
-              </div>
+          <div className="popover notif-popover" role="dialog" aria-label="Notifications">
+            <div className="notif-head">
+              <strong>Notifications</strong>
               {unreadCount > 0 && (
-                <button type="button" onClick={markAllRead} className="mark-read-btn">
-                  Mark all read
-                </button>
+                <button className="text-xs text-primary" onClick={markAllRead}>Mark all read</button>
               )}
             </div>
-
-            <div className="notif-list">
-              {notifications.length === 0 ? (
-                <p className="empty-text" style={{ padding: '24px 12px', textAlign: 'center' }}>
-                  No notifications yet. New customer bookings will appear here instantly.
-                </p>
-              ) : (
-                notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => handleNotificationClick(n)}
-                    className={`notif-item ${n.is_read ? 'read' : 'unread'}`}
-                  >
-                    <div className="notif-indicator">
-                      <div className="notif-icon-circle">
-                        <Car size={13} />
-                      </div>
-                    </div>
-                    <div className="notif-content">
-                      <div className="notif-title-row">
-                        <span className="notif-title">{n.title}</span>
-                        {!n.is_read && <span className="new-badge">NEW</span>}
-                      </div>
-                      <p className="notif-message">{n.message}</p>
-                      <span className="notif-time">
-                        {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {notifications.length > 0 && (
-              <div className="notif-footer">
-                <Link href="/rides" onClick={() => setOpen(false)} className="view-all-link">
-                  Open Rides & Dispatch Center →
-                </Link>
-              </div>
-            )}
+            <ul className="notif-list">
+              {notifications.length === 0 && <li className="notif-empty">No notifications</li>}
+              {notifications.map((n) => (
+                <li key={n.id}>
+                  <button className={`notif-item${n.is_read ? '' : ' unread'}`} onClick={() => handleNotificationClick(n)}>
+                    <span className="notif-title">{n.title}</span>
+                    <span className="notif-msg">{n.message}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
 
       {latestToast && (
-        <div className="floating-booking-toast">
-          <div className="toast-left">
-            <div className="toast-icon-box">
-              <Bell size={18} className="toast-bell-icon" />
-            </div>
-            <div>
-              <div className="toast-title">
-                {latestToast.title}
-                <span className="toast-live-badge">Live Booking</span>
-              </div>
-              <p className="toast-message">{latestToast.message}</p>
-            </div>
-          </div>
-          <div className="toast-actions">
-            <button
-              onClick={() => {
-                setLatestToast(null);
-                router.push('/rides');
-              }}
-              className="toast-dispatch-btn"
-            >
-              Dispatch Now
-            </button>
-            <button
-              onClick={() => setLatestToast(null)}
-              className="toast-close-btn"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
+        <button className="notif-toast" onClick={() => handleNotificationClick(latestToast)}>
+          <strong>{latestToast.title}</strong>
+          <span>{latestToast.message}</span>
+        </button>
       )}
     </>
   );
@@ -441,18 +386,21 @@ function NotificationsMenu() {
 
 function ProfileMenu({ name, roles, email, onLogout }: { name: string; roles: string[]; email: string; onLogout: () => void }) {
   const { open, setOpen, ref } = usePopover();
-  const initials = name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() || '?';
-  const roleText = roles.map((r) => r.replace(/_/g, ' ')).join(', ');
   return (
     <div className="pop-wrap" ref={ref}>
-      <button className="profile-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span className="avatar" aria-hidden>{initials}</span>
-        <span className="profile-text"><span className="p-name">{name}</span><span className="p-role">{roleText}</span></span>
+      <button className="avatar-btn" aria-label="Account menu" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="avatar-initials">{(name || email || 'A').slice(0, 1).toUpperCase()}</span>
       </button>
       {open && (
-        <div className="popover" role="menu">
-          <div className="pop-id"><div className="p-name">{name}</div><div className="p-role">{email}</div><div className="p-role">{roleText}</div></div>
-          <button role="menuitem" className="menu-item" onClick={onLogout}><LogOut size={16} /> Sign out</button>
+        <div className="popover profile-popover" role="menu">
+          <div className="profile-meta">
+            <strong>{name || 'Staff'}</strong>
+            <span>{email}</span>
+            <span className="profile-roles">{roles.join(', ')}</span>
+          </div>
+          <button role="menuitem" className="menu-item danger" onClick={onLogout}>
+            <LogOut size={16} /> Sign out
+          </button>
         </div>
       )}
     </div>

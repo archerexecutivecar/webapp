@@ -30,18 +30,29 @@ class NavigationTest extends TestCase
         $this->assertEqualsCanonicalizing($all, $this->keysFor('super_admin'));
     }
 
-    public function test_dispatcher_sees_only_dispatch_related_items(): void
+    public function test_dispatcher_sees_dispatch_related_items(): void
     {
         $keys = $this->keysFor('dispatcher');
 
-        $this->assertEqualsCanonicalizing(['dashboard', 'rides', 'customers', 'drivers'], $keys);
+        $this->assertEqualsCanonicalizing([
+            'dashboard', 'rides', 'customers', 'drivers', 'notices',
+            'security-leads', 'contracts-shifts', 'swap-approvals', 'credentials', 'announcements',
+        ], $keys);
     }
 
     public function test_content_roles_see_only_website_items(): void
     {
-        $expected = ['testimonials', 'site-content'];
+        $expected = ['testimonials', 'site-content', 'cms-pages'];
         $this->assertEqualsCanonicalizing($expected, $this->keysFor('content_editor'));
         $this->assertEqualsCanonicalizing($expected, $this->keysFor('content_publisher'));
+    }
+
+    public function test_finance_sees_money_items(): void
+    {
+        $keys = $this->keysFor('finance_payroll');
+        $this->assertContains('pricing', $keys);
+        $this->assertContains('payroll', $keys);
+        $this->assertNotContains('settings', $keys);
     }
 
     public function test_driver_and_customer_navigation(): void
@@ -56,6 +67,17 @@ class NavigationTest extends TestCase
         $res = $this->getJson('/api/v1/admin/navigation', $headers)->assertOk();
 
         $this->assertStringNotContainsString('permissions', $res->getContent());
-        $this->assertNotContains('finance', collect($res->json('data.groups'))->pluck('key')->all());
+        $this->assertNotContains('money', collect($res->json('data.groups'))->pluck('key')->all());
+    }
+
+    public function test_badges_omitted_when_zero(): void
+    {
+        [, $headers] = $this->actingAsRole('super_admin');
+        $res = $this->getJson('/api/v1/admin/navigation', $headers)->assertOk();
+        $ridesItem = collect($res->json('data.groups'))
+            ->flatMap(fn ($g) => $g['items'])
+            ->firstWhere('key', 'rides');
+
+        $this->assertArrayNotHasKey('badge', $ridesItem ?? []);
     }
 }
