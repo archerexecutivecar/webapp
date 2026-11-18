@@ -160,7 +160,12 @@ export default function DriversPage() {
       {/* Action Toolbar */}
       <div className="zoho-toolbar">
         <div className="toolbar-left">
-          <h2>Chauffeurs & Driver Roster</h2>
+          <div>
+            <h2>Chauffeurs & Driver Roster</h2>
+            <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              Certified SOAR drivers, executive close protection credentials, and portal accounts
+            </p>
+          </div>
           <span className="total-badge">{drivers.length} Drivers</span>
         </div>
 
@@ -176,7 +181,7 @@ export default function DriversPage() {
           </div>
 
           <button type="button" onClick={openNewDrawer} className="zoho-btn-primary">
-            <Plus size={15} /> Add Driver
+            <Plus size={14} /> Add Driver
           </button>
         </div>
       </div>
@@ -422,6 +427,7 @@ export default function DriversPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .zoho-toolbar {
           display: flex;
@@ -430,10 +436,10 @@ export default function DriversPage() {
           flex-wrap: wrap;
           gap: 12px;
           background: var(--surface);
-          padding: 12px 18px;
+          padding: 12px 16px;
           border: 1px solid var(--border);
           border-radius: 6px;
-          box-shadow: var(--shadow-sm);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         }
         .toolbar-left {
           display: flex;
@@ -441,17 +447,20 @@ export default function DriversPage() {
           gap: 12px;
         }
         .toolbar-left h2 {
-          font-size: 1.15rem;
-          font-weight: 600;
+          font-size: 1.25rem;
+          font-weight: 700;
           color: var(--text);
+          letter-spacing: -0.01em;
+          margin: 0;
         }
         .total-badge {
           background: var(--surface-2);
           color: var(--text-secondary);
-          font-size: 0.75rem;
+          font-size: 0.6875rem;
           font-weight: 600;
           padding: 2px 8px;
           border-radius: 12px;
+          border: 1px solid var(--border);
         }
         .toolbar-right {
           display: flex;
@@ -470,21 +479,36 @@ export default function DriversPage() {
           pointer-events: none;
         }
         .search-box input {
-          width: 260px;
-          min-height: 34px;
-          padding: 6px 12px 6px 32px;
+          width: 250px;
+          height: 32px;
+          min-height: 32px;
+          padding: 4px 12px 4px 30px;
           font-size: 0.8125rem;
           border-radius: 4px;
+          border: 1px solid var(--border);
+          background: var(--surface);
+          color: var(--text);
+          font-family: inherit;
+        }
+        .search-box input:focus {
+          outline: none;
+          border-color: var(--accent);
         }
         .zoho-btn-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
           background: var(--accent);
           color: #fff;
           border: 1px solid var(--accent);
-          min-height: 34px;
-          padding: 0 14px;
+          height: 32px;
+          min-height: 32px;
+          padding: 0 12px;
           font-size: 0.8125rem;
-          font-weight: 500;
+          font-weight: 600;
           border-radius: 4px;
+          cursor: pointer;
+          transition: background 0.15s;
         }
         .zoho-btn-primary:hover {
           background: var(--accent-hover);
@@ -494,28 +518,31 @@ export default function DriversPage() {
           border: 1px solid var(--border);
           border-radius: 6px;
           overflow: hidden;
-          box-shadow: var(--shadow-sm);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         }
         .zoho-table {
           width: 100%;
           border-collapse: collapse;
+          font-size: 0.8125rem;
         }
         .zoho-table th {
-          background: #f8fafc;
+          background: var(--surface-2);
           border-bottom: 1px solid var(--border);
           padding: 10px 16px;
-          font-size: 0.75rem;
+          font-size: 0.6875rem;
           font-weight: 600;
           color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
           text-align: left;
         }
         .zoho-table td {
-          padding: 12px 16px;
+          padding: 11px 16px;
           border-bottom: 1px solid var(--border);
           vertical-align: middle;
         }
         .zoho-table tbody tr:hover {
-          background: #f8fafc;
+          background: var(--surface-2);
         }
         .zoho-table tbody tr:last-child td {
           border-bottom: none;
@@ -526,29 +553,30 @@ export default function DriversPage() {
           gap: 10px;
         }
         .avatar-chip {
-          width: 32px;
-          height: 32px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          background: #edf5ff;
-          color: #0f62fe;
+          background: var(--surface-2);
+          color: var(--text);
           font-weight: 700;
-          font-size: 0.75rem;
+          font-size: 0.6875rem;
           display: grid;
           place-items: center;
-          border: 1px solid #d0e2ff;
+          border: 1px solid var(--border);
+          flex-shrink: 0;
         }
         .row-title {
           display: block;
           font-weight: 600;
           color: var(--text);
-          font-size: 0.875rem;
+          font-size: 0.8125rem;
         }
         .row-desc {
           display: block;
-          font-size: 0.78rem;
-          color: var(--muted);
-          margin-top: 2px;
-          max-width: 360px;
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          margin-top: 1px;
+          max-width: 340px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -556,13 +584,14 @@ export default function DriversPage() {
         .tier-badge-cell {
           font-size: 0.75rem;
           font-weight: 600;
-          color: #0f62fe;
-          background: #edf5ff;
-          padding: 2px 8px;
+          color: var(--accent);
+          background: rgba(217, 110, 27, 0.08);
+          border: 1px solid rgba(217, 110, 27, 0.22);
+          padding: 2px 7px;
           border-radius: 4px;
         }
         .unassigned-text {
-          font-size: 0.78rem;
+          font-size: 0.75rem;
           color: var(--muted);
           font-style: italic;
         }
@@ -573,35 +602,35 @@ export default function DriversPage() {
         .zoho-status-tag {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          border-radius: 12px;
-          padding: 2px 10px;
-          font-size: 0.75rem;
+          gap: 5px;
+          border-radius: 10px;
+          padding: 2px 8px;
+          font-size: 0.6875rem;
           font-weight: 600;
           cursor: pointer;
-          min-height: 24px;
+          min-height: 22px;
           border: 1px solid transparent;
         }
         .status-dot {
-          width: 6px;
-          height: 6px;
+          width: 5px;
+          height: 5px;
           border-radius: 50%;
         }
         .zoho-status-tag.active {
-          background: #defbe6;
-          color: #198038;
-          border-color: #a7f0ba;
+          background: rgba(5, 150, 105, 0.1);
+          color: #059669;
+          border-color: rgba(5, 150, 105, 0.25);
         }
         .zoho-status-tag.active .status-dot {
-          background: #198038;
+          background: #059669;
         }
         .zoho-status-tag.inactive {
-          background: #f4f5f8;
-          color: #6c757d;
-          border-color: #dee2e6;
+          background: var(--surface-2);
+          color: var(--muted);
+          border-color: var(--border);
         }
         .zoho-status-tag.inactive .status-dot {
-          background: #adb5bd;
+          background: var(--muted);
         }
         .row-actions {
           display: flex;
@@ -610,21 +639,25 @@ export default function DriversPage() {
           gap: 4px;
         }
         .zoho-icon-action {
-          width: 30px;
-          height: 30px;
-          min-height: 30px;
+          width: 28px;
+          height: 28px;
+          min-height: 28px;
           padding: 0;
           background: transparent;
           border: 1px solid transparent;
           color: var(--text-secondary);
           border-radius: 4px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
         }
         .zoho-icon-action:hover {
           background: var(--surface-2);
           color: var(--text);
         }
         .zoho-icon-action.danger:hover {
-          background: #fff1f1;
+          background: rgba(220, 38, 38, 0.1);
           color: var(--danger);
         }
         .zoho-empty-state {
@@ -635,13 +668,15 @@ export default function DriversPage() {
         .zoho-empty-state h3 {
           margin: 12px 0 4px;
           color: var(--text);
+          font-size: 0.9375rem;
+          font-weight: 700;
         }
 
         /* Drawer */
         .zoho-drawer-backdrop {
           position: fixed;
           inset: 0;
-          background: rgba(15, 23, 42, 0.45);
+          background: rgba(16, 20, 29, 0.45);
           backdrop-filter: blur(2px);
           z-index: 100;
           display: flex;
@@ -653,10 +688,11 @@ export default function DriversPage() {
           width: 100%;
           max-width: 480px;
           height: 100vh;
-          box-shadow: var(--shadow-lg);
+          box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
           display: flex;
           flex-direction: column;
           animation: slideLeft 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          font-family: inherit;
         }
         @keyframes slideLeft {
           from { transform: translateX(100%); }
@@ -671,31 +707,36 @@ export default function DriversPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 16px 20px;
+          padding: 14px 18px;
           border-bottom: 1px solid var(--border);
           background: var(--surface);
         }
         .drawer-pretitle {
-          font-size: 0.72rem;
-          font-weight: 600;
+          font-size: 0.6875rem;
+          font-weight: 700;
           color: var(--accent);
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
         }
         .zoho-drawer-header h2 {
-          font-size: 1.15rem;
+          font-size: 1.125rem;
+          font-weight: 700;
           color: var(--text);
           margin-top: 2px;
         }
         .zoho-close-btn {
-          width: 32px;
-          height: 32px;
-          min-height: 32px;
+          width: 28px;
+          height: 28px;
+          min-height: 28px;
           background: transparent;
           border: 1px solid transparent;
           color: var(--muted);
           border-radius: 4px;
           padding: 0;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
         .zoho-close-btn:hover {
           background: var(--surface-2);
@@ -703,19 +744,19 @@ export default function DriversPage() {
         }
         .zoho-drawer-body {
           flex: 1;
-          padding: 20px;
+          padding: 18px;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 16px;
+          gap: 14px;
         }
         .form-group {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 5px;
         }
         .zoho-label {
-          font-size: 0.78rem;
+          font-size: 0.75rem;
           font-weight: 600;
           color: var(--text-secondary);
         }
@@ -723,13 +764,13 @@ export default function DriversPage() {
         .form-row-2 {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 14px;
+          gap: 12px;
         }
         .account-onboard-card {
           background: var(--surface-2);
           border: 1px solid var(--border);
           border-radius: 6px;
-          padding: 14px 16px;
+          padding: 12px 14px;
           display: flex;
           flex-direction: column;
           gap: 8px;
@@ -738,7 +779,7 @@ export default function DriversPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
         .zoho-checkbox {
           display: flex;
@@ -749,9 +790,9 @@ export default function DriversPage() {
           cursor: pointer;
         }
         .zoho-checkbox input {
-          width: 16px;
-          height: 16px;
-          min-height: 16px;
+          width: 15px;
+          height: 15px;
+          min-height: 15px;
           cursor: pointer;
           accent-color: var(--accent);
         }
@@ -759,10 +800,10 @@ export default function DriversPage() {
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 10px;
-          padding: 14px 20px;
+          gap: 8px;
+          padding: 12px 18px;
           border-top: 1px solid var(--border);
-          background: #f8fafc;
+          background: var(--surface-2);
         }
 
         /* Mobile Responsive Overrides */
@@ -804,7 +845,7 @@ export default function DriversPage() {
           }
           .zoho-drawer-footer button {
             flex: 1;
-            height: 40px;
+            height: 36px;
             justify-content: center;
           }
         }

@@ -126,8 +126,13 @@ Their password will be removed, all their devices signed out, and an email sent 
 
       <div className="zoho-toolbar">
         <div className="toolbar-left">
-          <h2>Customers</h2>
-          <span className="total-badge">{rows.length} {rows.length === 1 ? 'Customer' : 'Customers'}</span>
+          <div>
+            <h2>Client Accounts</h2>
+            <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              Executive passengers, VIP bookers, and executive assistant profiles
+            </p>
+          </div>
+          <span className="total-badge">{rows.length} {rows.length === 1 ? 'Client' : 'Clients'}</span>
         </div>
         <div className="toolbar-right">
           <div className="search-box">
@@ -162,9 +167,27 @@ Their password will be removed, all their devices signed out, and an email sent 
               {rows.map((c) => (
                 <tr key={c.id} onClick={() => void open(c.id)} className="clickable-row" style={opening === c.id ? { opacity: 0.6 } : undefined}>
                   <td>
-                    <div className="passenger-cell">
-                      <span className="row-title">{c.name}</span>
-                      <span className="row-desc"><Mail size={12} style={{ display: 'inline', marginRight: 4 }} />{c.email}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '50%',
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text)',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        {c.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="passenger-cell">
+                        <span className="row-title">{c.name}</span>
+                        <span className="row-desc"><Mail size={12} style={{ display: 'inline', marginRight: 4 }} />{c.email}</span>
+                      </div>
                     </div>
                   </td>
                   <td>{c.phone ?? <span className="unassigned-text">—</span>}</td>

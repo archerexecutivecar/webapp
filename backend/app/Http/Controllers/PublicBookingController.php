@@ -55,7 +55,7 @@ class PublicBookingController extends Controller
             return $this->accepted($existing->reference, $existing->status, 200);
         }
 
-        $data = $request->validate($this->rules($type));
+        $data = $request->validate($this->rules($type, $request->input('service')));
         $this->assertVehicleInCatalog($data);
 
         $columns = $this->columns($type, $data);
@@ -244,13 +244,16 @@ class PublicBookingController extends Controller
         };
     }
 
-    private function rules(string $type): array
+    private function rules(string $type, mixed $service = null): array
     {
+        // Standalone security books from the Security staffing tiers; everything else from chauffeur tiers.
+        // Tiers marked "Call to book" in Website Tiers cannot be booked online.
+        $tierKind = $type === 'general' && $service === 'security' ? 'security' : 'driver';
         $short = ['nullable', 'string', 'max:150'];
         $date = ['required', 'date_format:Y-m-d', 'after_or_equal:today'];
         $time = ['required', 'date_format:H:i'];
         // The Admin website catalog (Website Tiers / Website Fleet) is the source of truth for what can be booked.
-        $tier = ['required', 'integer', Rule::in(SiteTier::where('kind', 'driver')->where('is_active', true)->pluck('tier')->all())];
+        $tier = ['required', 'integer', Rule::in(SiteTier::where('kind', $tierKind)->where('is_active', true)->where('call_only', false)->pluck('tier')->all())];
         $cls = ['required', Rule::in(['exec', 'first'])];
         $size = ['required', Rule::in(['sedan', 'suv', 'van'])];
         $stops = ['nullable', 'array', 'max:5'];

@@ -48,8 +48,8 @@ export const SERVICE_SLUGS: Record<Exclude<AppService, "security">, string> = {
 
 const FALLBACK: Catalog = {
   HR: {
-    exec: { sedan: [70, 90, 130, 215], suv: [80, 100, 140, 190], van: [175, 195, 235, 390] },
-    first: { sedan: [80, 100, 140, 235], suv: [100, 120, 160, 210], van: [225, 245, 285, 475] },
+    exec: { sedan: [70, 90, 130, 190], suv: [80, 100, 140, 215], van: [175, 195, 235, 390] },
+    first: { sedan: [80, 100, 140, 210], suv: [100, 120, 160, 235], van: [225, 245, 285, 475] },
   },
   PP: {
     exec: { sedan: [145, 170, 215, 270], suv: [155, 180, 225, 280], van: null },
@@ -58,12 +58,12 @@ const FALLBACK: Catalog = {
   CC: [45, 60, 75, 125],
   GUARD: [45, 60, 75, 125],
   vehicles: [
-    { cls: "exec", size: "sedan", label: "Mid-size SUV", model: "Chevrolet Traverse", blurb: "", passengers: null, bags: null },
-    { cls: "exec", size: "suv", label: "Full-size SUV", model: "Chevrolet Suburban", blurb: "", passengers: null, bags: null },
-    { cls: "exec", size: "van", label: "Sprinter", model: "Mercedes-Benz Sprinter", blurb: "", passengers: null, bags: null },
-    { cls: "first", size: "sedan", label: "Mid-size SUV", model: "Lincoln Aviator", blurb: "", passengers: null, bags: null },
-    { cls: "first", size: "suv", label: "Full-size SUV", model: "Cadillac Escalade", blurb: "", passengers: null, bags: null },
-    { cls: "first", size: "van", label: "Sprinter", model: "Executive Sprinter", blurb: "", passengers: null, bags: null },
+    { cls: "exec", size: "sedan", label: "Mid-size SUV", model: "Chevrolet Traverse", blurb: "", passengers: 3, bags: 3 },
+    { cls: "exec", size: "suv", label: "Full-size SUV", model: "Chevrolet Suburban", blurb: "", passengers: 6, bags: 6 },
+    { cls: "exec", size: "van", label: "Sprinter", model: "Mercedes-Benz Sprinter", blurb: "", passengers: 15, bags: 15 },
+    { cls: "first", size: "sedan", label: "Mid-size SUV", model: "Lincoln Aviator", blurb: "", passengers: 3, bags: 4 },
+    { cls: "first", size: "suv", label: "Full-size SUV", model: "Cadillac Escalade", blurb: "", passengers: 6, bags: 5 },
+    { cls: "first", size: "van", label: "Sprinter", model: "Executive Sprinter", blurb: "", passengers: 11, bags: 12 },
   ],
   tiers: [
     { tier: 1, label: "TIER 1 · ESSENTIAL", title: "Professional Chauffeur", callOnly: false },

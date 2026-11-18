@@ -66,6 +66,11 @@ class SiteContentTest extends TestCase
         $this->putJson('/api/v1/admin/rates', ['rates' => [['id' => $card->id, 'amount_cents' => -5]]], $ops)->assertUnprocessable();
 
         $this->assertSame(9900, $card->fresh()->amount_cents);
+
+        // A rate can be switched off and on; an inactive rate is not public.
+        $this->putJson('/api/v1/admin/rates', ['rates' => [['id' => $card->id, 'amount_cents' => 9900, 'is_active' => false]]], $ops)->assertOk();
+        $this->assertFalse($card->fresh()->is_active);
+        $this->assertCount(47, $this->getJson('/api/v1/site')->json('data.rates'));
         $this->assertDatabaseHas('audit_logs', ['event' => 'site.rate.updated']);
     }
 

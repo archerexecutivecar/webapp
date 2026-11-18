@@ -171,90 +171,94 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* 4 Hero KPI Cards */}
+      {/* 4 Clean Hospitable-scale KPI Cards */}
       <div className="kpi-grid">
         {/* KPI 1: Pending Dispatch */}
-        <div className="kpi-card highlight-amber">
+        <div className="kpi-card">
           <div className="kpi-top">
-            <span className="kpi-tag">Action Required</span>
-            <div className="kpi-icon-box amber-glow">
-              <Clock4 size={20} />
+            <span className="kpi-tag amber">Action Required</span>
+            <div className="kpi-icon-box">
+              <Clock4 size={16} />
             </div>
           </div>
           <div className="kpi-center">
             <div className="kpi-value">{m?.pending_requests ?? 0}</div>
             <div className="kpi-label">Pending Dispatch Requests</div>
+            <p className="kpi-desc">
+              Passenger reservations awaiting chauffeur allocation. {(m?.new_today ?? 0)} new requests logged today.
+            </p>
           </div>
           <div className="kpi-bottom">
             <Link href="/rides" className="kpi-action-link">
               <span>Assign Chauffeur</span>
               <ArrowRight size={13} />
             </Link>
-            <span className="kpi-meta">{(m?.new_today ?? 0)} new today</span>
           </div>
         </div>
 
         {/* KPI 2: Active Missions */}
-        <div className="kpi-card highlight-blue">
+        <div className="kpi-card">
           <div className="kpi-top">
-            <span className="kpi-tag">Active Missions</span>
-            <div className="kpi-icon-box blue-glow">
-              <Zap size={20} />
+            <span className="kpi-tag blue">Active Missions</span>
+            <div className="kpi-icon-box">
+              <Zap size={16} />
             </div>
           </div>
           <div className="kpi-center">
-            <div className="kpi-value text-blue">{activeMissionsCount}</div>
+            <div className="kpi-value">{activeMissionsCount}</div>
             <div className="kpi-label">In-Transit & Dispatched</div>
+            <p className="kpi-desc">
+              {m?.in_progress_rides ?? 0} passenger trips currently on route, and {m?.dispatched_rides ?? 0} confirmed dispatches staged.
+            </p>
           </div>
           <div className="kpi-bottom">
-            <span className="kpi-detail">
-              <strong>{m?.in_progress_rides ?? 0}</strong> en route • <strong>{m?.dispatched_rides ?? 0}</strong> assigned
-            </span>
             <span className="kpi-status-badge blue">Operational</span>
           </div>
         </div>
 
         {/* KPI 3: Chauffeur Readiness */}
-        <div className="kpi-card highlight-emerald">
+        <div className="kpi-card">
           <div className="kpi-top">
-            <span className="kpi-tag">SOAR Chauffeurs</span>
-            <div className="kpi-icon-box emerald-glow">
-              <ShieldCheck size={20} />
+            <span className="kpi-tag emerald">SOAR Chauffeurs</span>
+            <div className="kpi-icon-box">
+              <ShieldCheck size={16} />
             </div>
           </div>
           <div className="kpi-center">
-            <div className="kpi-value text-emerald">
+            <div className="kpi-value">
               {m?.active_drivers ?? 0} <span className="kpi-unit">/ {m?.total_drivers ?? 0}</span>
             </div>
             <div className="kpi-label">Certified Drivers On-Duty</div>
+            <p className="kpi-desc">
+              Vetted executive chauffeurs available for airport meet & greet and scheduled corporate itineraries.
+            </p>
           </div>
           <div className="kpi-bottom">
             <Link href="/drivers" className="kpi-action-link">
               <span>View Roster</span>
               <ArrowRight size={13} />
             </Link>
-            <span className="kpi-status-badge emerald">100% Vetted</span>
           </div>
         </div>
 
         {/* KPI 4: Fleet Readiness & Efficiency */}
-        <div className="kpi-card highlight-purple">
+        <div className="kpi-card">
           <div className="kpi-top">
-            <span className="kpi-tag">Fleet & Efficiency</span>
-            <div className="kpi-icon-box purple-glow">
-              <Activity size={20} />
+            <span className="kpi-tag purple">Fleet & Efficiency</span>
+            <div className="kpi-icon-box">
+              <Activity size={16} />
             </div>
           </div>
           <div className="kpi-center">
-            <div className="kpi-value text-purple">{efficiency}%</div>
+            <div className="kpi-value">{efficiency}%</div>
             <div className="kpi-label">Dispatch Fulfillment Rate</div>
+            <p className="kpi-desc">
+              On-time performance and completion index across all black car fleet assignments and reservations.
+            </p>
           </div>
           <div className="kpi-bottom">
-            <span className="kpi-detail">
-              <strong>{m?.active_fleet ?? 0}</strong> of {m?.total_fleet ?? 0} fleet vehicles on the website
-            </span>
             <Link href="/site-vehicles" className="kpi-action-link">
-              <span>Fleet</span>
+              <span>Fleet ({m?.active_fleet ?? 0}/{m?.total_fleet ?? 0})</span>
               <ArrowRight size={13} />
             </Link>
           </div>
@@ -505,6 +509,7 @@ export default function DashboardPage() {
           gap: 20px;
           max-width: 1600px;
           margin: 0 auto;
+          font-family: var(--font-figtree), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         /* Header */
@@ -516,23 +521,23 @@ export default function DashboardPage() {
           gap: 16px;
           background: var(--surface);
           border: 1px solid var(--border);
-          padding: 20px 24px;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+          padding: 16px 20px;
+          border-radius: 6px;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
         }
         .header-left {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 4px;
         }
         .title-row {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
           flex-wrap: wrap;
         }
         .dash-title {
-          font-size: 1.35rem;
+          font-size: 1.25rem;
           font-weight: 700;
           color: var(--text);
           letter-spacing: -0.01em;
@@ -541,23 +546,23 @@ export default function DashboardPage() {
         .live-pill {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
-          background: rgba(232, 119, 34, 0.12);
-          border: 1px solid rgba(232, 119, 34, 0.35);
+          gap: 6px;
+          background: rgba(217, 110, 27, 0.08);
+          border: 1px solid rgba(217, 110, 27, 0.25);
           color: var(--accent);
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           font-weight: 700;
-          padding: 3px 10px;
-          border-radius: 20px;
+          padding: 2px 8px;
+          border-radius: 12px;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
         }
         .pulse-indicator {
-          width: 7px;
-          height: 7px;
+          width: 6px;
+          height: 6px;
           border-radius: 50%;
           background: var(--accent);
-          box-shadow: 0 0 8px var(--accent);
+          box-shadow: 0 0 6px var(--accent);
           animation: pulse 1.8s infinite;
         }
         @keyframes pulse {
@@ -566,59 +571,60 @@ export default function DashboardPage() {
           100% { transform: scale(0.95); opacity: 0.9; }
         }
         .dash-subtitle {
-          font-size: 0.84rem;
+          font-size: 0.8125rem;
           color: var(--text-secondary);
           margin: 0;
         }
         .header-actions {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
         }
 
         /* Buttons */
         .dash-btn-primary {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
+          gap: 7px;
           background: var(--accent);
           color: #fff;
           font-weight: 600;
-          font-size: 0.85rem;
-          padding: 8px 16px;
-          border-radius: 6px;
+          font-size: 0.8125rem;
+          padding: 6px 14px;
+          height: 32px;
+          border-radius: 4px;
           text-decoration: none;
           border: 1px solid var(--accent);
-          transition: background 0.15s, transform 0.15s;
+          transition: background 0.15s;
         }
         .dash-btn-primary:hover {
           background: var(--accent-hover);
-          transform: translateY(-1px);
         }
         .dash-btn-secondary {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
-          background: var(--surface-2);
+          gap: 6px;
+          background: var(--surface);
           color: var(--text);
           font-weight: 500;
-          font-size: 0.85rem;
-          padding: 8px 14px;
-          border-radius: 6px;
+          font-size: 0.8125rem;
+          padding: 6px 12px;
+          height: 32px;
+          border-radius: 4px;
           border: 1px solid var(--border);
           cursor: pointer;
           transition: background 0.15s;
         }
         .dash-btn-secondary:hover {
-          background: rgba(255, 255, 255, 0.06);
+          background: var(--surface-2);
         }
         .btn-badge {
           background: #fff;
-          color: #000;
+          color: var(--accent);
           font-weight: 800;
-          font-size: 0.7rem;
-          padding: 1px 7px;
-          border-radius: 10px;
+          font-size: 0.6875rem;
+          padding: 1px 6px;
+          border-radius: 8px;
         }
         .animate-spin {
           animation: spin 0.8s linear infinite;
@@ -627,115 +633,90 @@ export default function DashboardPage() {
           to { transform: rotate(360deg); }
         }
 
-        /* KPI Cards Grid */
+        /* Hospitable Clean KPI Cards Grid */
         .kpi-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
+          gap: 14px;
         }
         .kpi-card {
           background: var(--surface);
           border: 1px solid var(--border);
-          border-radius: 8px;
-          padding: 18px 20px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          padding: 16px 18px;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          position: relative;
-          overflow: hidden;
-          transition: transform 0.15s, border-color 0.15s;
+          transition: border-color 0.15s;
         }
         .kpi-card:hover {
-          border-color: rgba(232, 119, 34, 0.4);
-          transform: translateY(-2px);
+          border-color: #cbd5e1;
         }
-        .kpi-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-        }
-        .highlight-amber::before { background: var(--accent); }
-        .highlight-blue::before { background: #3b82f6; }
-        .highlight-emerald::before { background: #10b981; }
-        .highlight-purple::before { background: #a855f7; }
-
         .kpi-top {
           display: flex;
           align-items: center;
           justify-content: space-between;
         }
         .kpi-tag {
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
           color: var(--text-secondary);
         }
+        .kpi-tag.amber { color: var(--accent); }
+        .kpi-tag.blue { color: #2563eb; }
+        .kpi-tag.emerald { color: #059669; }
+        .kpi-tag.purple { color: #7c3aed; }
+
         .kpi-icon-box {
-          width: 38px;
-          height: 38px;
-          border-radius: 8px;
+          width: 28px;
+          height: 28px;
+          border-radius: 4px;
           display: flex;
           align-items: center;
           justify-content: center;
-        }
-        .amber-glow {
-          background: rgba(232, 119, 34, 0.15);
-          color: var(--accent);
-          border: 1px solid rgba(232, 119, 34, 0.3);
-        }
-        .blue-glow {
-          background: rgba(59, 130, 246, 0.15);
-          color: #3b82f6;
-          border: 1px solid rgba(59, 130, 246, 0.3);
-        }
-        .emerald-glow {
-          background: rgba(16, 185, 129, 0.15);
-          color: #10b981;
-          border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-        .purple-glow {
-          background: rgba(168, 85, 247, 0.15);
-          color: #a855f7;
-          border: 1px solid rgba(168, 85, 247, 0.3);
+          background: var(--surface-2);
+          color: var(--text-secondary);
         }
 
         .kpi-center {
-          margin: 14px 0 10px;
+          margin: 8px 0 10px;
         }
         .kpi-value {
-          font-size: 2rem;
-          font-weight: 800;
-          line-height: 1;
+          font-size: 1.5rem;
+          font-weight: 700;
+          line-height: 1.1;
           color: var(--text);
           letter-spacing: -0.02em;
         }
         .kpi-unit {
-          font-size: 1.1rem;
+          font-size: 0.875rem;
           font-weight: 500;
           color: var(--muted);
         }
-        .text-blue { color: #3b82f6; }
-        .text-emerald { color: #10b981; }
-        .text-purple { color: #a855f7; }
 
         .kpi-label {
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-          margin-top: 6px;
-          font-weight: 500;
+          font-size: 0.8125rem;
+          font-weight: 700;
+          color: var(--accent);
+          margin-top: 4px;
         }
+        .kpi-desc {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          margin: 6px 0 0;
+          line-height: 1.4;
+        }
+
         .kpi-bottom {
           display: flex;
           align-items: center;
           justify-content: space-between;
           border-top: 1px solid var(--border);
           padding-top: 10px;
-          margin-top: 4px;
+          margin-top: 6px;
         }
         .kpi-action-link {
           display: inline-flex;
@@ -749,16 +730,8 @@ export default function DashboardPage() {
         .kpi-action-link:hover {
           text-decoration: underline;
         }
-        .kpi-meta {
-          font-size: 0.72rem;
-          color: var(--muted);
-        }
-        .kpi-detail {
-          font-size: 0.74rem;
-          color: var(--text-secondary);
-        }
         .kpi-status-badge {
-          font-size: 0.68rem;
+          font-size: 0.6875rem;
           font-weight: 700;
           text-transform: uppercase;
           padding: 2px 7px;
@@ -766,27 +739,27 @@ export default function DashboardPage() {
           letter-spacing: 0.04em;
         }
         .kpi-status-badge.blue {
-          background: rgba(59, 130, 246, 0.15);
-          color: #60a5fa;
-          border: 1px solid rgba(59, 130, 246, 0.3);
+          background: rgba(37, 99, 235, 0.08);
+          color: #2563eb;
+          border: 1px solid rgba(37, 99, 235, 0.2);
         }
         .kpi-status-badge.emerald {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          background: rgba(5, 150, 105, 0.08);
+          color: #059669;
+          border: 1px solid rgba(5, 150, 105, 0.2);
         }
 
         /* Two-Column Layout */
         .dash-main-grid {
           display: grid;
           grid-template-columns: 2.1fr 1fr;
-          gap: 20px;
+          gap: 16px;
         }
         .card-panel {
           background: var(--surface);
           border: 1px solid var(--border);
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          border-radius: 6px;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -794,7 +767,7 @@ export default function DashboardPage() {
         .sidebar-panels {
           display: flex;
           flex-direction: column;
-          gap: 20px;
+          gap: 16px;
         }
 
         /* Panel Headers */
@@ -802,18 +775,17 @@ export default function DashboardPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 16px 20px;
+          padding: 14px 18px;
           border-bottom: 1px solid var(--border);
-          background: rgba(255, 255, 255, 0.015);
         }
         .panel-title {
-          font-size: 1rem;
+          font-size: 0.9375rem;
           font-weight: 700;
           color: var(--text);
           margin: 0;
         }
         .panel-title-sm {
-          font-size: 0.92rem;
+          font-size: 0.875rem;
           font-weight: 700;
           color: var(--text);
           margin: 0;
@@ -827,7 +799,7 @@ export default function DashboardPage() {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          font-size: 0.78rem;
+          font-size: 0.75rem;
           font-weight: 600;
           color: var(--accent);
           text-decoration: none;
@@ -847,7 +819,7 @@ export default function DashboardPage() {
           background: var(--surface-2);
         }
 
-        /* Luxury Table */
+        /* Hospitable-styled Table */
         .table-wrapper {
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
@@ -855,26 +827,26 @@ export default function DashboardPage() {
         .luxury-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 0.82rem;
+          font-size: 0.8125rem;
         }
         .luxury-table th {
           background: var(--surface-2);
           border-bottom: 1px solid var(--border);
           color: var(--text-secondary);
           font-weight: 600;
-          font-size: 0.74rem;
+          font-size: 0.6875rem;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
-          padding: 12px 18px;
+          letter-spacing: 0.04em;
+          padding: 10px 16px;
           text-align: left;
         }
         .luxury-table td {
-          padding: 14px 18px;
+          padding: 12px 16px;
           border-bottom: 1px solid var(--border);
           vertical-align: middle;
         }
         .luxury-table tbody tr:hover {
-          background: rgba(255, 255, 255, 0.02);
+          background: var(--surface-2);
         }
         .luxury-table tbody tr:last-child td {
           border-bottom: none;
@@ -883,27 +855,26 @@ export default function DashboardPage() {
         .ref-tag {
           font-family: monospace;
           font-weight: 700;
-          font-size: 0.78rem;
-          background: rgba(232, 119, 34, 0.1);
+          font-size: 0.75rem;
+          background: rgba(217, 110, 27, 0.08);
           color: var(--accent);
-          border: 1px solid rgba(232, 119, 34, 0.25);
-          padding: 3px 8px;
+          border: 1px solid rgba(217, 110, 27, 0.2);
+          padding: 2px 6px;
           border-radius: 4px;
-          letter-spacing: 0.04em;
         }
 
         .passenger-cell {
           display: flex;
           flex-direction: column;
-          gap: 3px;
+          gap: 2px;
         }
         .passenger-name {
           font-weight: 600;
           color: var(--text);
-          font-size: 0.85rem;
+          font-size: 0.8125rem;
         }
         .passenger-contact {
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           color: var(--text-secondary);
           display: inline-flex;
           align-items: center;
@@ -913,8 +884,8 @@ export default function DashboardPage() {
         .route-cell {
           display: flex;
           flex-direction: column;
-          gap: 5px;
-          max-width: 260px;
+          gap: 4px;
+          max-width: 240px;
         }
         .route-stop {
           display: flex;
@@ -922,15 +893,15 @@ export default function DashboardPage() {
           gap: 6px;
         }
         .dot {
-          width: 6px;
-          height: 6px;
+          width: 5px;
+          height: 5px;
           border-radius: 50%;
           flex-shrink: 0;
         }
-        .dot-pickup { background: #10b981; }
+        .dot-pickup { background: #059669; }
         .dot-dropoff { background: var(--accent); }
         .route-text {
-          font-size: 0.76rem;
+          font-size: 0.75rem;
           color: var(--text);
           white-space: nowrap;
           overflow: hidden;
@@ -940,26 +911,26 @@ export default function DashboardPage() {
         .schedule-cell {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 1px;
         }
         .schedule-date {
           font-weight: 600;
           color: var(--text);
-          font-size: 0.8rem;
+          font-size: 0.75rem;
         }
         .schedule-time {
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           color: var(--text-secondary);
         }
 
         .vehicle-cell {
           display: flex;
           flex-direction: column;
-          gap: 3px;
+          gap: 2px;
         }
         .service-badge {
           display: inline-block;
-          font-size: 0.68rem;
+          font-size: 0.625rem;
           font-weight: 700;
           text-transform: uppercase;
           color: var(--accent);
@@ -972,89 +943,88 @@ export default function DashboardPage() {
         .chauffeur-tag {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          font-size: 0.76rem;
+          gap: 5px;
+          font-size: 0.75rem;
           font-weight: 600;
-          color: #34d399;
-          background: rgba(16, 185, 129, 0.1);
-          border: 1px solid rgba(16, 185, 129, 0.25);
-          padding: 3px 8px;
-          border-radius: 14px;
+          color: #059669;
+          background: rgba(5, 150, 105, 0.08);
+          border: 1px solid rgba(5, 150, 105, 0.2);
+          padding: 2px 7px;
+          border-radius: 12px;
         }
         .chauffeur-avatar {
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           border-radius: 50%;
-          background: #10b981;
-          color: #000;
-          font-size: 0.6rem;
+          background: #059669;
+          color: #fff;
+          font-size: 0.5625rem;
           font-weight: 800;
           display: flex;
           align-items: center;
           justify-content: center;
         }
         .unassigned-pill {
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           font-weight: 500;
           color: var(--muted);
-          background: rgba(255, 255, 255, 0.04);
-          padding: 3px 8px;
+          background: var(--surface-2);
+          padding: 2px 6px;
           border-radius: 4px;
-          font-style: italic;
         }
 
         .status-badge {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          font-size: 0.72rem;
+          gap: 5px;
+          font-size: 0.6875rem;
           font-weight: 600;
-          padding: 3px 9px;
-          border-radius: 12px;
+          padding: 2px 7px;
+          border-radius: 10px;
           text-transform: capitalize;
         }
         .status-bullet {
-          width: 6px;
-          height: 6px;
+          width: 5px;
+          height: 5px;
           border-radius: 50%;
         }
         .status-pending {
-          background: rgba(245, 158, 11, 0.15);
-          color: #fbbf24;
-          border: 1px solid rgba(245, 158, 11, 0.3);
+          background: rgba(245, 158, 11, 0.1);
+          color: #d97706;
+          border: 1px solid rgba(245, 158, 11, 0.25);
         }
         .status-pending .status-bullet { background: #f59e0b; }
         .status-dispatched {
-          background: rgba(59, 130, 246, 0.15);
-          color: #93c5fd;
-          border: 1px solid rgba(59, 130, 246, 0.3);
+          background: rgba(37, 99, 235, 0.1);
+          color: #2563eb;
+          border: 1px solid rgba(37, 99, 235, 0.25);
         }
-        .status-dispatched .status-bullet { background: #3b82f6; }
+        .status-dispatched .status-bullet { background: #2563eb; }
         .status-in_progress {
-          background: rgba(168, 85, 247, 0.15);
-          color: #d8b4fe;
-          border: 1px solid rgba(168, 85, 247, 0.3);
+          background: rgba(124, 58, 237, 0.1);
+          color: #7c3aed;
+          border: 1px solid rgba(124, 58, 237, 0.25);
         }
-        .status-in_progress .status-bullet { background: #a855f7; }
+        .status-in_progress .status-bullet { background: #7c3aed; }
         .status-completed {
-          background: rgba(16, 185, 129, 0.15);
-          color: #6ee7b7;
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          background: rgba(5, 150, 105, 0.1);
+          color: #059669;
+          border: 1px solid rgba(5, 150, 105, 0.25);
         }
-        .status-completed .status-bullet { background: #10b981; }
+        .status-completed .status-bullet { background: #059669; }
 
         .empty-table-cell {
           text-align: center;
-          padding: 48px 20px;
+          padding: 40px 16px;
           color: var(--text-secondary);
         }
         .empty-icon {
           color: var(--muted);
-          margin-bottom: 10px;
+          margin-bottom: 8px;
         }
         .empty-sub {
           display: block;
-          font-size: 0.75rem;
+          font-size: 0.6875rem;
           color: var(--muted);
           margin-top: 4px;
         }
@@ -1063,12 +1033,12 @@ export default function DashboardPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 20px;
+          padding: 10px 18px;
           border-top: 1px solid var(--border);
-          background: rgba(255, 255, 255, 0.015);
+          background: var(--surface-2);
         }
         .footer-meta {
-          font-size: 0.74rem;
+          font-size: 0.6875rem;
           color: var(--text-secondary);
         }
         .footer-link {
@@ -1083,7 +1053,7 @@ export default function DashboardPage() {
 
         /* Sidebar Panels */
         .roster-list {
-          padding: 8px 16px;
+          padding: 4px 16px;
           display: flex;
           flex-direction: column;
         }
@@ -1091,7 +1061,7 @@ export default function DashboardPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 11px 0;
+          padding: 10px 0;
           border-bottom: 1px solid var(--border);
         }
         .roster-row:last-child {
@@ -1103,13 +1073,13 @@ export default function DashboardPage() {
           gap: 10px;
         }
         .avatar-chip {
-          width: 32px;
-          height: 32px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          background: rgba(232, 119, 34, 0.15);
-          border: 1px solid var(--accent);
-          color: var(--accent);
-          font-size: 0.74rem;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          color: var(--text);
+          font-size: 0.6875rem;
           font-weight: 700;
           display: flex;
           align-items: center;
@@ -1118,43 +1088,43 @@ export default function DashboardPage() {
         .driver-meta {
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 1px;
         }
         .driver-name {
-          font-size: 0.82rem;
+          font-size: 0.8125rem;
           font-weight: 600;
           color: var(--text);
         }
         .driver-tier {
-          font-size: 0.7rem;
+          font-size: 0.6875rem;
           color: var(--text-secondary);
         }
         .mission-pill {
-          font-size: 0.7rem;
+          font-size: 0.6875rem;
           font-weight: 700;
-          padding: 2px 8px;
-          border-radius: 12px;
+          padding: 2px 7px;
+          border-radius: 10px;
         }
         .mission-pill.active {
-          background: rgba(59, 130, 246, 0.15);
-          color: #60a5fa;
-          border: 1px solid rgba(59, 130, 246, 0.3);
+          background: rgba(37, 99, 235, 0.1);
+          color: #2563eb;
+          border: 1px solid rgba(37, 99, 235, 0.2);
         }
         .mission-pill.ready {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          background: rgba(5, 150, 105, 0.1);
+          color: #059669;
+          border: 1px solid rgba(5, 150, 105, 0.2);
         }
         .empty-roster {
           padding: 20px;
           text-align: center;
           color: var(--muted);
-          font-size: 0.8rem;
+          font-size: 0.75rem;
         }
         .panel-footer-clean {
-          padding: 12px 18px;
+          padding: 10px 16px;
           border-top: 1px solid var(--border);
-          background: rgba(255, 255, 255, 0.015);
+          background: var(--surface-2);
         }
         .clean-link {
           display: flex;
@@ -1171,21 +1141,21 @@ export default function DashboardPage() {
 
         /* Snapshot / Breakdown Panel */
         .breakdown-body {
-          padding: 16px 20px;
+          padding: 14px 18px;
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 12px;
         }
         .progress-item {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 5px;
         }
         .progress-labels {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          font-size: 0.76rem;
+          font-size: 0.75rem;
         }
         .label-text {
           color: var(--text-secondary);
@@ -1193,51 +1163,51 @@ export default function DashboardPage() {
         .label-count {
           font-weight: 700;
         }
-        .font-amber { color: #f59e0b; }
-        .font-blue { color: #3b82f6; }
-        .font-emerald { color: #10b981; }
+        .font-amber { color: var(--accent); }
+        .font-blue { color: #2563eb; }
+        .font-emerald { color: #059669; }
 
         .progress-bar-bg {
-          height: 6px;
+          height: 5px;
           background: var(--surface-2);
-          border-radius: 4px;
+          border-radius: 3px;
           overflow: hidden;
         }
         .progress-bar-fill {
           height: 100%;
-          border-radius: 4px;
+          border-radius: 3px;
           transition: width 0.4s ease;
         }
-        .bg-amber { background: #f59e0b; }
-        .bg-blue { background: #3b82f6; }
-        .bg-emerald { background: #10b981; }
+        .bg-amber { background: var(--accent); }
+        .bg-blue { background: #2563eb; }
+        .bg-emerald { background: #059669; }
 
         .service-tag-cloud {
-          margin-top: 8px;
-          padding-top: 12px;
+          margin-top: 6px;
+          padding-top: 10px;
           border-top: 1px solid var(--border);
         }
         .cloud-title {
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           font-weight: 700;
           text-transform: uppercase;
           color: var(--text-secondary);
           display: block;
-          margin-bottom: 8px;
-          letter-spacing: 0.05em;
+          margin-bottom: 6px;
+          letter-spacing: 0.04em;
         }
         .cloud-tags {
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: 5px;
         }
         .cloud-tag {
-          font-size: 0.72rem;
+          font-size: 0.6875rem;
           background: var(--surface-2);
           border: 1px solid var(--border);
           color: var(--text);
-          padding: 3px 8px;
-          border-radius: 4px;
+          padding: 2px 7px;
+          border-radius: 3px;
           text-transform: capitalize;
         }
         .cloud-tag strong {
@@ -1249,23 +1219,23 @@ export default function DashboardPage() {
         .dash-skeleton-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
+          gap: 14px;
         }
         .dash-skeleton-card {
           background: var(--surface);
           border: 1px solid var(--border);
-          border-radius: 8px;
-          height: 140px;
+          border-radius: 6px;
+          height: 120px;
           animation: pulse 1.5s infinite;
         }
         .dash-error-card {
           background: var(--surface);
           border: 1px solid var(--danger);
-          padding: 24px;
-          border-radius: 8px;
+          padding: 20px;
+          border-radius: 6px;
           display: flex;
           align-items: center;
-          gap: 14px;
+          gap: 12px;
         }
         .text-red { color: var(--danger); }
 

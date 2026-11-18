@@ -164,142 +164,152 @@ export default function RidesPage() {
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="zoho-toolbar">
-        <div className="toolbar-left">
-          <h2>Rides & Dispatch</h2>
-          <span className="total-badge">{rides.length} Requests</span>
+      {/* Header Block matching Hospitable */}
+      <div className="hosp-page-header">
+        <h1 className="hosp-title">Rides & Dispatch</h1>
+        <p className="hosp-subtitle">
+          Manage real-time chauffeur assignments, flight tracking triggers, passenger reservations, and dispatch operations across the Archer Executive fleet.
+        </p>
+        <div className="hosp-tour-chips">
+          <span className="hosp-chip-item">
+            <Clock4 size={13} />
+            <span>Flight tracking active</span>
+            <span className="hosp-badge-green">LIVE</span>
+          </span>
+          <span className="hosp-chip-item">
+            <Car size={13} />
+            <span>{drivers.length} Chauffeurs on roster</span>
+          </span>
+          <span className="hosp-chip-item">
+            <CheckCircle2 size={13} />
+            <span>{rides.length} Total Bookings</span>
+          </span>
         </div>
+      </div>
 
-        <div className="toolbar-right">
-          {/* Status Filter Tabs */}
-          <div className="status-filter-group">
-            {(['all', 'pending', 'dispatched', 'in_progress', 'completed', 'cancelled'] as const).map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`filter-btn ${statusFilter === st ? 'active' : ''}`}
-              >
-                {st === 'all' ? 'All' : st.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
+      {/* Underline Tabs matching Hospitable Image 3 */}
+      <div className="hosp-tab-strip">
+        {(['all', 'pending', 'dispatched', 'in_progress', 'completed', 'cancelled'] as const).map((st) => (
+          <button
+            key={st}
+            type="button"
+            onClick={() => setStatusFilter(st)}
+            className={`hosp-tab-btn ${statusFilter === st ? 'active' : ''}`}
+          >
+            {st === 'all' ? 'All Requests' : st.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+            {st === 'all' && ` (${rides.length})`}
+          </button>
+        ))}
+      </div>
 
-          <div className="search-box">
-            <Search size={14} className="search-icon" />
+      {/* Filter & Search Toolbar matching Hospitable Image 1 */}
+      <div className="hosp-toolbar-row">
+        <div className="hosp-toolbar-left">
+          <div className="hosp-search-field">
+            <Search size={14} className="hosp-search-icon" />
             <input
               type="text"
-              placeholder="Search reference, client, vehicle..."
+              placeholder="Search reference, passenger, vehicle, phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         </div>
+        <div className="hosp-toolbar-right">
+          <span className="hosp-results-count">{filteredRides.length} of {rides.length} rides</span>
+        </div>
       </div>
 
-      {/* Data Table */}
-      <div className="zoho-card-container">
+      {/* Divided Row Cards matching Hospitable List View */}
+      <div className="hosp-divided-list">
         {loading ? (
-          <div className="zoho-empty-state">
+          <div className="hosp-empty-state">
             <div className="loading-spinner"></div>
             <p>Loading dispatch requests...</p>
           </div>
         ) : filteredRides.length === 0 ? (
-          <div className="zoho-empty-state">
-            <Car size={36} />
+          <div className="hosp-empty-state">
+            <Car size={32} />
             <h3>No Ride Requests Found</h3>
             <p>There are no passenger bookings matching your search or filter.</p>
           </div>
         ) : (
-          <table className="zoho-table">
-            <thead>
-              <tr>
-                <th style={{ width: 105 }}>Reference</th>
-                <th>Passenger & Contact</th>
-                <th>Service & Vehicle</th>
-                <th>Requested Trip Time</th>
-                <th>Assigned Chauffeur</th>
-                <th style={{ width: 130 }}>Booked On (Server)</th>
-                <th style={{ width: 110 }}>Status</th>
-                <th style={{ width: 105, textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRides.map((ride) => (
-                <tr key={ride.id} onClick={() => openDrawer(ride)} className="clickable-row">
-                  <td>
-                    <span className="ref-badge">{ride.reference}</span>
-                  </td>
-                  <td>
-                    <div className="passenger-cell">
-                      <span className="row-title">{ride.first_name} {ride.last_name}</span>
-                      <span className="row-desc">
-                        <Phone size={12} style={{ display: 'inline', marginRight: 4 }} />
-                        {ride.phone}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="service-cell">
-                      <span className="row-title text-capitalize">{ride.service_type || 'Standard'}</span>
-                      <span className="row-desc">{ride.vehicle ? ride.vehicle.replace('|', ' • ') : 'Executive Sedan'}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="datetime-cell">
-                      <span className="row-title">{ride.ride_date}</span>
-                      <span className="row-desc">{ride.ride_time}</span>
-                    </div>
-                  </td>
-                  <td>
-                    {ride.assigned_driver ? (
-                      <span className="driver-assigned-tag">
-                        <User size={12} style={{ display: 'inline', marginRight: 4 }} />
-                        {ride.assigned_driver.name}
-                      </span>
-                    ) : (
-                      <span className="unassigned-text">Unassigned</span>
-                    )}
-                    {ride.driver_preference && (
-                      <div className="pref-note">Pref: {ride.driver_preference}</div>
-                    )}
-                  </td>
-                  <td>
-                    <div className="datetime-cell">
-                      <span className="row-title" style={{ fontSize: '0.8rem' }}>
-                        {new Date(ride.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <span className="row-desc" style={{ fontFamily: 'monospace' }}>
-                        {new Date(ride.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`status-pill status-${ride.status}`}>
+          filteredRides.map((ride) => {
+            const initials = `${ride.first_name?.[0] || ''}${ride.last_name?.[0] || ''}`.toUpperCase();
+            const vehTag = ride.vehicle?.toLowerCase().includes('sprinter')
+              ? 'VAN'
+              : ride.vehicle?.toLowerCase().includes('escalade')
+              ? 'ESV'
+              : ride.vehicle?.toLowerCase().includes('suv')
+              ? 'SUV'
+              : 'SED';
+
+            return (
+              <div key={ride.id} onClick={() => openDrawer(ride)} className="hosp-row-item">
+                <div className="hosp-row-avatar">{initials || 'VIP'}</div>
+                <div className="hosp-row-main">
+                  <div className="hosp-row-title-line">
+                    <span className="hosp-passenger-name">{ride.first_name} {ride.last_name}</span>
+                    <span className="hosp-ref-tag">{ride.reference}</span>
+                    <span className={`hosp-status-pill status-${ride.status}`}>
                       <span className="status-dot"></span>
                       {ride.status.replace('_', ' ')}
                     </span>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDrawer(ride);
-                        }}
-                        className="zoho-btn-dispatch"
-                      >
-                        Dispatch
-                        <ChevronRight size={13} style={{ marginLeft: 3 }} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <div className="hosp-row-sub-line">
+                    <span className="hosp-phone-text">
+                      <Phone size={11} style={{ display: 'inline', marginRight: 3 }} />
+                      {ride.phone}
+                    </span>
+                    {ride.pickup_location && (
+                      <span className="hosp-location-text">
+                        • {ride.pickup_location}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="hosp-row-vehicle">
+                  <div className="hosp-veh-thumb">{vehTag}</div>
+                  <div className="hosp-veh-info">
+                    <span className="hosp-veh-title">{ride.vehicle ? ride.vehicle.replace('|', ' • ') : 'Executive Black Car'}</span>
+                    <span className="hosp-veh-time">
+                      <Clock size={11} style={{ display: 'inline', marginRight: 4 }} />
+                      {ride.ride_date} at {ride.ride_time}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hosp-row-driver">
+                  {ride.assigned_driver ? (
+                    <span className="hosp-driver-assigned">
+                      <User size={12} style={{ display: 'inline', marginRight: 4 }} />
+                      {ride.assigned_driver.name}
+                    </span>
+                  ) : (
+                    <span className="hosp-unassigned-tag">Unassigned</span>
+                  )}
+                  {ride.driver_preference && (
+                    <div className="hosp-pref-note">Pref: {ride.driver_preference}</div>
+                  )}
+                </div>
+
+                <div className="hosp-row-actions">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDrawer(ride);
+                    }}
+                    className="hosp-action-btn"
+                  >
+                    Dispatch
+                    <ChevronRight size={13} style={{ marginLeft: 3 }} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -478,106 +488,318 @@ export default function RidesPage() {
         </div>
       )}
 
-      {/* Scoped Zoho CSS */}
+      {/* Scoped Hospitable & Archer CSS */}
       <style jsx>{`
-        .zoho-page-container {
+        .hosp-rides-container, .zoho-page-container {
           display: flex;
           flex-direction: column;
           gap: 16px;
         }
-        .zoho-toolbar {
+
+        /* Header Block */
+        .hosp-page-header {
+          margin-bottom: 2px;
+        }
+        .hosp-title {
+          font-size: 1.25rem; /* 20px */
+          font-weight: 700;
+          color: var(--text);
+          letter-spacing: -0.01em;
+          margin-bottom: 4px;
+        }
+        .hosp-subtitle {
+          font-size: 0.8125rem; /* 13px */
+          color: var(--muted);
+          line-height: 1.4;
+          margin-bottom: 10px;
+          max-width: 860px;
+        }
+        .hosp-tour-chips {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+        .hosp-chip-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 0.75rem; /* 12px */
+          color: var(--success);
+          font-weight: 500;
+        }
+        .hosp-badge-green {
+          background: var(--success);
+          color: #fff;
+          font-size: 0.6rem;
+          font-weight: 800;
+          padding: 1px 4px;
+          border-radius: 3px;
+        }
+
+        /* Underline Tabs */
+        .hosp-tab-strip {
+          display: flex;
+          gap: 20px;
+          border-bottom: 1px solid var(--border);
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .hosp-tab-btn {
+          padding: 6px 0 10px;
+          font-size: 0.84rem;
+          font-weight: 400;
+          color: var(--muted);
+          background: none;
+          border: none;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -1px;
+          cursor: pointer;
+          font-family: inherit;
+          white-space: nowrap;
+          transition: all 0.1s;
+        }
+        .hosp-tab-btn:hover {
+          color: var(--text);
+        }
+        .hosp-tab-btn.active {
+          color: var(--text);
+          font-weight: 600;
+          border-bottom-color: var(--accent);
+        }
+
+        /* Toolbar */
+        .hosp-toolbar-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          flex-wrap: wrap;
           gap: 12px;
-          background: var(--surface);
-          padding: 12px 18px;
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          box-shadow: var(--shadow-sm);
+          margin-bottom: 4px;
         }
-        .toolbar-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
+        .hosp-toolbar-left {
+          flex: 1;
+          max-width: 440px;
         }
-        .toolbar-left h2 {
-          font-size: 1.15rem;
-          font-weight: 600;
-          color: var(--text);
-          margin: 0;
-        }
-        .total-badge {
-          background: var(--surface-2);
-          color: var(--text-secondary);
-          font-size: 0.75rem;
-          font-weight: 600;
-          padding: 2px 8px;
-          border-radius: 12px;
-        }
-        .toolbar-right {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        .status-filter-group {
-          display: flex;
-          align-items: center;
-          background: var(--surface-2);
-          padding: 2px;
-          border-radius: 6px;
-          gap: 2px;
-        }
-        .filter-btn {
-          border: none;
-          background: transparent;
-          color: var(--text-secondary);
-          font-size: 0.75rem;
-          font-weight: 500;
-          padding: 4px 10px;
-          border-radius: 4px;
-          cursor: pointer;
-          text-transform: capitalize;
-          transition: all 0.15s ease;
-        }
-        .filter-btn:hover {
-          color: var(--text);
-        }
-        .filter-btn.active {
-          background: var(--surface);
-          color: var(--accent);
-          font-weight: 600;
-          box-shadow: var(--shadow-sm);
-        }
-        .search-box {
+        .hosp-search-field {
           position: relative;
-          display: flex;
-          align-items: center;
+          width: 100%;
         }
-        .search-icon {
+        :global(.hosp-search-icon) {
           position: absolute;
           left: 10px;
+          top: 50%;
+          transform: translateY(-50%);
           color: var(--muted);
-          pointer-events: none;
         }
-        .search-box input {
-          width: 240px;
-          min-height: 34px;
-          padding: 6px 12px 6px 32px;
-          font-size: 0.8125rem;
-          border-radius: 4px;
+        .hosp-search-field input {
+          width: 100%;
+          height: 32px;
+          padding: 0 10px 0 32px;
           border: 1px solid var(--border);
+          border-radius: 4px;
+          font-size: 0.8125rem;
           background: var(--surface);
           color: var(--text);
+          outline: none;
         }
-        .zoho-card-container {
+        .hosp-search-field input:focus {
+          border-color: var(--accent);
+        }
+        .hosp-results-count {
+          font-size: 0.75rem;
+          color: var(--muted);
+        }
+
+        /* Divided Row Cards */
+        .hosp-divided-list {
+          border-top: 1px solid var(--border);
+          background: var(--surface);
+          border-radius: 4px;
+          border: 1px solid var(--border);
+          overflow: hidden;
+        }
+        .hosp-row-item {
+          display: flex;
+          align-items: center;
+          padding: 12px 14px;
+          border-bottom: 1px solid var(--border);
+          gap: 14px;
+          cursor: pointer;
+          transition: background 0.1s;
+        }
+        .hosp-row-item:last-child {
+          border-bottom: none;
+        }
+        .hosp-row-item:hover {
+          background: var(--surface-2);
+        }
+        .hosp-row-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: var(--surface-2);
+          border: 1px solid var(--border);
+          color: var(--text-secondary);
+          font-size: 0.72rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .hosp-row-main {
+          flex: 1;
+          min-width: 0;
+        }
+        .hosp-row-title-line {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 2px;
+          flex-wrap: wrap;
+        }
+        .hosp-passenger-name {
+          font-size: 0.84rem;
+          font-weight: 600;
+          color: var(--text);
+        }
+        .hosp-ref-tag {
+          font-size: 0.72rem;
+          font-family: monospace;
+          background: var(--surface-2);
+          padding: 1px 5px;
+          border-radius: 3px;
+          color: var(--text-secondary);
+        }
+        .hosp-row-sub-line {
+          font-size: 0.78rem;
+          color: var(--muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hosp-phone-text {
+          color: var(--text-secondary);
+        }
+        .hosp-location-text {
+          color: var(--muted);
+        }
+
+        .hosp-row-vehicle {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 250px;
+          flex-shrink: 0;
+        }
+        .hosp-veh-thumb {
+          width: 38px;
+          height: 26px;
+          border-radius: 3px;
+          background: #10141d;
+          border: 1px solid var(--border);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--accent);
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+        }
+        .hosp-veh-info {
+          display: flex;
+          flex-direction: column;
+          line-height: 1.25;
+        }
+        .hosp-veh-title {
+          font-size: 0.78rem;
+          font-weight: 500;
+          color: var(--text);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hosp-veh-time {
+          font-size: 0.72rem;
+          color: var(--muted);
+        }
+
+        .hosp-row-driver {
+          width: 150px;
+          flex-shrink: 0;
+          font-size: 0.78rem;
+        }
+        .hosp-driver-assigned {
+          color: var(--text);
+          font-weight: 500;
+        }
+        .hosp-unassigned-tag {
+          color: var(--danger);
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+        .hosp-pref-note {
+          font-size: 0.7rem;
+          color: var(--muted);
+        }
+
+        .hosp-status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 2px 7px;
+          border-radius: 12px;
+          text-transform: capitalize;
+        }
+        .status-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+        .status-pending { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+        .status-pending .status-dot { background: #f59e0b; }
+        .status-dispatched { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+        .status-dispatched .status-dot { background: #3b82f6; }
+        .status-in_progress { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+        .status-in_progress .status-dot { background: #10b981; }
+        .status-completed { background: rgba(100, 116, 139, 0.12); color: #64748b; }
+        .status-completed .status-dot { background: #64748b; }
+        .status-cancelled { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+        .status-cancelled .status-dot { background: #ef4444; }
+
+        .hosp-row-actions {
+          flex-shrink: 0;
+        }
+        .hosp-action-btn {
+          height: 26px;
+          padding: 0 10px;
           background: var(--surface);
           border: 1px solid var(--border);
-          border-radius: 6px;
-          overflow: hidden;
-          box-shadow: var(--shadow-sm);
+          border-radius: 3px;
+          font-size: 0.75rem;
+          font-weight: 500;
+          color: var(--text);
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+        }
+        .hosp-action-btn:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+        }
+
+        .hosp-empty-state {
+          padding: 40px 20px;
+          text-align: center;
+          color: var(--muted);
+        }
+        .hosp-empty-state h3 {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: var(--text);
+          margin: 8px 0 4px;
         }
         .zoho-table {
           width: 100%;

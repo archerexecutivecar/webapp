@@ -78,17 +78,17 @@ export default function TestimonialsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, background: 'var(--surface)', padding: '12px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, background: 'var(--surface)', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>Testimonials</h2>
-          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Testimonials</h2>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>
             {activeCount === 0
               ? 'No active testimonials — the Client Reviews section is hidden on the website.'
               : `${activeCount} active — shown in the Client Reviews section on the website.`}
           </span>
         </div>
-        <button type="button" onClick={() => setEditing({ client_name: '', client_title: '', service_tag: '', quote: '', rating: 5, sort_order: items.length + 1, is_active: true })}>
-          <Plus size={15} /> Add testimonial
+        <button type="button" onClick={() => setEditing({ client_name: '', client_title: '', service_tag: '', quote: '', rating: 5, sort_order: items.length + 1, is_active: true })} style={{ height: 32, padding: '0 14px', fontSize: '0.8125rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Plus size={14} /> Add testimonial
         </button>
       </div>
 
