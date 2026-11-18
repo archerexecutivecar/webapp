@@ -100,7 +100,7 @@ class CustomerController extends Controller
                 'pickup_location' => $r->pickup_location, 'dropoff_location' => $r->dropoff_location,
                 'vehicle' => $r->vehicle, 'driver_tier' => $r->driver_tier,
                 'driver' => $r->assignedDriver?->name, 'created_at' => $r->created_at?->toIso8601String(),
-                'fare_amount' => $r->details['ride_amount'] ?? ($r->status === 'completed' ? 283.91 : ($r->status === 'dispatched' ? 260.00 : 200.00)),
+                'fare_amount' => $this->fareAmountFromRide($r),
             ]);
 
         // EA/PA profiles saved under the same email (an assistant can have submitted more than one).
@@ -197,6 +197,10 @@ If you did not ask for this, please call Archer dispatch.",
     {
         $prefs = $u->preferences ?? [];
         $isCashApproved = (bool) ($prefs['cash_venmo_approved'] ?? false);
+        $vehicles = $prefs['client_vehicles'] ?? [];
+        if (! is_array($vehicles)) {
+            $vehicles = [];
+        }
 
         return [
             'id' => $u->id,
@@ -210,22 +214,42 @@ If you did not ask for this, please call Archer dispatch.",
             'created_at' => $u->created_at?->toIso8601String(),
             'rides_count' => (int) ($u->ride_requests_count ?? 0),
             'last_ride_at' => $u->ride_requests_max_created_at ? \Illuminate\Support\Carbon::parse($u->ride_requests_max_created_at)->toIso8601String() : null,
-            // Prototype exact fields
             'preferred_driver' => $prefs['preferred_driver'] ?? null,
-            'home_address' => $prefs['home_address'] ?? '14 Riverside Dr, Rumson, NJ 07760',
-            'notes' => $prefs['notes'] ?? 'Prefers Escalade. Two carry-ons.',
+            'home_address' => $prefs['home_address'] ?? null,
+            'notes' => $prefs['notes'] ?? null,
             'cash_venmo_approved' => $isCashApproved,
             'payment_label' => $isCashApproved ? 'Cash/Venmo OK' : 'Card',
-            'lifetime_spend' => $prefs['lifetime_spend'] ?? 283.91,
+            // Only report a stored preference total; never invent prototype spend for empty profiles.
+            'lifetime_spend' => array_key_exists('lifetime_spend', $prefs) ? (float) $prefs['lifetime_spend'] : 0.0,
             'agreement_signed' => (bool) ($prefs['agreement_signed'] ?? false),
-            'client_vehicles' => $prefs['client_vehicles'] ?? [
-                [
-                    'id' => 'cv-1',
-                    'model' => '2023 Obsidian black Mercedes-Benz S 580',
-                    'plate' => 'NJ M41-HLE',
-                    'notes' => 'Fob in the lockbox; dispatch has the code.',
-                ],
-            ],
+            'client_vehicles' => array_values($vehicles),
         ];
+    }
+
+    /** Real stored fare only — never invent prototype amounts when closeout/pricing is missing. */
+    private function fareAmountFromRide(RideRequest $r): ?float
+    {
+        $details = is_array($r->details) ? $r->details : [];
+        $closeout = is_array($details['closeout'] ?? null) ? $details['closeout'] : [];
+
+        foreach ([
+            $details['ride_amount'] ?? null,
+            $closeout['total'] ?? null,
+            $closeout['amount'] ?? null,
+            $details['fare_total'] ?? null,
+            $details['booked_price'] ?? null,
+            $details['fare'] ?? null,
+        ] as $candidate) {
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+            if (! is_numeric($candidate)) {
+                continue;
+            }
+
+            return round((float) $candidate, 2);
+        }
+
+        return null;
     }
 }

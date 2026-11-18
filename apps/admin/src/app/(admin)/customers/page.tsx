@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { replaceDrawerId } from '@/lib/drawer-query';
 import { RightDrawer } from '@/components/RightDrawer';
 import { 
   Search, 
@@ -71,8 +72,11 @@ interface DriverOption {
 }
 
 export default function CustomersPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlBootRef = useRef(false);
+  /** Last id opened from the URL (or closed while still present) — prevents reopen loops. */
+  const deepLinkOpenedRef = useRef<string | null>(null);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [search, setSearch] = useState('');
@@ -149,18 +153,17 @@ export default function CustomersPage() {
     fetchDrivers();
   }, []);
 
+  const syncCustomerIdInUrl = useCallback(
+    (id: string | null) => {
+      replaceDrawerId(router, pathname, searchParams, id);
+    },
+    [router, pathname, searchParams],
+  );
+
+  // Seed search from URL; id deep-links are handled separately.
   useEffect(() => {
-    if (urlBootRef.current) return;
-    urlBootRef.current = true;
     const q = searchParams.get('q') ?? searchParams.get('search');
-    const id = searchParams.get('id');
     if (q) setSearch(q);
-    if (id) {
-      const num = Number(id);
-      if (!Number.isNaN(num)) openCustomer(num);
-    } else if (q) {
-      fetchCustomers(q);
-    }
   }, [searchParams]);
 
   // Search debounce
@@ -173,9 +176,12 @@ export default function CustomersPage() {
 
   // Open & load single customer detail
   const openCustomer = async (id: number) => {
+    const idKey = String(id);
+    deepLinkOpenedRef.current = idKey;
     setSelectedCustomerId(id);
     setDetailLoading(true);
     setSuccessNotice(null);
+    syncCustomerIdInUrl(idKey);
     try {
       const res = await api<any>(`/admin/customers/${id}`, { auth: true });
       const c = res?.customer ?? res?.data?.customer ?? res;
@@ -197,10 +203,27 @@ export default function CustomersPage() {
   };
 
   const closeCustomerDrawer = () => {
+    const currentId = searchParams.get('id');
+    if (currentId) deepLinkOpenedRef.current = currentId;
     setSelectedCustomerId(null);
     setSelectedDetail(null);
     setIsAddingCar(false);
+    syncCustomerIdInUrl(null);
   };
+
+  // Deep-link / URL sync: open once per id; closing clears ?id= so this does not loop.
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id) {
+      deepLinkOpenedRef.current = null;
+      return;
+    }
+    if (deepLinkOpenedRef.current === id) return;
+    const num = Number(id);
+    if (Number.isNaN(num)) return;
+    deepLinkOpenedRef.current = id;
+    void openCustomer(num);
+  }, [searchParams]);
 
   // Save client profile changes
   const handleSaveClient = async (overrideVehicles?: ClientVehicle[], overrideAgreement?: boolean) => {
@@ -255,8 +278,8 @@ export default function CustomersPage() {
     const newCar: ClientVehicle = {
       id: `cv-${Date.now()}`,
       model: newCarModel.trim(),
-      plate: newCarPlate.trim() || 'NJ TBD',
-      notes: newCarNotes.trim() || 'Fob in lockbox',
+      plate: newCarPlate.trim(),
+      notes: newCarNotes.trim() || undefined,
     };
     const updated = [...clientVehicles, newCar];
     setClientVehicles(updated);
@@ -757,9 +780,9 @@ export default function CustomersPage() {
                         ? 'Airport transfer'
                         : 'Point to point';
                       
-                      const fare = ride.fare_amount !== undefined 
+                      const fare = ride.fare_amount != null
                         ? (ride.fare_amount === 0 ? '$0' : `$${Number(ride.fare_amount).toFixed(2)}`)
-                        : (ride.status === 'completed' ? '$283.91' : ride.status === 'dispatched' ? '$260.00' : '$200.00');
+                        : '—';
 
                       // Status pill color
                       const isCompleted = ride.status === 'completed';

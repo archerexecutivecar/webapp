@@ -75,6 +75,77 @@ class AdminCustomerTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['event' => 'customer.viewed', 'actor_id' => $staff->id, 'subject_id' => (string) $id]);
     }
 
+    public function test_newly_created_customer_has_empty_profile_without_prototype_defaults(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        $created = $this->postJson('/api/v1/admin/customers', [
+            'name' => 'Paul',
+            'email' => 'paul.empty@example.com',
+            'phone' => '3434345435',
+        ], $h)->assertCreated()->json('data.customer');
+
+        $this->assertSame('Paul', $created['name']);
+        $this->assertSame(0, $created['rides_count']);
+        $this->assertSame(0, $created['lifetime_spend']);
+        $this->assertNull($created['home_address']);
+        $this->assertNull($created['notes']);
+        $this->assertNull($created['preferred_driver']);
+        $this->assertFalse($created['cash_venmo_approved']);
+        $this->assertFalse($created['agreement_signed']);
+        $this->assertSame([], $created['client_vehicles']);
+
+        $detail = $this->getJson('/api/v1/admin/customers/'.$created['id'], $h)->assertOk()->json('data.customer');
+
+        $this->assertSame([], $detail['rides']);
+        $this->assertSame([], $detail['client_vehicles']);
+        $this->assertNull($detail['home_address']);
+        $this->assertNull($detail['notes']);
+        $this->assertSame(0, $detail['lifetime_spend']);
+        $this->assertStringNotContainsString('14 Riverside', json_encode($detail));
+        $this->assertStringNotContainsString('Prefers Escalade', json_encode($detail));
+        $this->assertStringNotContainsString('M41-HLE', json_encode($detail));
+        $this->assertStringNotContainsString('283.91', json_encode($detail));
+    }
+
+    public function test_customer_detail_keeps_real_linked_rides_and_does_not_invent_fares(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+        $ref = $this->book('real.rides@example.com', 'Riley');
+        $customer = User::where('email', 'real.rides@example.com')->firstOrFail();
+
+        $ride = RideRequest::where('reference', $ref)->firstOrFail();
+        $ride->forceFill([
+            'customer_id' => $customer->id,
+            'status' => 'completed',
+            'details' => array_merge($ride->details ?? [], ['booked_price' => 150.25]),
+        ])->save();
+
+        $orphan = RideRequest::create([
+            'reference' => 'P2P-ORPHAN',
+            'request_type' => 'point_to_point',
+            'service_type' => 'point_to_point',
+            'status' => 'completed',
+            'email' => 'someone.else@example.com',
+            'first_name' => 'Other',
+            'last_name' => 'Client',
+            'phone' => '7325550999',
+            'ride_date' => now()->subDay()->toDateString(),
+            'ride_time' => '10:00',
+            'pickup_location' => 'A',
+            'dropoff_location' => 'B',
+            'driver_tier' => 1,
+            'details' => ['booked_price' => 283.91],
+        ]);
+
+        $detail = $this->getJson("/api/v1/admin/customers/{$customer->id}", $h)->assertOk()->json('data.customer');
+
+        $this->assertCount(1, $detail['rides']);
+        $this->assertSame($ref, $detail['rides'][0]['reference']);
+        $this->assertSame(150.25, $detail['rides'][0]['fare_amount']);
+        $this->assertNotSame($orphan->reference, $detail['rides'][0]['reference'] ?? null);
+    }
+
     public function test_a_staff_member_is_not_a_customer_record(): void
     {
         [$staff, $h] = $this->actingAsRole('dispatcher');

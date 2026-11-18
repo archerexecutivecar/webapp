@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class DriverController extends Controller
 {
@@ -92,34 +93,43 @@ class DriverController extends Controller
                 'name' => $validated['name'],
                 'email' => $validated['email'] ?? null,
                 'phone' => $validated['phone'] ?? null,
-                'service_tier' => $validated['service_tier'] ?? 1,
                 'avatar_url' => $validated['avatar_url'] ?? null,
                 'bio' => $validated['bio'] ?? null,
                 'sort_order' => $validated['sort_order'] ?? 0,
                 'is_active' => $validated['is_active'] ?? true,
-                'is_fleet_operator' => $validated['is_fleet_operator'] ?? true,
-                'is_client_car_operator' => $validated['is_client_car_operator'] ?? true,
-                'is_owner_operator' => $validated['is_owner_operator'] ?? false,
-                'owner_vehicle_model' => $validated['owner_vehicle_model'] ?? null,
-                'owner_vehicle_class' => $validated['owner_vehicle_class'] ?? 'Executive Class · SUV',
-                'owner_vehicle_plate' => $validated['owner_vehicle_plate'] ?? null,
-                'owner_vehicle_reg_expires' => $validated['owner_vehicle_reg_expires'] ?? null,
-                'owner_vehicle_ins_expires' => $validated['owner_vehicle_ins_expires'] ?? null,
-                'owner_vehicle_inspected' => (bool) ($validated['owner_vehicle_inspected'] ?? false),
-                'compliance_credentials' => [
+            ];
+
+            // service_tier was added after the original drivers table; skip when schema is behind.
+            if (Schema::hasColumn('drivers', 'service_tier')) {
+                $driverData['service_tier'] = $validated['service_tier'] ?? null;
+            }
+
+            // Operating-mode columns (migration 2026_11_21_000001). Guard so a delayed
+            // Hostinger migrate cannot turn roster create into a 500.
+            if (Schema::hasColumn('drivers', 'is_fleet_operator')) {
+                $driverData['is_fleet_operator'] = $validated['is_fleet_operator'] ?? true;
+                $driverData['is_client_car_operator'] = $validated['is_client_car_operator'] ?? true;
+                $driverData['is_owner_operator'] = $validated['is_owner_operator'] ?? false;
+                $driverData['owner_vehicle_model'] = $validated['owner_vehicle_model'] ?? null;
+                $driverData['owner_vehicle_class'] = $validated['owner_vehicle_class'] ?? 'Executive Class · SUV';
+                $driverData['owner_vehicle_plate'] = $validated['owner_vehicle_plate'] ?? null;
+                $driverData['owner_vehicle_reg_expires'] = $validated['owner_vehicle_reg_expires'] ?? null;
+                $driverData['owner_vehicle_ins_expires'] = $validated['owner_vehicle_ins_expires'] ?? null;
+                $driverData['owner_vehicle_inspected'] = (bool) ($validated['owner_vehicle_inspected'] ?? false);
+                $driverData['compliance_credentials'] = [
                     'soar_certification' => ['status' => 'active', 'days_remaining' => 203],
                     'driver_license' => ['status' => 'active', 'days_remaining' => 519],
                     'carry_permit' => ['status' => 'renewal_due', 'days_remaining' => 21],
-                ],
-                'availability_schedule' => 'Mon, Tue, Wed, Thu, Fri: 07:00–19:00',
-            ];
+                ];
+                $driverData['availability_schedule'] = 'Mon, Tue, Wed, Thu, Fri: 07:00-19:00';
+            }
 
             $driver = Driver::create($driverData);
 
             AuditLog::record('driver.created', $request->user()?->getKey(), [
                 'driver_id' => $driver->id,
                 'name' => $driver->name,
-            ], $driver);
+            ], $this->auditSubject($driver));
 
             return ApiResponse::data(['driver' => $this->formatDriverDetail($driver->load(['tier', 'user']))], 201);
         });
@@ -182,33 +192,41 @@ class DriverController extends Controller
                 }
             }
 
-            $driver->update(array_filter([
+            $updates = [
                 'name' => $validated['name'] ?? $driver->name,
                 'email' => array_key_exists('email', $validated) ? $validated['email'] : $driver->email,
                 'phone' => array_key_exists('phone', $validated) ? $validated['phone'] : $driver->phone,
-                'service_tier' => array_key_exists('service_tier', $validated) ? $validated['service_tier'] : $driver->service_tier,
                 'avatar_url' => array_key_exists('avatar_url', $validated) ? $validated['avatar_url'] : $driver->avatar_url,
                 'bio' => array_key_exists('bio', $validated) ? $validated['bio'] : $driver->bio,
                 'sort_order' => array_key_exists('sort_order', $validated) ? $validated['sort_order'] : $driver->sort_order,
                 'is_active' => array_key_exists('is_active', $validated) ? $validated['is_active'] : $driver->is_active,
-                'is_fleet_operator' => array_key_exists('is_fleet_operator', $validated) ? $validated['is_fleet_operator'] : $driver->is_fleet_operator,
-                'is_client_car_operator' => array_key_exists('is_client_car_operator', $validated) ? $validated['is_client_car_operator'] : $driver->is_client_car_operator,
-                'is_owner_operator' => array_key_exists('is_owner_operator', $validated) ? $validated['is_owner_operator'] : $driver->is_owner_operator,
-                'owner_vehicle_model' => array_key_exists('owner_vehicle_model', $validated) ? $validated['owner_vehicle_model'] : $driver->owner_vehicle_model,
-                'owner_vehicle_class' => array_key_exists('owner_vehicle_class', $validated) ? $validated['owner_vehicle_class'] : $driver->owner_vehicle_class,
-                'owner_vehicle_plate' => array_key_exists('owner_vehicle_plate', $validated) ? $validated['owner_vehicle_plate'] : $driver->owner_vehicle_plate,
-                'owner_vehicle_reg_expires' => array_key_exists('owner_vehicle_reg_expires', $validated) ? $validated['owner_vehicle_reg_expires'] : $driver->owner_vehicle_reg_expires,
-                'owner_vehicle_ins_expires' => array_key_exists('owner_vehicle_ins_expires', $validated) ? $validated['owner_vehicle_ins_expires'] : $driver->owner_vehicle_ins_expires,
-                'owner_vehicle_inspected' => array_key_exists('owner_vehicle_inspected', $validated) ? $validated['owner_vehicle_inspected'] : $driver->owner_vehicle_inspected,
-                'compliance_credentials' => array_key_exists('compliance_credentials', $validated) ? $validated['compliance_credentials'] : $driver->compliance_credentials,
-                'availability_schedule' => array_key_exists('availability_schedule', $validated) ? $validated['availability_schedule'] : $driver->availability_schedule,
-            ], fn ($v) => $v !== null));
+            ];
+
+            if (Schema::hasColumn('drivers', 'service_tier')) {
+                $updates['service_tier'] = array_key_exists('service_tier', $validated) ? $validated['service_tier'] : $driver->service_tier;
+            }
+
+            if (Schema::hasColumn('drivers', 'is_fleet_operator')) {
+                $updates['is_fleet_operator'] = array_key_exists('is_fleet_operator', $validated) ? $validated['is_fleet_operator'] : $driver->is_fleet_operator;
+                $updates['is_client_car_operator'] = array_key_exists('is_client_car_operator', $validated) ? $validated['is_client_car_operator'] : $driver->is_client_car_operator;
+                $updates['is_owner_operator'] = array_key_exists('is_owner_operator', $validated) ? $validated['is_owner_operator'] : $driver->is_owner_operator;
+                $updates['owner_vehicle_model'] = array_key_exists('owner_vehicle_model', $validated) ? $validated['owner_vehicle_model'] : $driver->owner_vehicle_model;
+                $updates['owner_vehicle_class'] = array_key_exists('owner_vehicle_class', $validated) ? $validated['owner_vehicle_class'] : $driver->owner_vehicle_class;
+                $updates['owner_vehicle_plate'] = array_key_exists('owner_vehicle_plate', $validated) ? $validated['owner_vehicle_plate'] : $driver->owner_vehicle_plate;
+                $updates['owner_vehicle_reg_expires'] = array_key_exists('owner_vehicle_reg_expires', $validated) ? $validated['owner_vehicle_reg_expires'] : $driver->owner_vehicle_reg_expires;
+                $updates['owner_vehicle_ins_expires'] = array_key_exists('owner_vehicle_ins_expires', $validated) ? $validated['owner_vehicle_ins_expires'] : $driver->owner_vehicle_ins_expires;
+                $updates['owner_vehicle_inspected'] = array_key_exists('owner_vehicle_inspected', $validated) ? $validated['owner_vehicle_inspected'] : $driver->owner_vehicle_inspected;
+                $updates['compliance_credentials'] = array_key_exists('compliance_credentials', $validated) ? $validated['compliance_credentials'] : $driver->compliance_credentials;
+                $updates['availability_schedule'] = array_key_exists('availability_schedule', $validated) ? $validated['availability_schedule'] : $driver->availability_schedule;
+            }
+
+            $driver->update(array_filter($updates, fn ($v) => $v !== null));
 
             AuditLog::record('driver.updated', $request->user()?->getKey(), [
                 'driver_id' => $driver->id,
                 'is_active' => $driver->is_active,
                 'is_owner_operator' => $driver->is_owner_operator,
-            ], $driver);
+            ], $this->auditSubject($driver));
 
             return ApiResponse::data(['driver' => $this->formatDriverDetail($driver->fresh(['tier', 'user']))]);
         });
@@ -226,6 +244,23 @@ class DriverController extends Controller
         ], null);
 
         return ApiResponse::data(['message' => 'Driver removed from roster successfully']);
+    }
+
+    /**
+     * UUID primary keys cannot be stored in a legacy bigint audit_logs.subject_id.
+     * Prefer attaching the model when the column can hold a string; otherwise metadata alone is enough.
+     */
+    private function auditSubject(Driver $driver): ?Driver
+    {
+        if (! Schema::hasTable('audit_logs') || ! Schema::hasColumn('audit_logs', 'subject_id')) {
+            return null;
+        }
+
+        $type = strtolower((string) Schema::getColumnType('audit_logs', 'subject_id'));
+
+        return in_array($type, ['string', 'varchar', 'text', 'char', 'guid', 'uuid'], true)
+            ? $driver
+            : null;
     }
 
     private function formatDriverSummary(Driver $d): array

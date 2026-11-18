@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\CustomerNotice;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\Support\CreatesStaff;
 use Tests\TestCase;
 
@@ -91,5 +92,53 @@ class CustomerNoticeTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'event' => 'customer_notice.logged',
         ]);
+    }
+
+    public function test_store_accepts_admin_ui_sms_plus_email_payload_without_email(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        // Mirrors apps/admin notices "Simulate notice" default payload (channel SMS + email, no recipient_email).
+        $payload = [
+            'recipient_name' => 'Morgan Hale',
+            'recipient_phone' => '(732) 555-0199',
+            'channel' => 'SMS + email',
+            'trigger' => 'allocated',
+            'ride_reference' => 'AR-1048',
+            'message' => 'Your Archer ride AR-1048 is confirmed.',
+        ];
+
+        $this->postJson('/api/v1/admin/notices', $payload, $h)
+            ->assertCreated()
+            ->assertJsonPath('data.notice.channel', 'SMS + email')
+            ->assertJsonPath('data.notice.status', 'logged');
+    }
+
+    public function test_store_returns_503_when_customer_notices_table_missing(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        Schema::dropIfExists('customer_notices');
+
+        $response = $this->postJson('/api/v1/admin/notices', [
+            'recipient_name' => 'Lena Ortiz',
+            'channel' => 'SMS',
+            'trigger' => 'on_my_way',
+            'message' => 'Driver is on the way.',
+        ], $h);
+
+        $response->assertStatus(503);
+        $response->assertJsonPath('error.code', 'SCHEMA_MISSING');
+    }
+
+    public function test_index_returns_empty_when_customer_notices_table_missing(): void
+    {
+        [, $h] = $this->actingAsRole('dispatcher');
+
+        Schema::dropIfExists('customer_notices');
+
+        $this->getJson('/api/v1/admin/notices', $h)
+            ->assertOk()
+            ->assertJsonPath('data.notices', []);
     }
 }

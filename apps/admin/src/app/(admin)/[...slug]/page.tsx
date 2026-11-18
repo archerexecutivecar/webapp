@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, Clock, FileCheck2, ArrowLeft, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
+import { Clock, FileCheck2, ArrowLeft, ShieldAlert, Sparkles, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useCurrentItem } from '@/components/Shell';
 
@@ -28,7 +28,6 @@ export default function ModulePlaceholder() {
   }
 
   const { group, item } = current;
-  const isSecurity = group.key.includes('security');
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pt-2">
@@ -40,7 +39,7 @@ export default function ModulePlaceholder() {
               {group.label}
             </span>
             <span className="text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded">
-              {isSecurity ? 'Phase 2 Architecture' : 'Scheduled Module'}
+              Scheduled Module
             </span>
           </div>
 
@@ -56,7 +55,7 @@ export default function ModulePlaceholder() {
 
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-2xl">
           {item.description ??
-            `The ${item.label} interface and underlying dispatch logic are staged in the platform architecture. Full functionality will be enabled in Phase 2.`}
+            `The ${item.label} interface and underlying dispatch logic are staged in the platform architecture.`}
         </p>
       </div>
 

@@ -163,7 +163,6 @@ class DashboardController extends Controller
             [
                 'id' => 'na-3',
                 'severity' => 'yellow',
-                'badge' => 'P2',
                 'message' => '2 shifts are unclaimed less than 48 hours out. One is event-critical.',
                 'action_label' => 'Assign',
                 'action_href' => '/security/contracts',
@@ -171,7 +170,6 @@ class DashboardController extends Controller
             [
                 'id' => 'na-4',
                 'severity' => 'blue',
-                'badge' => 'P2',
                 'message' => '1 swap waiting for approval.',
                 'action_label' => 'Review',
                 'action_href' => '/security/swaps',
@@ -179,7 +177,6 @@ class DashboardController extends Controller
             [
                 'id' => 'na-5',
                 'severity' => 'blue',
-                'badge' => 'P2',
                 'message' => '1 new security lead.',
                 'action_label' => 'Call back',
                 'action_href' => '/security/leads',

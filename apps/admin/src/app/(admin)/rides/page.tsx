@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { replaceDrawerId } from '@/lib/drawer-query';
 import { LocationAutocompleteInput } from '@/components/LocationAutocompleteInput';
 import { RightDrawer } from '@/components/RightDrawer';
 import { 
@@ -101,8 +102,13 @@ export interface RideRequest {
 }
 
 export default function RidesPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  /** Last id handled from the URL (or closed while still present) — prevents reopen loops. */
   const deepLinkOpenedRef = useRef<string | null>(null);
+  /** Bumped on close so in-flight deep-link fetches cannot reopen the drawer. */
+  const deepLinkGenRef = useRef(0);
   const [rides, setRides] = useState<RideRequest[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [search, setSearch] = useState('');
@@ -187,7 +193,15 @@ export default function RidesPage() {
     if (status) setStatusFilter(status);
   }, [searchParams]);
 
+  const syncRideIdInUrl = useCallback(
+    (id: string | null) => {
+      replaceDrawerId(router, pathname, searchParams, id);
+    },
+    [router, pathname, searchParams],
+  );
+
   const openDrawer = (ride: RideRequest) => {
+    deepLinkOpenedRef.current = ride.id;
     setSelectedRide(ride);
     setEditServiceType(ride.service_type || 'hourly');
     setEditPickupTime(`${ride.ride_date} ${ride.ride_time}`);
@@ -207,15 +221,27 @@ export default function RidesPage() {
     setClientCarVehicle(ride.details?.client_car_vehicle || '2023 Obsidian black Mercedes-Benz S 580 NJ M41-HLE');
     setError(null);
     setSuccess(null);
+    syncRideIdInUrl(ride.id);
   };
 
   const closeDrawer = () => {
+    // Invalidate any in-flight deep-link open and keep the current id marked
+    // as handled until `?id=` is actually removed from the URL.
+    deepLinkGenRef.current += 1;
+    const currentId = searchParams.get('id');
+    if (currentId) deepLinkOpenedRef.current = currentId;
     setSelectedRide(null);
+    syncRideIdInUrl(null);
   };
 
   useEffect(() => {
     const rideId = searchParams.get('id');
-    if (!rideId || deepLinkOpenedRef.current === rideId) return;
+    if (!rideId) {
+      // URL cleared after close — allow the same id to deep-link again later.
+      deepLinkOpenedRef.current = null;
+      return;
+    }
+    if (deepLinkOpenedRef.current === rideId) return;
 
     const fromList = rides.find((r) => r.id === rideId);
     if (fromList) {
@@ -226,9 +252,16 @@ export default function RidesPage() {
 
     if (!loading) {
       deepLinkOpenedRef.current = rideId;
+      const gen = deepLinkGenRef.current;
       api<{ ride: RideRequest }>(`/admin/rides/${rideId}`, { auth: true })
-        .then((res) => openDrawer(res.ride))
-        .catch(() => setError('Ride not found.'));
+        .then((res) => {
+          if (gen !== deepLinkGenRef.current) return;
+          openDrawer(res.ride);
+        })
+        .catch(() => {
+          if (gen !== deepLinkGenRef.current) return;
+          setError('Ride not found.');
+        });
     }
   }, [searchParams, rides, loading]);
 

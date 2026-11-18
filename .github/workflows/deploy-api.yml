@@ -24,6 +24,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
           script: |
+            set -e
             cd ${{ secrets.API_DEPLOY_PATH || '/var/www/archer/backend' }}
             git pull origin main
             composer install --no-dev --optimize-autoloader

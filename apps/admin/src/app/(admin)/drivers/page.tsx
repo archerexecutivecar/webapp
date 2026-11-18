@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
+import { replaceDrawerId } from '@/lib/drawer-query';
 import { RightDrawer } from '@/components/RightDrawer';
 import {
   Search,
@@ -95,8 +96,11 @@ export interface DriverDetail extends DriverSummary {
 }
 
 export default function DriversPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const urlBootRef = useRef(false);
+  /** Last id opened from the URL (or closed while still present) — prevents reopen loops. */
+  const deepLinkOpenedRef = useRef<string | null>(null);
   const [drivers, setDrivers] = useState<DriverSummary[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -154,18 +158,21 @@ export default function DriversPage() {
     fetchDrivers();
   }, []);
 
-  useEffect(() => {
-    if (urlBootRef.current) return;
-    const id = searchParams.get('id');
-    if (!id) return;
-    urlBootRef.current = true;
-    loadDriverDetail(id);
-  }, [searchParams]);
+  const syncDriverIdInUrl = useCallback(
+    (id: string | null) => {
+      replaceDrawerId(router, pathname, searchParams, id);
+    },
+    [router, pathname, searchParams],
+  );
 
   const loadDriverDetail = async (id: string, switchView = true) => {
+    deepLinkOpenedRef.current = id;
     setSelectedDriverId(id);
     setDetailLoading(true);
     setSuccessNotice(null);
+    if (switchView) {
+      syncDriverIdInUrl(id);
+    }
     try {
       const res = await api<any>(`/admin/drivers/${id}`, { auth: true });
       const d = res?.driver ?? res?.data?.driver ?? res;
@@ -193,10 +200,25 @@ export default function DriversPage() {
   };
 
   const closeDriverDrawer = () => {
+    const currentId = searchParams.get('id');
+    if (currentId) deepLinkOpenedRef.current = currentId;
     setViewMode('list');
     setSelectedDriverId(null);
     setSelectedDetail(null);
+    syncDriverIdInUrl(null);
   };
+
+  // Deep-link / URL sync: open once per id; closing clears ?id= so this does not loop.
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id) {
+      deepLinkOpenedRef.current = null;
+      return;
+    }
+    if (deepLinkOpenedRef.current === id) return;
+    deepLinkOpenedRef.current = id;
+    void loadDriverDetail(id);
+  }, [searchParams]);
 
   const handleSaveDetails = async (overrides: Partial<DriverDetail> = {}) => {
     if (!selectedDriverId) return;
@@ -281,9 +303,12 @@ export default function DriversPage() {
     try {
       setSaving(true);
       await api(`/admin/drivers/${selectedDetail.id}`, { method: 'DELETE', auth: true });
+      const currentId = searchParams.get('id');
+      if (currentId) deepLinkOpenedRef.current = currentId;
       setViewMode('list');
       setSelectedDriverId(null);
       setSelectedDetail(null);
+      syncDriverIdInUrl(null);
       await fetchDrivers();
       setSuccessNotice('Driver removed from roster.');
       setTimeout(() => setSuccessNotice(null), 3500);
@@ -982,14 +1007,11 @@ export default function DriversPage() {
                     </div>
                   </div>
 
-                  {/* CREDENTIALS [P2] Card */}
+                  {/* CREDENTIALS Card */}
                   <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2.5">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         Credentials
-                      </span>
-                      <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-muted text-muted-foreground">
-                        P2
                       </span>
                     </div>
 
@@ -1021,14 +1043,11 @@ export default function DriversPage() {
                     </div>
                   </div>
 
-                  {/* AVAILABILITY [P2] Card */}
+                  {/* AVAILABILITY Card */}
                   <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         Availability
-                      </span>
-                      <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-muted text-muted-foreground">
-                        P2
                       </span>
                     </div>
                     <div className="p-2.5 rounded bg-muted/30 border border-border/60 text-xs text-foreground font-mono">
@@ -1036,14 +1055,11 @@ export default function DriversPage() {
                     </div>
                   </div>
 
-                  {/* CLAIMED SHIFTS [P2] Card */}
+                  {/* CLAIMED SHIFTS Card */}
                   <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-2">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         Claimed shifts
-                      </span>
-                      <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-muted text-muted-foreground">
-                        P2
                       </span>
                     </div>
                     <div className="p-2.5 rounded bg-muted/30 border border-border/60 space-y-1">

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Driver;
+use Database\Seeders\SiteContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesStaff;
 use Tests\TestCase;
@@ -10,6 +11,31 @@ use Tests\TestCase;
 class AdminDriverOperatingModesTest extends TestCase
 {
     use CreatesStaff, RefreshDatabase;
+
+    public function test_driver_store_persists_operating_modes(): void
+    {
+        [, $h] = $this->actingAsRole('super_admin');
+        $this->seed(SiteContentSeeder::class);
+
+        $response = $this->postJson('/api/v1/admin/drivers', [
+            'name' => 'Marcus Vance',
+            'service_tier' => 2,
+            'is_active' => true,
+            'is_fleet_operator' => true,
+            'is_client_car_operator' => true,
+            'is_owner_operator' => false,
+        ], $h);
+
+        $response->assertCreated();
+        $response->assertJsonPath('data.driver.name', 'Marcus Vance');
+        $response->assertJsonPath('data.driver.is_fleet_operator', true);
+        $response->assertJsonPath('data.driver.is_client_car_operator', true);
+        $response->assertJsonPath('data.driver.is_owner_operator', false);
+
+        $driver = Driver::findOrFail($response->json('data.driver.id'));
+        $this->assertTrue($driver->is_fleet_operator);
+        $this->assertSame(2, $driver->service_tier);
+    }
 
     public function test_driver_index_returns_operating_modes_and_balance(): void
     {

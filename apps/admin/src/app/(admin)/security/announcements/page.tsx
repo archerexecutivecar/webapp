@@ -78,22 +78,6 @@ export default function AnnouncementsPage() {
     <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
       {/* Header matching Screenshot 16 */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <span
-            style={{
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              background: 'rgba(59, 130, 246, 0.15)',
-              color: '#3b82f6',
-              padding: '3px 8px',
-              borderRadius: 4,
-            }}
-          >
-            P2
-          </span>
-        </div>
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
           Announcements
         </h1>

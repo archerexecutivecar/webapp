@@ -64,6 +64,15 @@ class CustomerNoticeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        // GET already soft-fails when the table is absent; POST must not 500 on missing schema.
+        if (!Schema::hasTable('customer_notices')) {
+            return ApiResponse::error(
+                'SCHEMA_MISSING',
+                'Customer notices storage is not available. Run migration 2026_11_22_000001_create_customer_notices_table.',
+                503
+            );
+        }
+
         $validated = $request->validate([
             'ride_reference' => 'nullable|string|max:50',
             'recipient_name' => 'required|string|max:255',
@@ -101,25 +110,40 @@ class CustomerNoticeController extends Controller
             $status = 'logged';
         }
 
-        $notice = CustomerNotice::create([
-            'ride_reference' => $validated['ride_reference'] ?? null,
-            'recipient_name' => $validated['recipient_name'],
-            'recipient_phone' => $validated['recipient_phone'] ?? null,
-            'recipient_email' => $validated['recipient_email'] ?? null,
-            'channel' => $validated['channel'],
-            'trigger' => $validated['trigger'],
-            'trigger_label' => $triggerLabels[$validated['trigger']] ?? ucfirst(str_replace('_', ' ', $validated['trigger'])),
-            'message' => $validated['message'],
-            'status' => $status,
-            'sent_at' => now(),
-        ]);
+        try {
+            $notice = CustomerNotice::create([
+                'ride_reference' => $validated['ride_reference'] ?? null,
+                'recipient_name' => $validated['recipient_name'],
+                'recipient_phone' => $validated['recipient_phone'] ?? null,
+                'recipient_email' => $validated['recipient_email'] ?? null,
+                'channel' => $validated['channel'],
+                'trigger' => $validated['trigger'],
+                'trigger_label' => $triggerLabels[$validated['trigger']] ?? ucfirst(str_replace('_', ' ', $validated['trigger'])),
+                'message' => $validated['message'],
+                'status' => $status,
+                'sent_at' => now(),
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Illuminate\Support\Facades\Log::error('Customer notice create failed: ' . $e->getMessage());
 
-        AuditLog::record($status === 'sent' ? 'customer_notice.sent' : 'customer_notice.logged', $request->user()?->getKey(), [
-            'notice_id' => $notice->id,
-            'trigger' => $notice->trigger,
-            'recipient' => $notice->recipient_name,
-            'status' => $status,
-        ], null);
+            return ApiResponse::error(
+                'SCHEMA_ERROR',
+                'Unable to store customer notice. Confirm customer_notices migration has been applied.',
+                503
+            );
+        }
+
+        try {
+            AuditLog::record($status === 'sent' ? 'customer_notice.sent' : 'customer_notice.logged', $request->user()?->getKey(), [
+                'notice_id' => $notice->id,
+                'trigger' => $notice->trigger,
+                'recipient' => $notice->recipient_name,
+                'status' => $status,
+            ], null);
+        } catch (\Throwable $e) {
+            // Notice persisted; audit must not turn a successful create into a 500.
+            \Illuminate\Support\Facades\Log::warning('Customer notice audit failed: ' . $e->getMessage());
+        }
 
         return ApiResponse::data([
             'notice' => [
