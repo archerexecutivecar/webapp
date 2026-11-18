@@ -206,7 +206,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
           <div className="header-actions">
             <a
-              href={process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}
+              href={process.env.NEXT_PUBLIC_SITE_URL ?? 'https://staging.archerexecutivecar.com'}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition border border-border"

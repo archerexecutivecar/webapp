@@ -25,7 +25,7 @@ jobs:
         run: |
           cd apps/admin && npm ci
           cd ../..
-          node tools/package-next-app.mjs admin --api=https://api.archerexecutivecar.com/api/v1
+          node tools/package-next-app.mjs admin --api=https://api.archerexecutivecar.com/api/v1 --site=https://staging.archerexecutivecar.com
 
       - name: Copy Package to Server
         uses: appleboy/scp-action@v0.1.7

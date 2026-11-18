@@ -44,7 +44,7 @@ try {
   run("npx next build", appDir, {
     NODE_ENV: "production",
     NEXT_PUBLIC_API_BASE_URL: api,
-    ...(name === "client" ? { NEXT_PUBLIC_SITE_URL: site } : {}),
+    NEXT_PUBLIC_SITE_URL: site,
   });
 } finally {
   writeFileSync(cfgPath, original);
