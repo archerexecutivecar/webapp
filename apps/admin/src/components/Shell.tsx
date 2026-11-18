@@ -1,38 +1,115 @@
 'use client';
 
 import {
-  Calculator,
-  Bell, CalendarCheck, CalendarClock, Car, ChevronsLeft, ChevronsRight, CircleCheckBig, ClipboardList, CreditCard,
-  FileText, Image as ImageIcon, LayoutDashboard, LogOut, type LucideIcon, Menu, Monitor, Moon, Plug, Route, ScrollText,
-  Search, Settings, ShieldCheck, MessageSquare, Sun, UserRound, Users, Wallet, X, Clock, Check, ChevronRight,
+  Bell, Car, ChevronsLeft, ChevronsRight, ExternalLink, LogOut,
+  type LucideIcon, Menu, Monitor, Moon, Sun, X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { ThemeMode, useTheme } from '@/lib/theme';
 import { ArcherLogo } from './ArcherLogo';
 
-const ICONS: Record<string, LucideIcon> = {
-  'layout-dashboard': LayoutDashboard, route: Route, 'calendar-check': CalendarCheck, users: Users,
-  'clipboard-list': ClipboardList, 'user-round': UserRound, 'shield-check': ShieldCheck, 'message-square': MessageSquare, car: Car,
-  'calendar-clock': CalendarClock, 'credit-card': CreditCard, 'circle-check-big': CircleCheckBig, wallet: Wallet, calculator: Calculator,
-  'file-text': FileText, image: ImageIcon, menu: Menu, search: Search, 'scroll-text': ScrollText, plug: Plug, settings: Settings,
-};
 const COLLAPSE_KEY = 'archer_admin_sidebar_collapsed';
 
+export interface NavItemConfig {
+  key: string;
+  label: string;
+  href: string;
+  badge?: number | string;
+  matchHrefs?: string[];
+  description?: string;
+}
+
+export interface NavGroupConfig {
+  key: string;
+  label: string;
+  items: NavItemConfig[];
+}
+
+export const ADMIN_SIDEBAR_GROUPS: NavGroupConfig[] = [
+  {
+    key: 'operations',
+    label: 'OPERATIONS',
+    items: [
+      { key: 'dashboard', label: 'Dashboard', href: '/dashboard', matchHrefs: ['/dashboard', '/'] },
+      { key: 'rides', label: 'Ride requests', href: '/rides', badge: 4, matchHrefs: ['/rides'] },
+      { key: 'customers', label: 'Clients', href: '/customers', matchHrefs: ['/customers'] },
+      { key: 'drivers', label: 'Drivers', href: '/drivers', badge: 1, matchHrefs: ['/drivers'] },
+      { key: 'notices', label: 'Customer notices', href: '/notices', description: 'Broadcast notices, SMS updates, and customer advisories' },
+    ],
+  },
+  {
+    key: 'money',
+    label: 'MONEY',
+    items: [
+      { key: 'pricing', label: 'Payments & earnings', href: '/pricing', matchHrefs: ['/pricing', '/payments'] },
+      { key: 'payroll', label: 'Weekly payroll', href: '/payroll', description: 'Weekly chauffeur payroll calculations and direct disbursements' },
+    ],
+  },
+  {
+    key: 'setup',
+    label: 'SETUP',
+    items: [
+      { key: 'fleet', label: 'Fleet & availability', href: '/site-vehicles', matchHrefs: ['/site-vehicles', '/fleet'] },
+      { key: 'rates', label: 'Vehicles & rates', href: '/site-rates', matchHrefs: ['/site-rates', '/rates'] },
+      { key: 'settings', label: 'Settings', href: '/settings', matchHrefs: ['/settings', '/site-content', '/site-tiers', '/testimonials'] },
+    ],
+  },
+  {
+    key: 'security_phase_2',
+    label: 'SECURITY · PHASE 2',
+    items: [
+      { key: 'security-leads', label: 'Security leads', href: '/security/leads', badge: 1, description: 'Executive protection client inquiries, threat intake, and armed detail leads' },
+      { key: 'contracts-shifts', label: 'Contracts & shifts', href: '/security/contracts', badge: 2, description: 'Security detail assignments, recurring client contracts, and armed officer shifts' },
+      { key: 'swap-approvals', label: 'Swap approvals', href: '/security/swaps', badge: 1, description: 'Driver and security guard shift exchange requests and supervisor sign-offs' },
+      { key: 'credentials', label: 'Credentials', href: '/security/credentials', badge: 2, description: 'Armed guard carry permits, law enforcement credentials, and background checks' },
+      { key: 'announcements', label: 'Announcements', href: '/security/announcements', description: 'Operational bulletins, safety advisories, and driver briefing announcements' },
+    ],
+  },
+];
+
+export const DRIVER_SIDEBAR_GROUPS: NavGroupConfig[] = [
+  {
+    key: 'operations',
+    label: 'OPERATIONS',
+    items: [
+      { key: 'driver-portal', label: 'My Assigned Rides', href: '/my-rides', matchHrefs: ['/my-rides'] },
+    ],
+  },
+];
+
 export function useCurrentItem() {
-  const { groups } = useSession();
   const pathname = usePathname();
+  const { me } = useSession();
+
+  const groups = useMemo(() => {
+    const isOnlyDriver = me?.roles?.includes('driver') && !me?.roles?.some(r => ['super_admin', 'dispatcher', 'driver_manager', 'content_editor', 'content_publisher'].includes(r));
+    return isOnlyDriver ? DRIVER_SIDEBAR_GROUPS : ADMIN_SIDEBAR_GROUPS;
+  }, [me]);
+
   return useMemo(() => {
-    for (const g of groups) for (const i of g.items) if (pathname === i.href || pathname.startsWith(i.href + '/')) return { group: g, item: i };
+    for (const g of groups) {
+      for (const i of g.items) {
+        if (pathname === i.href) return { group: g, item: i };
+        if (i.matchHrefs?.includes(pathname)) return { group: g, item: i };
+        if (i.href !== '/dashboard' && i.href !== '/' && pathname.startsWith(i.href + '/')) return { group: g, item: i };
+      }
+    }
+    // Check aliases
+    if (pathname === '/site-content') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-content', label: 'Page Content', href: '/site-content', description: 'Public website content, hero messaging, and service copy' } };
+    if (pathname === '/site-tiers') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'site-tiers', label: 'Website Tiers', href: '/site-tiers', description: 'Chauffeur security credentials and Tier 1-4 requirements' } };
+    if (pathname === '/testimonials') return { group: { key: 'setup', label: 'SETUP' }, item: { key: 'testimonials', label: 'Testimonials', href: '/testimonials', description: 'Verified executive and celebrity client reviews' } };
+    if (pathname === '/my-rides') return { group: { key: 'operations', label: 'OPERATIONS' }, item: { key: 'my-rides', label: 'My Assigned Rides', href: '/my-rides', description: 'Assigned chauffeur dispatch manifests and trip notes' } };
+
     return null;
   }, [groups, pathname]);
 }
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const { me, groups, logout } = useSession();
+  const { me, logout } = useSession();
   const pathname = usePathname();
   const current = useCurrentItem();
   const [collapsed, setCollapsed] = useState(false);
@@ -50,89 +127,80 @@ export function Shell({ children }: { children: React.ReactNode }) {
     setCollapsed((c) => { try { localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1'); } catch { /* ignore */ } return !c; });
   }
 
-  const activeGroup = current?.group ?? groups[0];
+  const isOnlyDriver = me?.roles?.includes('driver') && !me?.roles?.some(r => ['super_admin', 'dispatcher', 'driver_manager', 'content_editor', 'content_publisher'].includes(r));
+  const groups = isOnlyDriver ? DRIVER_SIDEBAR_GROUPS : ADMIN_SIDEBAR_GROUPS;
 
   return (
     <div className={`shell${collapsed ? ' is-collapsed' : ''}${drawer ? ' drawer-open' : ''}`}>
-      {/* Column 1: Primary Dark Rail */}
-      <aside className="primary-rail" id="primary-rail" aria-label="Global navigation">
-        <div className="pr-head">
-          <Link href="/" className="wordmark" aria-label="Archer Admin home">
+      {/* Sleek Obsidian Single Sidebar (matching approved prototype) */}
+      <aside className="sidebar" id="sidebar" aria-label="Main navigation">
+        <div className="sb-head">
+          <Link href="/dashboard" className="wordmark" aria-label="Archer Admin home">
             <ArcherLogo size={26} />
             <div className="wm-text-group">
               <span className="wm-rest">ARCHER</span>
               <span className="wm-sub">Executive</span>
             </div>
           </Link>
-          <button className="icon-btn sb-close" onClick={() => setDrawer(false)} aria-label="Close menu"><X size={18} /></button>
+          <button className="icon-btn sb-close" onClick={() => setDrawer(false)} aria-label="Close menu">
+            <X size={18} />
+          </button>
         </div>
 
-        <nav className="pr-nav">
-          {groups.length === 0 && <p className="sb-empty">No sections assigned.</p>}
-          {groups.map((g) => {
-            const firstItem = g.items[0];
-            const Icon = ICONS[firstItem?.icon] ?? LayoutDashboard;
-            const active = activeGroup?.key === g.key;
-            return (
-              <Link
-                key={g.key}
-                href={firstItem?.href ?? '/dashboard'}
-                className={`pr-link${active ? ' active' : ''}`}
-                aria-current={active ? 'page' : undefined}
-                data-tip={g.label}
-              >
-                <Icon size={16} aria-hidden />
-                <span className="pr-text">{g.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="sb-nav">
+          {groups.map((group, gIdx) => (
+            <div key={group.key} className="sb-group" style={{ marginTop: gIdx === 0 ? 4 : 22 }}>
+              <div className="sb-label">{group.label}</div>
+              <ul className="sb-list">
+                {group.items.map((item) => {
+                  const active = current?.item.key === item.key;
+                  return (
+                    <li key={item.key}>
+                      <Link
+                        href={item.href}
+                        className={`sb-link${active ? ' active' : ''}`}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        <span className="sb-text">{item.label}</span>
+                        {item.badge != null && (
+                          <span className="sb-badge">{item.badge}</span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        <div className="pr-footer">
+        <div className="sb-footer">
           <button
-            className="pr-collapse-btn"
+            className="sb-collapse-btn"
             onClick={toggleCollapse}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             data-tip={collapsed ? 'Expand' : undefined}
           >
-            {collapsed ? <ChevronsRight size={16} /> : <><ChevronsLeft size={16} /><span className="pr-text">Collapse</span></>}
+            {collapsed ? <ChevronsRight size={16} /> : <><ChevronsLeft size={16} /><span className="sb-text">Collapse</span></>}
           </button>
         </div>
       </aside>
 
-      {/* Column 2: Secondary Context Sub-Rail */}
-      {activeGroup && activeGroup.items.length > 0 && (
-        <aside className="secondary-subrail" aria-label="Section navigation">
-          <div className="subrail-title">
-            <span>{activeGroup.label}</span>
-          </div>
-          <ul className="subrail-list">
-            {activeGroup.items.map((i) => {
-              const Icon = ICONS[i.icon] ?? LayoutDashboard;
-              const active = current?.item.key === i.key;
-              return (
-                <li key={i.key}>
-                  <Link
-                    href={i.href}
-                    className={`subrail-item-link${active ? ' active' : ''}`}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    <Icon size={15} aria-hidden />
-                    <span>{i.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </aside>
-      )}
-
       {drawer && <div className="scrim" onClick={() => setDrawer(false)} aria-hidden />}
 
-      {/* Column 3: Main Workspace */}
+      {/* Main Workspace Column */}
       <div className="main-col">
         <header className="header">
-          <button className="icon-btn menu-btn" onClick={() => setDrawer(true)} aria-label="Open menu" aria-controls="primary-rail" aria-expanded={drawer}><Menu size={20} /></button>
+          <button
+            className="icon-btn menu-btn"
+            onClick={() => setDrawer(true)}
+            aria-label="Open menu"
+            aria-controls="sidebar"
+            aria-expanded={drawer}
+          >
+            <Menu size={20} />
+          </button>
+
           <div className="crumbs">
             <nav aria-label="Breadcrumb">
               <ol>
@@ -143,13 +211,27 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </nav>
             <div className="page-title">{current?.item.label ?? 'Admin'}</div>
           </div>
+
           <div className="header-actions">
+            <a
+              href={process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-muted/60 hover:bg-muted text-foreground transition border border-border"
+              title="Open public website in new tab"
+            >
+              <ExternalLink size={14} className="text-muted-foreground" />
+              <span>Live Website</span>
+            </a>
             <ThemeMenu />
             <NotificationsMenu />
             <ProfileMenu name={me?.name ?? ''} roles={me?.roles ?? []} email={me?.email ?? ''} onLogout={logout} />
           </div>
         </header>
-        <main className="content" id="content">{children}</main>
+
+        <main className="content" id="content">
+          {children}
+        </main>
       </div>
     </div>
   );
@@ -211,8 +293,6 @@ function NotificationsMenu() {
   const fetchNotifications = async () => {
     try {
       const res = await api<{ notifications: AdminNotification[]; unread_count: number }>('/admin/notifications', { auth: true });
-      
-      // If a brand new notification arrived, show floating popup toast
       if (res.unread_count > unreadCount && res.notifications.length > 0) {
         const newest = res.notifications[0];
         if (!newest.is_read) {
@@ -220,7 +300,6 @@ function NotificationsMenu() {
           setTimeout(() => setLatestToast(null), 8000);
         }
       }
-
       setNotifications(res.notifications);
       setUnreadCount(res.unread_count);
     } catch {
@@ -322,7 +401,6 @@ function NotificationsMenu() {
         )}
       </div>
 
-      {/* Real-Time Floating Popup Toast for Admin */}
       {latestToast && (
         <div className="floating-booking-toast">
           <div className="toast-left">
