@@ -83,6 +83,20 @@ class DriverPortalController extends Controller
         ]);
     }
 
+    /** Security shifts assigned to this driver (read-only; assignment is decided by staff). */
+    public function mySecurityShifts(Request $request): JsonResponse
+    {
+        $driver = $this->resolveDriverOrPreview($request);
+        if (! $driver) {
+            return ApiResponse::error('DRIVER_NOT_FOUND', 'Driver profile not found.', 404);
+        }
+
+        return ApiResponse::data(['shifts' => \Illuminate\Support\Facades\DB::table('security_shifts')
+            ->where('assigned_driver_id', $driver->id)->whereIn('status', ['assigned', 'swap_pending'])
+            ->where('ends_at', '>=', now())->orderBy('starts_at')
+            ->get(['id', 'name', 'site_address', 'shift_date_label', 'starts_at', 'ends_at', 'tier', 'status', 'is_critical'])]);
+    }
+
     public function myRides(Request $request): JsonResponse
     {
         $driver = $this->resolveDriverOrPreview($request);

@@ -184,6 +184,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/swaps', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'swaps']);
             Route::get('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'credentials']);
             Route::get('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'announcements']);
+            Route::get('/leads/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'showLead']);
+            Route::get('/contracts/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'showContract']);
         });
         Route::prefix('security')->middleware('permission:security.manage')->group(function (): void {
             Route::put('/leads/{id}/status', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLeadStatus']);
@@ -193,6 +195,22 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/credentials', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeCredential']);
             Route::put('/credentials/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateCredential']);
             Route::post('/announcements', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeAnnouncement']);
+            Route::post('/leads', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeLead']);
+            Route::put('/leads/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateLead']);
+            Route::delete('/leads/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'destroyLead']);
+            Route::post('/leads/{id}/convert', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'convertLead']);
+            Route::put('/contracts/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateContract']);
+            Route::post('/contracts/{id}/cancel', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'cancelContract']);
+            Route::delete('/contracts/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'destroyContract']);
+            Route::post('/shifts', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeShift']);
+            Route::put('/shifts/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateShift']);
+            Route::delete('/shifts/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'destroyShift']);
+            Route::post('/shifts/{id}/unassign', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'unassignShift']);
+            Route::post('/swaps', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'storeSwap']);
+            Route::post('/swaps/{id}/withdraw', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'withdrawSwap']);
+            Route::delete('/credentials/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'destroyCredential']);
+            Route::put('/announcements/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'updateAnnouncement']);
+            Route::delete('/announcements/{id}', [\App\Http\Controllers\Admin\SecuritySuiteController::class, 'destroyAnnouncement']);
         });
 
     });
@@ -224,6 +242,7 @@ Route::prefix('v1')->group(function (): void {
     Route::prefix('driver')->middleware(['auth:api', 'permission:driver.portal'])->group(function (): void {
         Route::get('/profile', [DriverPortalController::class, 'profile']);
         Route::get('/rides', [DriverPortalController::class, 'myRides']);
+        Route::get('/security-shifts', [DriverPortalController::class, 'mySecurityShifts']);
         Route::put('/rides/{rideId}/status', [DriverPortalController::class, 'updateRideStatus']);
         Route::get('/notifications', [DriverPortalController::class, 'notifications']);
         Route::put('/notifications/{id}/read', [DriverPortalController::class, 'markNotificationRead']);

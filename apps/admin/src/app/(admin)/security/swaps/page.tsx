@@ -1,171 +1,95 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '@/lib/api';
+import { useState } from 'react';
+import { RightDrawer } from '@/components/RightDrawer';
+import { Badge, Btn, card, DrawerFooter, driverLabel, empty, Flash, Page, Row, security, useSecurityData, type Driver } from '@/components/SecurityKit';
 
-interface SwapRequest {
-  id: number;
-  shift_id: number;
-  shift_name: string;
-  shift_time_label: string;
-  from_driver_name: string;
-  to_driver_name: string;
-  to_driver_tier: string;
-  status: 'waiting_admin' | 'approved' | 'denied';
+interface Swap {
+  id: number; shift_id: number; shift_name: string; shift_time_label: string; from_driver_name: string; to_driver_name: string;
+  to_driver_tier: string; status: string; reason: string | null; admin_notes: string | null;
 }
+interface Payload { swaps: Swap[]; history: Swap[]; pending_count: number; drivers: Driver[] }
+interface Shift { id: number; name: string; shift_date_label: string; status: string; assigned_driver_name: string | null; tier: string }
 
 export default function SwapApprovalsPage() {
-  const [swaps, setSwaps] = useState<SwapRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const { data, loading, error, ok, setError, act } = useSecurityData<Payload>('/swaps');
+  const shiftsApi = useSecurityData<{ shifts: Shift[] }>('/contracts');
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const [form, setForm] = useState<{ shift_id: string; to_driver_id: string; reason: string } | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const loadSwaps = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await api<any>('/admin/security/swaps', { auth: true });
-      const payload = res?.swaps ? res : (res?.data ?? {});
-      setSwaps(payload.swaps || []);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to load swap requests.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const swappable = (shiftsApi.data?.shifts ?? []).filter((s) => s.status === 'assigned');
+  const decide = (s: Swap, decision: 'approve' | 'deny') =>
+    act(() => security('POST', `/swaps/${s.id}/decision`, { decision, notes: notes[s.id] || undefined }), `Swap ${decision === 'approve' ? 'approved' : 'denied'}.`).then(() => shiftsApi.reload());
+  const withdraw = (s: Swap) => window.confirm('Withdraw this swap request?') && act(() => security('POST', `/swaps/${s.id}/withdraw`), 'Swap withdrawn.').then(() => shiftsApi.reload());
 
-  useEffect(() => {
-    loadSwaps();
-  }, [loadSwaps]);
-
-  const handleDecision = async (id: number, decision: 'approve' | 'deny') => {
-    try {
-      setError(null);
-      await api(`/admin/security/swaps/${id}/decision`, {
-        method: 'POST',
-        auth: true,
-        body: { decision },
-      });
-      setActionMsg(`Swap request ${decision}d successfully.`);
-      setTimeout(() => setActionMsg(null), 3000);
-      await loadSwaps();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to process swap decision.');
-    }
+  const save = async () => {
+    if (!form) return;
+    setSaving(true);
+    const done = await act(() => security('POST', '/swaps', { shift_id: Number(form.shift_id), to_driver_id: form.to_driver_id, reason: form.reason || undefined }), 'Swap request logged.');
+    setSaving(false);
+    if (done) { setForm(null); shiftsApi.reload(); }
   };
 
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
-      {/* Header matching Screenshot 14 */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
-          Swap approvals
-        </h1>
-        <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
-          Nobody can drop a shift. The original employee names a replacement, the replacement accepts, and then admin decides.
-        </p>
-      </div>
-
-      {actionMsg && (
-        <div style={{ padding: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid #22c55e', borderRadius: 6, color: '#16a34a', marginBottom: 16 }}>
-          ✓ {actionMsg}
-        </div>
-      )}
-
-      {error && (
-        <div style={{ padding: 12, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 6, color: '#dc2626', marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
-
-      {/* Swaps Feed matching Screenshot 14 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
-            Loading swap requests...
-          </div>
-        ) : swaps.length === 0 ? (
-          <div style={{ padding: 30, textAlign: 'center', color: 'var(--muted)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}>
-            No shift swap approvals currently waiting for admin action.
-          </div>
-        ) : (
-          swaps.map((swap) => (
-            <div
-              key={swap.id}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: '18px 20px',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text)' }}>
-                  {swap.shift_name}
-                </h3>
-                <span
-                  style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    padding: '3px 10px',
-                    borderRadius: 12,
-                    background: 'rgba(217, 119, 6, 0.15)',
-                    color: '#d97706',
-                  }}
-                >
-                  Waiting for you
-                </span>
-              </div>
-
-              <div style={{ fontSize: '0.82rem', color: 'var(--muted)', marginBottom: 8 }}>
-                {swap.shift_time_label}
-              </div>
-
-              <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
-                From <strong style={{ color: 'var(--text)' }}>{swap.from_driver_name}</strong> → to{' '}
-                <strong style={{ color: 'var(--text)' }}>{swap.to_driver_name}</strong> ({swap.to_driver_tier}) ·{' '}
-                <span style={{ color: '#16a34a', fontWeight: 600 }}>See OK</span> · schedule clear
-              </div>
-
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => handleDecision(swap.id, 'approve')}
-                  style={{
-                    padding: '6px 16px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    background: '#d97706',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDecision(swap.id, 'deny')}
-                  style={{
-                    padding: '6px 16px',
-                    fontSize: '0.8rem',
-                    fontWeight: 500,
-                    background: 'var(--surface)',
-                    color: '#dc2626',
-                    border: '1px solid #dc2626',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Deny
-                </button>
-              </div>
+    <Page
+      title="Swap approvals"
+      sub="A swap only moves a shift once approved. The target driver is re-checked for tier, credentials and overlaps at approval time."
+      action={<Btn kind="primary" onClick={() => { setError(null); setForm({ shift_id: '', to_driver_id: '', reason: '' }); }}>+ Log swap request</Btn>}
+    >
+      <Flash error={error} ok={ok} />
+      <h2 style={{ fontSize: '1rem', margin: '0 0 10px' }}>Waiting for approval ({data?.pending_count ?? 0})</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 28 }}>
+        {loading ? empty('Loading swap requests…') : (data?.swaps ?? []).length === 0 ? empty('No swap requests waiting.') : (data?.swaps ?? []).map((s) => (
+          <div key={s.id} style={card}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{s.shift_name} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>· {s.shift_time_label}</span></div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+              <strong style={{ color: 'var(--text)' }}>{s.from_driver_name}</strong> → <strong style={{ color: 'var(--text)' }}>{s.to_driver_name}</strong> ({s.to_driver_tier})
+              {s.reason ? ` · “${s.reason}”` : ''}
             </div>
-          ))
-        )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input placeholder="Note (optional)" value={notes[s.id] ?? ''} onChange={(e) => setNotes({ ...notes, [s.id]: e.target.value })} style={{ maxWidth: 260 }} />
+              <Btn kind="primary" onClick={() => decide(s, 'approve')}>Approve</Btn>
+              <Btn onClick={() => decide(s, 'deny')}>Deny</Btn>
+              <Btn kind="danger" onClick={() => withdraw(s)}>Withdraw</Btn>
+            </div>
+          </div>
+        ))}
       </div>
-    </div>
+
+      <h2 style={{ fontSize: '1rem', margin: '0 0 10px' }}>History</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {(data?.history ?? []).length === 0 ? empty('No decided swaps yet.') : (data?.history ?? []).map((s) => (
+          <div key={s.id} style={{ ...card, padding: '10px 16px', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ fontSize: '0.85rem' }}>
+              <strong>{s.shift_name}</strong> · {s.shift_time_label} · {s.from_driver_name} → {s.to_driver_name}
+              {s.admin_notes ? <span style={{ color: 'var(--muted)' }}> · {s.admin_notes}</span> : null}
+            </div>
+            <Badge value={s.status} />
+          </div>
+        ))}
+      </div>
+
+      <RightDrawer open={!!form} onClose={() => setForm(null)} title="Log swap request" subtitle="Only assigned shifts can be swapped." footer={<DrawerFooter onCancel={() => setForm(null)} onSave={save} saving={saving} label="Log request" />}>
+        {form && (
+          <>
+            <Flash error={error} />
+            <Row label="Shift">
+              <select value={form.shift_id} onChange={(e) => setForm({ ...form, shift_id: e.target.value })}>
+                <option value="">Select an assigned shift…</option>
+                {swappable.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.shift_date_label} · {s.assigned_driver_name}</option>)}
+              </select>
+            </Row>
+            <Row label="Swap to driver">
+              <select value={form.to_driver_id} onChange={(e) => setForm({ ...form, to_driver_id: e.target.value })}>
+                <option value="">Select a driver…</option>
+                {(data?.drivers ?? []).map((d) => <option key={d.id} value={d.id}>{driverLabel(d)}</option>)}
+              </select>
+            </Row>
+            <Row label="Reason"><textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></Row>
+          </>
+        )}
+      </RightDrawer>
+    </Page>
   );
 }

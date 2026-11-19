@@ -86,6 +86,7 @@ class PublicBookingController extends Controller
         AuditLog::record('booking_request.created', null, ['reference' => $ride->reference, 'type' => $type], $ride);
 
         CustomerMailer::sendBookingConfirmation($ride);
+        $this->createSecurityLead($ride, $data);
 
         AdminNotification::create([
             'ride_request_id' => $ride->id,
@@ -147,6 +148,27 @@ class PublicBookingController extends Controller
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    /** A website security request also lands in Admin → Security leads (linked by ride request). Never fails the booking. */
+    private function createSecurityLead(RideRequest $ride, array $d): void
+    {
+        if ($ride->request_type !== 'general' || ($d['service'] ?? null) !== 'security') {
+            return;
+        }
+        try {
+            $name = trim($ride->first_name.' '.$ride->last_name);
+            \Illuminate\Support\Facades\DB::table('security_leads')->insertOrIgnore([
+                'client_name' => $name, 'contact_name' => $name, 'phone' => $ride->phone, 'email' => $ride->email,
+                'status' => 'new', 'source' => 'website', 'ride_request_id' => $ride->getKey(),
+                'coverage_type' => 'Website request', 'starts_at' => $d['date'] ?? null,
+                'hours_per_day' => $d['hours'] ?? 8, 'protecting' => $d['pickup_address'] ?? null,
+                'instructions' => trim('Booking '.$ride->reference.'. Tier T'.($d['tier'] ?? '?').', guards: '.($d['guards'] ?? 0).'. '.($d['special_requests'] ?? '')),
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
 
     private function accepted(string $reference, string $status, int $http): JsonResponse
     {
