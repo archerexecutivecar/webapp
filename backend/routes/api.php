@@ -152,7 +152,14 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/site-rates/sizes', [RateCardController::class, 'storeSize']);
             Route::post('/site-rates/tiers', [RateCardController::class, 'storeTier']);
             Route::post('/site-rates/classes/{key}/retire', [RateCardController::class, 'retireClass']);
+            Route::post('/site-rates/classes/{key}/activate', [RateCardController::class, 'activateClass']);
+            Route::delete('/site-rates/classes/{key}', [RateCardController::class, 'destroyClass']);
             Route::post('/site-rates/sizes/{key}/retire', [RateCardController::class, 'retireSize']);
+            Route::post('/site-rates/sizes/{key}/activate', [RateCardController::class, 'activateSize']);
+            Route::delete('/site-rates/sizes/{key}', [RateCardController::class, 'destroySize']);
+            Route::post('/site-rates/tiers/{tier}/retire', [RateCardController::class, 'retireTier']);
+            Route::post('/site-rates/tiers/{tier}/activate', [RateCardController::class, 'activateTier']);
+            Route::delete('/site-rates/tiers/{tier}', [RateCardController::class, 'destroyTier']);
             Route::get('/pricing-settings', [\App\Http\Controllers\Admin\PricingSettingController::class, 'index']);
             Route::put('/pricing-settings/{service}', [\App\Http\Controllers\Admin\PricingSettingController::class, 'update']);
             Route::post('/pricing/simulate', [\App\Http\Controllers\QuoteController::class, 'store']);

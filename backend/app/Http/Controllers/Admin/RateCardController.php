@@ -82,6 +82,7 @@ class RateCardController extends Controller
                 'tier' => $tier,
                 'name' => $label ?: ($fallbackName ? 'T'.$tier.' '.$fallbackName : 'Tier '.$tier),
                 'hourly_rate' => ChauffeurPay::dollarsForTier($tier),
+                'is_active' => (bool) ($driverTiers->get($tier)?->is_active ?? true),
             ];
 
             $clientCard = $clientCarRates->first(fn ($r) => (int) $r->tier === $tier && $r->vehicle_class === null && $r->size === null);
@@ -269,12 +270,68 @@ class RateCardController extends Controller
         return ApiResponse::data(['message' => 'Class retired.']);
     }
 
+    public function activateClass(Request $request, string $key): JsonResponse
+    {
+        RateCatalog::activateClass($key);
+        AuditLog::record('site.rate_class.activated', $request->user()->getKey(), ['key' => $key]);
+
+        return ApiResponse::data(['message' => 'Class activated.']);
+    }
+
+    public function destroyClass(Request $request, string $key): JsonResponse
+    {
+        RateCatalog::deleteClass($key);
+        AuditLog::record('site.rate_class.deleted', $request->user()->getKey(), ['key' => $key]);
+
+        return ApiResponse::data(['message' => 'Class deleted.']);
+    }
+
     public function retireSize(Request $request, string $key): JsonResponse
     {
         RateCatalog::retireSize($key);
         AuditLog::record('site.rate_size.retired', $request->user()->getKey(), ['key' => $key]);
 
         return ApiResponse::data(['message' => 'Size retired.']);
+    }
+
+    public function activateSize(Request $request, string $key): JsonResponse
+    {
+        RateCatalog::activateSize($key);
+        AuditLog::record('site.rate_size.activated', $request->user()->getKey(), ['key' => $key]);
+
+        return ApiResponse::data(['message' => 'Size activated.']);
+    }
+
+    public function destroySize(Request $request, string $key): JsonResponse
+    {
+        RateCatalog::deleteSize($key);
+        AuditLog::record('site.rate_size.deleted', $request->user()->getKey(), ['key' => $key]);
+
+        return ApiResponse::data(['message' => 'Size deleted.']);
+    }
+
+    public function retireTier(Request $request, int $tier): JsonResponse
+    {
+        RateCatalog::retireTier($tier);
+        AuditLog::record('site.rate_tier.retired', $request->user()->getKey(), ['tier' => $tier]);
+
+        return ApiResponse::data(['message' => 'Tier retired.']);
+    }
+
+    public function activateTier(Request $request, int $tier): JsonResponse
+    {
+        RateCatalog::activateTier($tier);
+        AuditLog::record('site.rate_tier.activated', $request->user()->getKey(), ['tier' => $tier]);
+
+        return ApiResponse::data(['message' => 'Tier activated.']);
+    }
+
+    public function destroyTier(Request $request, int $tier): JsonResponse
+    {
+        RateCatalog::deleteTier($tier);
+        AuditLog::record('site.rate_tier.deleted', $request->user()->getKey(), ['tier' => $tier]);
+
+        return ApiResponse::data(['message' => 'Tier deleted.']);
     }
 
     private function saveFlatRate(string $kind, int $tier, int $cents, bool $active, Request $request): void

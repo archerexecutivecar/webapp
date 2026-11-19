@@ -12,7 +12,8 @@ import {
   Car,
   DollarSign,
   Lock,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 
 interface ClassItem {
@@ -31,6 +32,7 @@ interface ChauffeurPayItem {
   tier: number;
   name: string;
   hourly_rate: number | null;
+  is_active?: boolean;
 }
 
 interface FeesAndPayRules {
@@ -286,17 +288,35 @@ export default function SiteRatesPage() {
     }
   };
 
-  const retireCatalog = async (kind: 'classes' | 'sizes', key: string, name: string) => {
-    if (!window.confirm(`Retire ${name}? Existing bookings stay on file. New quotes will not offer it.`)) return;
-    setCatalogBusy(key);
+  const toggleCatalog = async (kind: 'classes' | 'sizes' | 'tiers', key: string | number, currentActive: boolean, name: string) => {
+    const action = currentActive ? 'retire' : 'activate';
+    const actionLabel = currentActive ? 'Disable' : 'Enable';
+    if (!window.confirm(`${actionLabel} ${name}? ${currentActive ? 'It will be hidden from customer booking forms and driver offers.' : 'It will be restored and offered to customers and drivers.'}`)) return;
+    setCatalogBusy(String(key));
     setError(null);
     try {
-      await api(`/admin/site-rates/${kind}/${key}/retire`, { method: 'POST', auth: true, body: {} });
-      setSuccess(`${name} is retired.`);
+      await api(`/admin/site-rates/${kind}/${key}/${action}`, { method: 'POST', auth: true, body: {} });
+      setSuccess(`${name} is now ${currentActive ? 'disabled' : 'active'}.`);
       await fetchData();
       setTimeout(() => setSuccess(null), 3500);
     } catch (err) {
-      setError(problem(err, 'Could not retire that row.'));
+      setError(problem(err, `Could not ${action} ${name}.`));
+    } finally {
+      setCatalogBusy(null);
+    }
+  };
+
+  const deleteCatalog = async (kind: 'classes' | 'sizes' | 'tiers', key: string | number, name: string) => {
+    if (!window.confirm(`Permanently delete ${name}? This action cannot be undone.`)) return;
+    setCatalogBusy(String(key));
+    setError(null);
+    try {
+      await api(`/admin/site-rates/${kind}/${key}`, { method: 'DELETE', auth: true });
+      setSuccess(`${name} was deleted.`);
+      await fetchData();
+      setTimeout(() => setSuccess(null), 3500);
+    } catch (err) {
+      setError(problem(err, `Could not delete ${name}.`));
     } finally {
       setCatalogBusy(null);
     }
@@ -368,26 +388,42 @@ export default function SiteRatesPage() {
               Classes
             </span>
             <div className="space-y-2">
-              {classes.map((c) => (
-                <div
-                  key={c.id}
-                  className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs"
-                >
-                  <span className={`text-xs font-semibold ${c.is_active === false ? 'text-muted-foreground' : 'text-foreground'}`}>{c.name}</span>
-                  {c.is_active === false ? (
-                    <span className="text-[11px] text-muted-foreground">Retired</span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={catalogBusy !== null}
-                      onClick={() => retireCatalog('classes', c.id, c.name)}
-                      className="text-[11px] text-muted-foreground hover:text-foreground transition disabled:opacity-50"
-                    >
-                      Retire
-                    </button>
-                  )}
-                </div>
-              ))}
+              {classes.map((c) => {
+                const isActive = c.is_active !== false;
+                return (
+                  <div
+                    key={c.id}
+                    className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-xs font-semibold truncate ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{c.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                        {isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={catalogBusy !== null}
+                        onClick={() => toggleCatalog('classes', c.id, isActive, c.name)}
+                        className={`text-[11px] font-medium transition disabled:opacity-50 ${isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                      >
+                        {isActive ? 'Disable' : 'Enable'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={catalogBusy !== null}
+                        onClick={() => deleteCatalog('classes', c.id, c.name)}
+                        className="text-muted-foreground hover:text-rose-600 transition disabled:opacity-50 p-1 rounded"
+                        title={`Delete ${c.name}`}
+                        aria-label={`Delete ${c.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
               <form
                 className="flex gap-2"
                 onSubmit={(e) => {
@@ -415,26 +451,42 @@ export default function SiteRatesPage() {
               Sizes
             </span>
             <div className="space-y-2">
-              {sizes.map((s) => (
-                <div
-                  key={s.id}
-                  className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs"
-                >
-                  <span className={`text-xs font-semibold ${s.is_active === false ? 'text-muted-foreground' : 'text-foreground'}`}>{s.name}</span>
-                  {s.is_active === false ? (
-                    <span className="text-[11px] text-muted-foreground">Retired</span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={catalogBusy !== null}
-                      onClick={() => retireCatalog('sizes', s.id, s.name)}
-                      className="text-[11px] text-muted-foreground hover:text-foreground transition disabled:opacity-50"
-                    >
-                      Retire
-                    </button>
-                  )}
-                </div>
-              ))}
+              {sizes.map((s) => {
+                const isActive = s.is_active !== false;
+                return (
+                  <div
+                    key={s.id}
+                    className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-xs font-semibold truncate ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{s.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                        {isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={catalogBusy !== null}
+                        onClick={() => toggleCatalog('sizes', s.id, isActive, s.name)}
+                        className={`text-[11px] font-medium transition disabled:opacity-50 ${isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                      >
+                        {isActive ? 'Disable' : 'Enable'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={catalogBusy !== null}
+                        onClick={() => deleteCatalog('sizes', s.id, s.name)}
+                        className="text-muted-foreground hover:text-rose-600 transition disabled:opacity-50 p-1 rounded"
+                        title={`Delete ${s.name}`}
+                        aria-label={`Delete ${s.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
               <form
                 className="flex gap-2"
                 onSubmit={(e) => {
@@ -462,20 +514,50 @@ export default function SiteRatesPage() {
               Tiers and driver pay per hour
             </span>
             <div className="space-y-2">
-              {tierRows.map((tier) => (
-                <div key={tier.tier} className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs">
-                  <span className="text-xs font-semibold text-foreground">{tier.name}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    aria-label={`${tier.name} hourly pay`}
-                    value={editedChauffeur[tier.tier] ?? tier.hourly_rate ?? ''}
-                    onChange={(e) => setEditedChauffeur({ ...editedChauffeur, [tier.tier]: Number(e.target.value) })}
-                    className="w-20 h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono text-right"
-                  />
-                </div>
-              ))}
+              {tierRows.map((tier) => {
+                const isActive = tier.is_active !== false;
+                return (
+                  <div key={tier.tier} className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-xs font-semibold ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{tier.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                        {isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        aria-label={`${tier.name} hourly pay`}
+                        value={editedChauffeur[tier.tier] ?? tier.hourly_rate ?? ''}
+                        onChange={(e) => setEditedChauffeur({ ...editedChauffeur, [tier.tier]: Number(e.target.value) })}
+                        className="w-18 h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono text-right"
+                      />
+                      <button
+                        type="button"
+                        disabled={catalogBusy !== null}
+                        onClick={() => toggleCatalog('tiers', tier.tier, isActive, tier.name)}
+                        className={`text-[11px] font-medium transition disabled:opacity-50 ${isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                      >
+                        {isActive ? 'Disable' : 'Enable'}
+                      </button>
+                      {tier.tier > 4 && (
+                        <button
+                          type="button"
+                          disabled={catalogBusy !== null}
+                          onClick={() => deleteCatalog('tiers', tier.tier, tier.name)}
+                          className="text-muted-foreground hover:text-rose-600 transition disabled:opacity-50 p-1 rounded"
+                          title={`Delete ${tier.name}`}
+                          aria-label={`Delete ${tier.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               <form
                 className="flex gap-2"
                 onSubmit={(e) => {

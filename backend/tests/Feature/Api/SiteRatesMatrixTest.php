@@ -150,6 +150,41 @@ class SiteRatesMatrixTest extends TestCase
         $this->assertFalse((bool) RateSize::where('key', 'van')->value('is_active'));
         $this->assertSame(0, RateCard::where('size', 'van')->where('is_active', true)->count());
         $this->assertSame(0, SiteVehicle::where('size', 'van')->where('is_active', true)->count());
+
+        // Re-activating restores the size
+        $this->postJson('/api/v1/admin/site-rates/sizes/van/activate', [], $h)->assertOk();
+        $this->assertTrue((bool) RateSize::where('key', 'van')->value('is_active'));
+    }
+
+    public function test_toggling_and_deleting_tiers_and_classes(): void
+    {
+        [, $h] = $this->actingAsRole('super_admin');
+
+        // Add custom tier 5
+        $this->postJson('/api/v1/admin/site-rates/tiers', ['label' => 'Custom Shift'], $h)->assertCreated();
+        $tier = (int) SiteTier::where('label', 'Custom Shift')->value('tier');
+        $this->assertGreaterThan(4, $tier);
+
+        // Retire custom tier
+        $this->postJson("/api/v1/admin/site-rates/tiers/{$tier}/retire", [], $h)->assertOk();
+        $this->assertFalse((bool) SiteTier::where('tier', $tier)->where('kind', 'driver')->value('is_active'));
+
+        // Re-activate custom tier
+        $this->postJson("/api/v1/admin/site-rates/tiers/{$tier}/activate", [], $h)->assertOk();
+        $this->assertTrue((bool) SiteTier::where('tier', $tier)->where('kind', 'driver')->value('is_active'));
+
+        // Delete custom tier
+        $this->deleteJson("/api/v1/admin/site-rates/tiers/{$tier}", [], $h)->assertOk();
+        $this->assertDatabaseMissing('site_tiers', ['tier' => $tier]);
+
+        // Core tiers (1-4) cannot be deleted
+        $this->deleteJson('/api/v1/admin/site-rates/tiers/1', [], $h)->assertStatus(422);
+
+        // Add and delete custom class
+        $this->postJson('/api/v1/admin/site-rates/classes', ['name' => 'Armored Car'], $h)->assertCreated();
+        $this->assertDatabaseHas('rate_classes', ['key' => 'armored_car']);
+        $this->deleteJson('/api/v1/admin/site-rates/classes/armored_car', [], $h)->assertOk();
+        $this->assertDatabaseMissing('rate_classes', ['key' => 'armored_car']);
     }
 
     public function test_saved_chauffeur_hourly_pay_replaces_the_published_figure(): void

@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\RateClass;
+use App\Models\RateSize;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Schema;
 
@@ -18,22 +19,23 @@ class PublicFleet
             return [];
         }
 
-        $labels = RateClass::query()->pluck('name', 'key');
+        $activeClasses = RateClass::query()->where('is_active', true)->pluck('name', 'key');
+        $activeSizes = RateSize::query()->where('is_active', true)->pluck('key')->all();
 
         return Vehicle::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
-            ->map(function (Vehicle $vehicle) use ($labels) {
+            ->map(function (Vehicle $vehicle) use ($activeClasses, $activeSizes) {
                 $size = FleetAvailability::sizeOf($vehicle);
-                if ($size === null || $vehicle->class_type === '') {
+                if ($size === null || $vehicle->class_type === '' || ! isset($activeClasses[$vehicle->class_type]) || (! empty($activeSizes) && ! in_array($size, $activeSizes, true))) {
                     return null;
                 }
 
                 return [
                     'vehicle_class' => $vehicle->class_type,
-                    'class_label' => (string) ($labels[$vehicle->class_type] ?? $vehicle->class_type),
+                    'class_label' => (string) ($activeClasses[$vehicle->class_type] ?? $vehicle->class_type),
                     'size' => $size,
                     'size_label' => $vehicle->category !== '' ? $vehicle->category : $size,
                     'model' => $vehicle->name,

@@ -116,8 +116,15 @@ class RateCatalog
     public static function retireClass(string $key): void
     {
         DB::transaction(function () use ($key) {
-            $row = RateClass::where('key', $key)->where('is_active', true)->firstOrFail();
-            if (RateClass::where('is_active', true)->count() <= 1) {
+            $row = RateClass::where('key', $key)->first();
+            if (! $row && in_array($key, ['exec', 'first'], true)) {
+                $name = $key === 'first' ? '1st Class' : 'Executive Class';
+                $row = RateClass::create(['key' => $key, 'name' => $name, 'sort_order' => $key === 'exec' ? 1 : 2, 'is_active' => true]);
+            }
+            if (! $row) {
+                throw ValidationException::withMessages(['key' => 'Class not found.']);
+            }
+            if (RateClass::where('is_active', true)->count() <= 1 && $row->is_active) {
                 throw ValidationException::withMessages(['key' => 'At least one class has to stay active.']);
             }
             $row->update(['is_active' => false]);
@@ -126,16 +133,123 @@ class RateCatalog
         });
     }
 
+    public static function activateClass(string $key): void
+    {
+        DB::transaction(function () use ($key) {
+            $row = RateClass::where('key', $key)->first();
+            if (! $row && in_array($key, ['exec', 'first'], true)) {
+                $name = $key === 'first' ? '1st Class' : 'Executive Class';
+                $row = RateClass::create(['key' => $key, 'name' => $name, 'sort_order' => $key === 'exec' ? 1 : 2, 'is_active' => false]);
+            }
+            if (! $row) {
+                throw ValidationException::withMessages(['key' => 'Class not found.']);
+            }
+            $row->update(['is_active' => true]);
+            RateCard::where('vehicle_class', $key)->update(['is_active' => true]);
+            SiteVehicle::where('vehicle_class', $key)->update(['is_active' => true]);
+        });
+    }
+
+    public static function deleteClass(string $key): void
+    {
+        DB::transaction(function () use ($key) {
+            $row = RateClass::where('key', $key)->firstOrFail();
+            if (RateClass::count() <= 1) {
+                throw ValidationException::withMessages(['key' => 'At least one class must remain in the catalog.']);
+            }
+            if (\App\Models\RideRequest::where('vehicle_class', $key)->exists()) {
+                throw ValidationException::withMessages(['key' => 'Cannot delete class with existing booking history. Disable it instead.']);
+            }
+            $row->delete();
+            RateCard::where('vehicle_class', $key)->delete();
+            SiteVehicle::where('vehicle_class', $key)->delete();
+        });
+    }
+
     public static function retireSize(string $key): void
     {
         DB::transaction(function () use ($key) {
-            $row = RateSize::where('key', $key)->where('is_active', true)->firstOrFail();
-            if (RateSize::where('is_active', true)->count() <= 1) {
+            $row = RateSize::where('key', $key)->first();
+            if (! $row && in_array($key, ['sedan', 'suv', 'van'], true)) {
+                $names = ['sedan' => 'Sedan / Compact SUV', 'suv' => 'SUV', 'van' => 'Sprinter'];
+                $row = RateSize::create(['key' => $key, 'name' => $names[$key] ?? ucfirst($key), 'sort_order' => 1, 'is_active' => true]);
+            }
+            if (! $row) {
+                throw ValidationException::withMessages(['key' => 'Size not found.']);
+            }
+            if (RateSize::where('is_active', true)->count() <= 1 && $row->is_active) {
                 throw ValidationException::withMessages(['key' => 'At least one size has to stay active.']);
             }
             $row->update(['is_active' => false]);
             RateCard::where('size', $key)->update(['is_active' => false]);
             SiteVehicle::where('size', $key)->update(['is_active' => false]);
+        });
+    }
+
+    public static function activateSize(string $key): void
+    {
+        DB::transaction(function () use ($key) {
+            $row = RateSize::where('key', $key)->first();
+            if (! $row && in_array($key, ['sedan', 'suv', 'van'], true)) {
+                $names = ['sedan' => 'Sedan / Compact SUV', 'suv' => 'SUV', 'van' => 'Sprinter'];
+                $row = RateSize::create(['key' => $key, 'name' => $names[$key] ?? ucfirst($key), 'sort_order' => 1, 'is_active' => false]);
+            }
+            if (! $row) {
+                throw ValidationException::withMessages(['key' => 'Size not found.']);
+            }
+            $row->update(['is_active' => true]);
+            RateCard::where('size', $key)->update(['is_active' => true]);
+            SiteVehicle::where('size', $key)->update(['is_active' => true]);
+        });
+    }
+
+    public static function deleteSize(string $key): void
+    {
+        DB::transaction(function () use ($key) {
+            $row = RateSize::where('key', $key)->firstOrFail();
+            if (RateSize::count() <= 1) {
+                throw ValidationException::withMessages(['key' => 'At least one size must remain in the catalog.']);
+            }
+            if (\App\Models\RideRequest::where('size', $key)->exists()) {
+                throw ValidationException::withMessages(['key' => 'Cannot delete size with existing booking history. Disable it instead.']);
+            }
+            $row->delete();
+            RateCard::where('size', $key)->delete();
+            SiteVehicle::where('size', $key)->delete();
+        });
+    }
+
+    public static function retireTier(int $tier): void
+    {
+        DB::transaction(function () use ($tier) {
+            $activeCount = SiteTier::where('kind', 'driver')->where('is_active', true)->count();
+            if ($activeCount <= 1) {
+                throw ValidationException::withMessages(['tier' => 'At least one tier has to stay active.']);
+            }
+            SiteTier::where('tier', $tier)->update(['is_active' => false]);
+            RateCard::where('tier', $tier)->update(['is_active' => false]);
+        });
+    }
+
+    public static function activateTier(int $tier): void
+    {
+        DB::transaction(function () use ($tier) {
+            SiteTier::where('tier', $tier)->update(['is_active' => true]);
+            RateCard::where('tier', $tier)->update(['is_active' => true]);
+        });
+    }
+
+    public static function deleteTier(int $tier): void
+    {
+        DB::transaction(function () use ($tier) {
+            if ($tier <= 4) {
+                throw ValidationException::withMessages(['tier' => 'Baseline tiers (Tier 1-4) cannot be deleted. You can disable them instead.']);
+            }
+            if (\App\Models\RideRequest::where('driver_tier', $tier)->exists()) {
+                throw ValidationException::withMessages(['tier' => 'Cannot delete tier with existing booking history. Disable it instead.']);
+            }
+            SiteTier::where('tier', $tier)->delete();
+            RateCard::where('tier', $tier)->delete();
         });
     }
 
