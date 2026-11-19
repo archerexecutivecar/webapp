@@ -9,7 +9,7 @@ use App\Models\RideRequest;
 use App\Models\Role;
 use App\Models\User;
 use App\Support\ApiResponse;
-use App\Support\RideCloseoutMath;
+use App\Support\DriverEarningsSummary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -63,11 +63,11 @@ class DriverController extends Controller
         return DB::transaction(function () use ($validated, $request) {
             $userId = null;
 
-            if (!empty($validated['create_user_account']) && !empty($validated['username']) && !empty($validated['password'])) {
-                $userEmail = !empty($validated['email']) ? $validated['email'] : ($validated['username'] . '@archer.internal');
+            if (! empty($validated['create_user_account']) && ! empty($validated['username']) && ! empty($validated['password'])) {
+                $userEmail = ! empty($validated['email']) ? $validated['email'] : ($validated['username'].'@archer.internal');
 
                 $user = User::where('email', $userEmail)->first();
-                if (!$user) {
+                if (! $user) {
                     $user = User::create([
                         'name' => $validated['name'],
                         'email' => $userEmail,
@@ -135,6 +135,7 @@ class DriverController extends Controller
     public function show(string $id): JsonResponse
     {
         $driver = Driver::with(['tier', 'user'])->findOrFail($id);
+
         return ApiResponse::data(['driver' => $this->formatDriverDetail($driver)]);
     }
 
@@ -167,13 +168,13 @@ class DriverController extends Controller
         ]);
 
         return DB::transaction(function () use ($driver, $validated, $request) {
-            if (!empty($validated['password'])) {
+            if (! empty($validated['password'])) {
                 if ($driver->user) {
                     $driver->user->update([
                         'password' => Hash::make($validated['password']),
                     ]);
                 } else {
-                    $userEmail = !empty($validated['email']) ? $validated['email'] : ($driver->email ?: 'driver_' . substr($driver->id, 0, 6) . '@archer.internal');
+                    $userEmail = ! empty($validated['email']) ? $validated['email'] : ($driver->email ?: 'driver_'.substr($driver->id, 0, 6).'@archer.internal');
                     $user = User::create([
                         'name' => $validated['name'] ?? $driver->name,
                         'email' => $userEmail,
@@ -308,7 +309,7 @@ class DriverController extends Controller
         $status = ($d->is_active ? 'Active' : 'Inactive');
         $employmentType = $modes === []
             ? $status
-            : ('Archer chauffeur · ' . implode(' · ', $modes) . ' · ' . $status);
+            : ('Archer chauffeur · '.implode(' · ', $modes).' · '.$status);
 
         return [
             'id' => $d->id,
@@ -358,9 +359,9 @@ class DriverController extends Controller
         }
 
         $details = is_array($ride->details) ? $ride->details : [];
-        $clientName = trim(($ride->first_name ?? '') . ' ' . ($ride->last_name ?? '')) ?: 'Client';
+        $clientName = trim(($ride->first_name ?? '').' '.($ride->last_name ?? '')) ?: 'Client';
         $dateLabel = $ride->ride_date
-            ? Carbon::parse($ride->ride_date . ' ' . ($ride->ride_time ?: '00:00'))->format('D, M j, g:i A')
+            ? Carbon::parse($ride->ride_date.' '.($ride->ride_time ?: '00:00'))->format('D, M j, g:i A')
             : ($ride->created_at?->format('D, M j, g:i A') ?? '');
 
         return [
@@ -382,38 +383,7 @@ class DriverController extends Controller
     /** @return list<array<string, mixed>> */
     private function rideHistoryForDriver(Driver $d): array
     {
-        if (! Schema::hasTable('ride_requests')) {
-            return [];
-        }
-
-        return RideRequest::query()
-            ->where('assigned_driver_id', $d->id)
-            ->where('status', 'completed')
-            ->orderByDesc('ride_date')
-            ->orderByDesc('updated_at')
-            ->limit(25)
-            ->get()
-            ->map(function (RideRequest $ride) {
-                $row = RideCloseoutMath::ledgerRow($ride);
-                $details = is_array($ride->details) ? $ride->details : [];
-                $job = trim(implode(' · ', array_filter([
-                    $ride->service_type,
-                    $ride->driver_tier,
-                ]))) ?: 'Completed ride';
-
-                return [
-                    'id' => (string) $ride->id,
-                    'date' => $ride->ride_date
-                        ? Carbon::parse($ride->ride_date)->format('D, M j')
-                        : ($ride->updated_at?->format('D, M j') ?? ''),
-                    'client' => $row['client_name'] ?? (trim(($ride->first_name ?? '') . ' ' . ($ride->last_name ?? '')) ?: 'Client'),
-                    'reference' => $ride->reference,
-                    'job' => $job,
-                    'paid_by' => $row['method'] ?? ($details['payment_method'] ?? '—'),
-                    'earned' => round((float) ($row['driver_pay'] ?? $details['driver_pay'] ?? 0) + (float) ($row['tip'] ?? $details['tip'] ?? 0), 2),
-                ];
-            })
-            ->all();
+        return DriverEarningsSummary::history($d);
     }
 
     /**
@@ -422,49 +392,7 @@ class DriverController extends Controller
      */
     private function payWeekForDriver(Driver $d, ?array $rideHistory = null): array
     {
-        $weekStart = now()->startOfWeek()->startOfDay();
-        $weekEnd = $weekStart->copy()->endOfWeek();
-        $earned = 0.0;
-        $cashKept = 0.0;
-
-        if (Schema::hasTable('ride_requests')) {
-            $rides = RideRequest::query()
-                ->where('assigned_driver_id', $d->id)
-                ->where('status', 'completed')
-                ->where(function ($q) use ($weekStart, $weekEnd) {
-                    $q->whereBetween('ride_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
-                        ->orWhereBetween('updated_at', [$weekStart, $weekEnd]);
-                })
-                ->get();
-
-            foreach ($rides as $ride) {
-                $row = RideCloseoutMath::ledgerRow($ride);
-                if ($row === null) {
-                    continue;
-                }
-                $earned += (float) $row['driver_pay'] + (float) $row['tip'];
-                if (strcasecmp((string) $row['method'], 'Cash') === 0) {
-                    $cashKept += (float) $row['client_paid'];
-                }
-            }
-        }
-
-        $earned = round($earned, 2);
-        $cashKept = round($cashKept, 2);
-        $net = round($earned - $cashKept, 2);
-        $lifetime = collect($rideHistory ?? $this->rideHistoryForDriver($d))->sum('earned');
-
-        return [
-            'earned_pay_tips' => $earned,
-            'cash_kept' => $cashKept,
-            'carried_earlier_weeks' => 0.0,
-            'net_balance' => $net,
-            'check_date' => null,
-            'status_banner' => $net > 0
-                ? ('Archer owes $' . number_format($net, 2) . ' this week')
-                : 'No payroll balance this week',
-            'lifetime_earnings' => round((float) $lifetime, 2),
-        ];
+        return DriverEarningsSummary::week($d, $rideHistory);
     }
 
     /** @param  array<string, mixed>|null  $credentials */
@@ -484,8 +412,8 @@ class DriverController extends Controller
             if ($label === null && isset($value['days_remaining'])) {
                 $days = (int) $value['days_remaining'];
                 $label = $status === 'renewal_due'
-                    ? ('Renewal due · ' . $days . ' days')
-                    : (ucfirst(str_replace('_', ' ', $status)) . ' · ' . $days . ' days');
+                    ? ('Renewal due · '.$days.' days')
+                    : (ucfirst(str_replace('_', ' ', $status)).' · '.$days.' days');
             }
             $out[$key] = [
                 'status' => $status,

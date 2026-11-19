@@ -10,29 +10,25 @@ import { API_BASE } from "@/lib/api";
  * The FALLBACK values are used only when the API cannot be reached.
  */
 
-export type Cls = "exec" | "first";
-export type Size = "sedan" | "suv" | "van";
+export type Cls = string;
+export type Size = string;
 export type AppService = "hourly" | "airport" | "p2p" | "client" | "security";
+export type AirportOption = { code: string; region: "nj" | "ny_pa" | "other" | string };
 
-type SiteRate = { kind: string; vehicle_class: string | null; size: string | null; tier: number; amount_cents: number };
-type SiteVehicle = { vehicle_class: Cls; size: Size; size_label: string; model: string; blurb: string; passengers?: number | null; bags?: number | null };
+type SiteVehicle = { vehicle_class: Cls; class_label?: string | null; size: Size; size_label: string; model: string; blurb: string; passengers?: number | null; bags?: number | null };
 type SiteTier = { kind: "driver" | "security"; tier: number; label: string; title: string; call_only: boolean };
 type ApiService = { slug: string; name: string; tagline?: string | null };
 
-export type Vehicle = { cls: Cls; size: Size; label: string; model: string; blurb: string; passengers: number | null; bags: number | null };
+export type Vehicle = { cls: Cls; classLabel: string; size: Size; label: string; model: string; blurb: string; passengers: number | null; bags: number | null };
 export type Tier = { tier: number; label: string; title: string; callOnly: boolean };
 
 export type Catalog = {
-  HR: Record<Cls, Record<Size, number[]>>;
-  PP: Record<Cls, Record<Size, number[] | null>>;
-  /** Client Car hourly per tier. */
-  CC: number[];
-  /** Security guard hourly per tier. */
-  GUARD: number[];
   vehicles: Vehicle[];
   tiers: Tier[];
   /** App services that are active in Admin, with Admin names. null = unknown (API down) → show all. */
   services: Partial<Record<AppService, { name: string; tagline: string | null }>> | null;
+  airports: AirportOption[];
+  securityVenues: string[];
   dispatchTel: string;
   dispatchDisplay: string;
   live: boolean;
@@ -46,25 +42,20 @@ export const SERVICE_SLUGS: Record<Exclude<AppService, "security">, string> = {
   client: "client",
 };
 
+const DEFAULT_AIRPORTS: AirportOption[] = [
+  { code: "EWR", region: "nj" }, { code: "ACY", region: "nj" }, { code: "TEB", region: "nj" }, { code: "MMU", region: "nj" },
+  { code: "JFK", region: "ny_pa" }, { code: "LGA", region: "ny_pa" }, { code: "PHL", region: "ny_pa" }, { code: "OTHER", region: "other" },
+];
+
+const DEFAULT_VENUES = [
+  "Religious buildings", "Office / corporate", "Corporate events", "Private events",
+  "Daycares & camps", "Schools", "Production sets", "Retail / commercial",
+];
+
 const FALLBACK: Catalog = {
-  HR: {
-    exec: { sedan: [70, 90, 130, 190], suv: [80, 100, 140, 215], van: [175, 195, 235, 390] },
-    first: { sedan: [80, 100, 140, 210], suv: [100, 120, 160, 235], van: [225, 245, 285, 475] },
-  },
-  PP: {
-    exec: { sedan: [145, 170, 215, 270], suv: [155, 180, 225, 280], van: null },
-    first: { sedan: [155, 180, 225, 280], suv: [200, 220, 260, 310], van: null },
-  },
-  CC: [45, 60, 75, 125],
-  GUARD: [45, 60, 75, 125],
-  vehicles: [
-    { cls: "exec", size: "sedan", label: "Mid-size SUV", model: "Chevrolet Traverse", blurb: "", passengers: 3, bags: 3 },
-    { cls: "exec", size: "suv", label: "Full-size SUV", model: "Chevrolet Suburban", blurb: "", passengers: 6, bags: 6 },
-    { cls: "exec", size: "van", label: "Sprinter", model: "Mercedes-Benz Sprinter", blurb: "", passengers: 15, bags: 15 },
-    { cls: "first", size: "sedan", label: "Mid-size SUV", model: "Lincoln Aviator", blurb: "", passengers: 3, bags: 4 },
-    { cls: "first", size: "suv", label: "Full-size SUV", model: "Cadillac Escalade", blurb: "", passengers: 6, bags: 5 },
-    { cls: "first", size: "van", label: "Sprinter", model: "Executive Sprinter", blurb: "", passengers: 11, bags: 12 },
-  ],
+  vehicles: [],
+  airports: DEFAULT_AIRPORTS,
+  securityVenues: DEFAULT_VENUES,
   tiers: [
     { tier: 1, label: "TIER 1 · ESSENTIAL", title: "Professional Chauffeur", callOnly: false },
     { tier: 2, label: "TIER 2 · EXECUTIVE", title: "Military & Law-Enforcement Chauffeur", callOnly: false },
@@ -76,16 +67,6 @@ const FALLBACK: Catalog = {
   dispatchDisplay: "(848) 231-9997",
   live: false,
 };
-
-function series(rates: SiteRate[], kind: string, cls: string | null, size: string | null): number[] | null {
-  const out: number[] = [];
-  for (let t = 1; t <= 4; t++) {
-    const r = rates.find((x) => x.kind === kind && x.vehicle_class === cls && x.size === size && x.tier === t);
-    if (!r) return null;
-    out.push(Math.round(r.amount_cents / 100));
-  }
-  return out;
-}
 
 async function getJson(path: string): Promise<Record<string, unknown> | null> {
   try {
@@ -100,29 +81,42 @@ async function getJson(path: string): Promise<Record<string, unknown> | null> {
 export function buildCatalog(site: Record<string, unknown> | null, options: Record<string, unknown> | null): Catalog {
   const c: Catalog = structuredClone(FALLBACK);
   if (site) {
-    const rates = (site.rates as SiteRate[] | undefined) ?? [];
-    for (const cls of ["exec", "first"] as Cls[]) {
-      for (const z of ["sedan", "suv", "van"] as Size[]) {
-        c.HR[cls][z] = series(rates, "hourly", cls, z) ?? c.HR[cls][z];
-        c.PP[cls][z] = series(rates, "point_to_point", cls, z) ?? c.PP[cls][z];
-      }
-    }
-    c.GUARD = series(rates, "security_hourly", null, null) ?? c.GUARD;
-    c.CC = series(rates, "client_car_hourly", null, null) ?? c.GUARD;
-
-    const vehicles = (site.vehicles as SiteVehicle[] | undefined) ?? [];
-    if (vehicles.length) {
+    const rateFleet = Array.isArray(site.rate_fleet) ? site.rate_fleet as Array<{
+      vehicle_class: Cls; size: Size; class_label: string; size_name: string; model: string;
+      passengers?: number | null; bags?: number | null; bookable?: boolean;
+    }> : null;
+    if (rateFleet) {
+      c.vehicles = rateFleet.filter((v) => v.bookable !== false).map((v) => ({
+        cls: v.vehicle_class,
+        classLabel: v.class_label,
+        size: v.size,
+        label: v.size_name,
+        model: v.model,
+        blurb: "",
+        passengers: v.passengers ?? null,
+        bags: v.bags ?? null,
+      }));
+    } else {
+      const vehicles = (site.vehicles as SiteVehicle[] | undefined) ?? [];
       c.vehicles = vehicles.map((v) => ({
-        cls: v.vehicle_class, size: v.size, label: v.size_label, model: v.model, blurb: v.blurb,
-        passengers: v.passengers ?? null, bags: v.bags ?? null,
+        cls: v.vehicle_class,
+        classLabel: v.class_label?.trim() || "",
+        size: v.size,
+        label: v.size_label,
+        model: v.model,
+        blurb: v.blurb,
+        passengers: v.passengers ?? null,
+        bags: v.bags ?? null,
       }));
     }
     const tiers = ((site.tier_list as SiteTier[] | undefined) ?? []).filter((t) => t.kind === "driver");
     if (tiers.length) c.tiers = tiers.map((t) => ({ tier: t.tier, label: t.label, title: t.title, callOnly: t.call_only }));
 
-    const settings = site.settings as { phone?: string; phone_tel?: string } | null | undefined;
+    const settings = site.settings as { phone?: string; phone_tel?: string; airports?: AirportOption[]; security_venues?: string[] } | null | undefined;
     if (settings?.phone_tel) c.dispatchTel = settings.phone_tel;
     if (settings?.phone) c.dispatchDisplay = settings.phone;
+    if (settings?.airports?.length) c.airports = settings.airports.filter((a) => a?.code);
+    if (settings?.security_venues?.length) c.securityVenues = settings.security_venues.filter((v) => v.trim());
     c.live = true;
   }
   if (options) {
@@ -145,9 +139,9 @@ export function buildCatalog(site: Record<string, unknown> | null, options: Reco
 let cache: Catalog = FALLBACK;
 let pending: Promise<Catalog> | null = null;
 
-/** Loads once per app session; failures fall back silently to FALLBACK. */
+/** Refetches fleet, rates, and services. A previous failure does not stick for the session. */
 export function loadCatalog(): Promise<Catalog> {
-  pending ??= Promise.all([getJson("/site"), getJson("/booking-options")]).then(([site, opts]) => {
+  pending = Promise.all([getJson("/site"), getJson("/booking-options")]).then(([site, opts]) => {
     cache = buildCatalog(site, opts);
     return cache;
   });
@@ -161,8 +155,11 @@ export function useCatalog(): Catalog {
   const [c, setC] = useState<Catalog>(cache);
   useEffect(() => {
     let alive = true;
-    void loadCatalog().then((x) => { if (alive) setC(x); });
-    return () => { alive = false; };
+    const pull = () => { void loadCatalog().then((x) => { if (alive) setC(x); }); };
+    pull();
+    const onShow = () => { if (document.visibilityState === "visible") pull(); };
+    document.addEventListener("visibilitychange", onShow);
+    return () => { alive = false; document.removeEventListener("visibilitychange", onShow); };
   }, []);
   return c;
 }

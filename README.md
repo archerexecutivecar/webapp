@@ -11,6 +11,7 @@ Production platform for Archer Executive Services: public website, customer port
 | Public website | `src/` | Next.js | 3000 | archerexecutivecar.com (staging: staging.archerexecutivecar.com) |
 | Admin & dispatch | `apps/admin/` | Next.js | 3001 | admin.archerexecutivecar.com |
 | Customer portal (PWA) | `apps/client/` | Next.js | 3002 | app.archerexecutivecar.com |
+| Driver portal (PWA) | `apps/driver/` | Next.js | 3003 | Local until a host is assigned |
 | API / domain core | `backend/` | Laravel (PHP) + MySQL | 8000 | api.archerexecutivecar.com |
 
 Mobile apps (iOS / Android) are **coming soon**. Store links and the "coming soon" flag are controlled from Admin → Page Content → `settings`.
@@ -43,6 +44,7 @@ Mobile apps (iOS / Android) are **coming soon**. Store links and the "coming soo
 src/                 Public website (Next.js)
 apps/admin/          Admin & dispatch (Next.js)
 apps/client/         Customer portal PWA (Next.js)
+apps/driver/         Driver portal PWA (Next.js)
 backend/             Laravel API (app/, routes/api.php, database/, tests/)
 docs/                Architecture, business rules, RBAC, pricing, QA, decisions
 docs/database/       SQL scripts (site-content.sql for phpMyAdmin)
@@ -72,6 +74,9 @@ cd apps/admin && npm install && npm run dev       # http://localhost:3001
 
 # Customer portal
 cd apps/client && npm install && npm run dev      # http://localhost:3002
+
+# Driver portal
+cd apps/driver && npm install && npm run dev      # http://localhost:3003
 ```
 
 Point each Next.js app at the API with `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1`.

@@ -28,6 +28,10 @@ class SiteContentSeeder extends Seeder
         SiteContent::updateOrCreate(['key' => 'fleet'], ['data' => $pages['fleet']]);
         SiteContent::updateOrCreate(['key' => 'tiers'], ['data' => $pages['tiers']]);
         SiteContent::updateOrCreate(['key' => 'settings'], ['data' => [
+            'brand_name' => 'ARCHER EXECUTIVE',
+            'legal_name' => 'Archer Enterprises LLC',
+            'tagline' => 'TRANSPORTATION & SECURITY SPECIALISTS',
+            'logo_url' => null,
             'phone' => '(848) 231-9997', 'phone_tel' => '+18482319997', 'phone_secondary' => '(732) 757-3232',
             'email' => 'info@archerexecutivecar.com',
             'address' => ['Russel Hall – Fort Monmouth', '1000 Sanger Avenue, Suite #500', 'Oceanport, NJ 07757'],
@@ -38,6 +42,8 @@ class SiteContentSeeder extends Seeder
                 'x' => 'https://x.com/archer_car2026',
             ],
             'apps_coming_soon' => true, 'app_store_url' => null, 'play_store_url' => null,
+            'airports' => \App\Support\ServiceAreas::DEFAULT_AIRPORTS,
+            'security_venues' => \App\Support\ServiceAreas::DEFAULT_VENUES,
         ]]);
 
         $driver = [
@@ -71,6 +77,7 @@ class SiteContentSeeder extends Seeder
         ];
         foreach ($vehicles as $i => [$class, $size, $label, $model, $blurb, $img, $alt]) {
             SiteVehicle::updateOrCreate(['vehicle_class' => $class, 'size' => $size], [
+                'class_label' => $class === 'first' ? '1st Class' : 'Executive Class',
                 'size_label' => $label, 'model' => $model, 'blurb' => $blurb, 'image_url' => $img, 'image_alt' => $alt,
                 'sort_order' => $i + 1, 'is_active' => true,
             ]);

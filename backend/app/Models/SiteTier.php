@@ -12,13 +12,13 @@ class SiteTier extends Model
 
     protected $table = 'site_tiers';
 
-    protected $fillable = ['kind', 'tier', 'label', 'title', 'call_only', 'credentials', 'suited_for', 'sort_order', 'is_active'];
+    protected $fillable = ['kind', 'tier', 'label', 'title', 'pay_cents', 'call_only', 'credentials', 'suited_for', 'sort_order', 'is_active'];
 
     /** Lets driver views show the tier as `name`, e.g. "TIER 2 · EXECUTIVE". */
     protected $appends = ['name'];
 
     protected $casts = [
-        'tier' => 'integer', 'call_only' => 'boolean', 'credentials' => 'array', 'suited_for' => 'array',
+        'tier' => 'integer', 'pay_cents' => 'integer', 'call_only' => 'boolean', 'credentials' => 'array', 'suited_for' => 'array',
         'sort_order' => 'integer', 'is_active' => 'boolean',
     ];
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\SiteVehicle;
 use App\Support\ApiResponse;
+use App\Support\RateCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,8 +15,9 @@ class SiteVehicleController extends Controller
     private function rules(bool $partial = false): array
     {
         $rules = [
-            'vehicle_class' => 'required|in:exec,first',
-            'size' => 'required|in:sedan,suv,van',
+            'vehicle_class' => 'required|in:'.implode(',', RateCatalog::classKeys()),
+            'class_label' => 'required|string|max:60',
+            'size' => 'required|in:'.implode(',', RateCatalog::sizeKeys()),
             'size_label' => 'required|string|max:60',
             'model' => 'required|string|max:255',
             'blurb' => 'required|string|max:255',

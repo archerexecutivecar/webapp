@@ -5,16 +5,17 @@ namespace Tests\Feature\Api;
 use App\Models\PricingSetting;
 use App\Models\RateCard;
 use App\Models\SiteTier;
-use App\Models\SiteVehicle;
+use App\Models\Vehicle;
 use Database\Seeders\SiteContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesStaff;
+use Tests\Support\SeedsOperationalFleet;
 use Tests\TestCase;
 
 /** Every pricing rule in docs/PRICING_ENGINE_PLAN.md section 4, computed by hand in integer cents. */
 class QuoteTest extends TestCase
 {
-    use CreatesStaff, RefreshDatabase;
+    use CreatesStaff, RefreshDatabase, SeedsOperationalFleet;
 
     private const URL = '/api/v1/quotes';
 
@@ -22,6 +23,7 @@ class QuoteTest extends TestCase
     {
         parent::setUp();
         $this->seed(SiteContentSeeder::class);
+        $this->seedOperationalFleet();
     }
 
     private function hourly(array $over = []): array
@@ -173,11 +175,11 @@ class QuoteTest extends TestCase
 
     public function test_unavailable_service_tier_vehicle_and_over_capacity_are_rejected(): void
     {
-        SiteVehicle::where(['vehicle_class' => 'exec', 'size' => 'suv'])->update(['passengers' => 6, 'bags' => 6]);
+        Vehicle::where('form_value', 'exec|suv')->update(['passengers' => 6, 'luggage' => 6]);
         $this->postJson(self::URL, $this->hourly(['passengers' => 7]))->assertStatus(422)->assertJsonPath('error.code', 'OVER_CAPACITY');
         $this->postJson(self::URL, $this->hourly(['tier' => 9]))->assertStatus(422)->assertJsonPath('error.code', 'TIER_UNAVAILABLE');
 
-        SiteVehicle::where(['vehicle_class' => 'exec', 'size' => 'suv'])->update(['is_active' => false]);
+        Vehicle::where('form_value', 'exec|suv')->update(['is_active' => false]);
         $this->postJson(self::URL, $this->hourly())->assertStatus(422)->assertJsonPath('error.code', 'VEHICLE_UNAVAILABLE');
 
         $this->set('hourly', ['is_active' => false]);
@@ -197,16 +199,17 @@ class QuoteTest extends TestCase
         $this->postJson(self::URL, $this->hourly(['tier' => 3]))->assertOk();
     }
 
-    public function test_fleet_entries_sharing_a_class_and_size_use_the_first_in_display_order(): void
+    public function test_a_party_fits_when_any_active_fleet_car_of_that_size_can_carry_them(): void
     {
-        SiteVehicle::where(['vehicle_class' => 'exec', 'size' => 'suv'])->update(['passengers' => 6, 'sort_order' => 5]);
-        SiteVehicle::create([
-            'vehicle_class' => 'exec', 'size' => 'suv', 'size_label' => 'FULL-SIZE SUV', 'model' => 'GMC Yukon',
-            'blurb' => 'Second full-size SUV.', 'passengers' => 2, 'sort_order' => 1, 'is_active' => true,
+        Vehicle::where('form_value', 'exec|suv')->update(['passengers' => 6, 'luggage' => 6, 'sort_order' => 5]);
+        Vehicle::create([
+            'name' => 'GMC Yukon', 'slug' => 'gmc-yukon', 'class_type' => 'exec', 'category' => 'FULL-SIZE SUV',
+            'form_value' => 'exec|suv', 'passengers' => 2, 'luggage' => 2, 'sort_order' => 1, 'is_active' => true,
         ]);
 
-        $this->postJson(self::URL, $this->hourly(['passengers' => 3]))->assertStatus(422)->assertJsonPath('error.code', 'OVER_CAPACITY');
+        $this->postJson(self::URL, $this->hourly(['passengers' => 3]))->assertOk();
         $this->assertSame('GMC Yukon × 4 hrs', $this->postJson(self::URL, $this->hourly(['passengers' => 2]))->json('data.quote.lines.0.label'));
+        $this->postJson(self::URL, $this->hourly(['passengers' => 7]))->assertStatus(422)->assertJsonPath('error.code', 'OVER_CAPACITY');
     }
 
     public function test_sprinter_trip_fare_rows_exist_switched_off_until_admin_prices_them(): void

@@ -8,6 +8,27 @@ namespace App\Support;
  */
 class RideStateMachine
 {
+    /**
+     * Statuses a customer still has in front of them. Completed and cancelled are the only closed ones.
+     *
+     * @var list<string>
+     */
+    public const UPCOMING = [
+        'new',
+        'pending',
+        'broadcast',
+        'accepted',
+        'dispatched',
+        'driver_assigned',
+        'on_my_way',
+        'at_doorstep',
+        'at_your_doorstep',
+        'ride_started',
+        'in_progress',
+        'ride_ended',
+        'close_out',
+    ];
+
     /** Canonical statuses used after normalization. */
     public const STATUSES = [
         'new',
@@ -25,6 +46,19 @@ class RideStateMachine
         'completed',
         'cancelled',
     ];
+
+    /** Progress graphic: 0 requested, 1 assigned, 2 on the way, 3 completed, -1 cancelled. */
+    public static function progressRank(?string $status): int
+    {
+        return match (self::normalize($status ?: 'pending')) {
+            'new', 'pending', 'broadcast' => 0,
+            'dispatched' => 1,
+            'on_my_way', 'at_doorstep', 'ride_started', 'in_progress', 'ride_ended', 'close_out' => 2,
+            'completed' => 3,
+            'cancelled' => -1,
+            default => 0,
+        };
+    }
 
     /**
      * Map aliases → preferred storage value (identity for canonical names).

@@ -217,6 +217,8 @@ export default function PaymentsEarningsPage() {
         </div>
       </div>
 
+      <ServiceRules />
+
       {/* Simulator Drawer/Accordion */}
       {showSimulator && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 18, marginBottom: 24 }}>
@@ -530,5 +532,84 @@ export default function PaymentsEarningsPage() {
         Card payments are charged to the client’s card on file via Stripe at ride completion. Cash and Venmo payments are collected in person by the chauffeur and only available to clients with prior admin approval. Stripe processing fees apply only to card transactions.
       </div>
     </div>
+  );
+}
+
+const SERVICE_LABELS: Record<string, string> = {
+  hourly: 'Hourly',
+  airport: 'Airport',
+  p2p: 'Point to point',
+  client: 'Client car',
+  security: 'Protection',
+};
+
+type PricingRow = {
+  service: string;
+  is_active: boolean;
+  min_hours: number | null;
+  booking_fee_cents: number;
+  tax_bp: number;
+  pricing_mode: string;
+};
+
+function ServiceRules() {
+  const [rows, setRows] = useState<PricingRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<{ settings: PricingRow[] }>('/admin/pricing-settings', { auth: true })
+      .then((res) => setRows(res.settings))
+      .catch((e) => setError(e instanceof ApiError ? e.message : 'Pricing settings are unavailable.'));
+  }, []);
+
+  const save = async (row: PricingRow, patch: Partial<PricingRow>) => {
+    setError(null);
+    try {
+      const res = await api<{ setting: PricingRow }>(`/admin/pricing-settings/${row.service}`, {
+        method: 'PUT',
+        auth: true,
+        body: patch,
+      });
+      setRows((current) => current?.map((item) => (item.service === row.service ? res.setting : item)) ?? null);
+      setSaved(row.service);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not save that service.');
+    }
+  };
+
+  return (
+    <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 18, marginBottom: 24 }}>
+      <h3 style={{ margin: '0 0 6px 0', fontSize: '0.95rem' }}>Services offered</h3>
+      <p style={{ margin: '0 0 12px 0', fontSize: '0.8rem', color: 'var(--muted)' }}>
+        Turning a service off hides it in the customer app. Minimum hours, booking fee, and tax are the figures the quote uses.
+      </p>
+      {error && <div className="alert">{error}</div>}
+      {rows === null && !error && <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>Loading services…</p>}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {rows?.map((row) => (
+          <div key={row.service} style={{ display: 'grid', gridTemplateColumns: '1.2fr 90px 110px 120px 110px', gap: 8, alignItems: 'center' }}>
+            <strong style={{ fontSize: '0.84rem' }}>{SERVICE_LABELS[row.service] ?? row.service}</strong>
+            <label style={{ fontSize: '0.78rem', display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="checkbox" checked={row.is_active} onChange={(e) => void save(row, { is_active: e.target.checked })} />
+              Offered
+            </label>
+            <label style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+              Min hours
+              <input type="number" min={0} defaultValue={row.min_hours ?? 0} onBlur={(e) => void save(row, { min_hours: Number(e.target.value) })} style={{ display: 'block', width: '100%', marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+              Booking fee $
+              <input type="number" min={0} step="0.01" defaultValue={(row.booking_fee_cents / 100).toFixed(2)} onBlur={(e) => void save(row, { booking_fee_cents: Math.round(Number(e.target.value) * 100) } as Partial<PricingRow>)} style={{ display: 'block', width: '100%', marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
+              Tax %
+              <input type="number" min={0} step="0.001" defaultValue={(row.tax_bp / 100).toString()} onBlur={(e) => void save(row, { tax_bp: Math.round(Number(e.target.value) * 100) })} style={{ display: 'block', width: '100%', marginTop: 4 }} />
+            </label>
+          </div>
+        ))}
+      </div>
+      {saved && <p style={{ margin: '8px 0 0', fontSize: '0.75rem', color: 'var(--muted)' }}>Saved {SERVICE_LABELS[saved] ?? saved}.</p>}
+    </section>
   );
 }

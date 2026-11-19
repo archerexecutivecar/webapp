@@ -22,11 +22,10 @@ return [
         ]],
         ['key' => 'setup', 'label' => 'SETUP', 'items' => [
             ['key' => 'fleet', 'label' => 'Fleet & availability', 'href' => '/site-vehicles', 'icon' => 'car', 'permissions' => ['fleet.manage'], 'available' => true],
-            ['key' => 'website-fleet', 'label' => 'Website fleet', 'href' => '/website-fleet', 'icon' => 'car', 'permissions' => ['fleet.manage'], 'available' => true],
             ['key' => 'rates', 'label' => 'Vehicles & rates', 'href' => '/site-rates', 'icon' => 'tag', 'permissions' => ['pricing.manage'], 'available' => true],
             ['key' => 'settings', 'label' => 'Settings', 'href' => '/settings', 'icon' => 'settings', 'permissions' => ['settings.manage'], 'available' => true],
             ['key' => 'site-content', 'label' => 'Page Content', 'href' => '/site-content', 'icon' => 'file-text', 'permissions' => ['content.edit'], 'available' => true],
-            ['key' => 'site-tiers', 'label' => 'Website Tiers', 'href' => '/site-tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],
+            ['key' => 'site-tiers', 'label' => 'Tiers', 'href' => '/site-tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],
             ['key' => 'testimonials', 'label' => 'Testimonials', 'href' => '/testimonials', 'icon' => 'message-square', 'permissions' => ['content.edit'], 'available' => true],
             ['key' => 'cms-pages', 'label' => 'CMS Pages', 'href' => '/cms-pages', 'icon' => 'file-text', 'permissions' => ['content.edit'], 'available' => true],
         ]],

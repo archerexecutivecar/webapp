@@ -6,7 +6,21 @@ export type SiteRate = { kind: string; vehicle_class: string | null; size: strin
 export type SiteTierRow = { kind: "driver" | "security"; tier: number; label: string; title: string; call_only: boolean; credentials: string[]; suited_for: string[] };
 export type SiteVehicleRow = { vehicle_class: "exec" | "first"; size: "sedan" | "suv" | "van"; size_label: string; model: string; blurb: string; passengers?: number | null; bags?: number | null; image_url: string | null; image_alt: string | null };
 export type SiteData = {
-  settings: { phone: string; phone_tel: string; email: string; address: string[]; phone_secondary?: string; social?: Partial<Record<"facebook" | "instagram" | "linkedin" | "x", string | null>>; apps_coming_soon: boolean; app_store_url: string | null; play_store_url: string | null } | null;
+  settings: {
+    brand_name?: string;
+    legal_name?: string;
+    tagline?: string | null;
+    logo_url?: string | null;
+    phone: string;
+    phone_tel: string;
+    email: string;
+    address: string[];
+    phone_secondary?: string | null;
+    social?: Partial<Record<"facebook" | "instagram" | "linkedin" | "x", string | null>>;
+    apps_coming_soon: boolean;
+    app_store_url: string | null;
+    play_store_url: string | null;
+  } | null;
   fleet: { slides: HeroSlide[]; standard: string[][] } | null;
   tiers: { slides: HeroSlide[] } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

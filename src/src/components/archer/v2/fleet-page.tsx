@@ -56,7 +56,7 @@ const th = "border-b border-[#2E2E2E] px-3 py-3.5 text-left text-[11px] font-med
 const td = "border-b border-[#2E2E2E] px-3 py-4";
 
 function fromSite(site?: SiteData | null) {
-  if (!site || !site.vehicles.length || !site.fleet) return null;
+  if (!site || !site.fleet) return null;
   const HR = { exec: {} as Record<Z, number[]>, first: {} as Record<Z, number[]> };
   const PP = { exec: {} as Record<Z, number[] | null>, first: {} as Record<Z, number[] | null> };
   for (const c of ["exec", "first"] as Key[]) {
@@ -69,16 +69,17 @@ function fromSite(site?: SiteData | null) {
   }
   const VEHICLES = { exec: [] as Vehicle[], first: [] as Vehicle[] };
   for (const v of site.vehicles) {
-    const fallback = VEHICLES_DEFAULT[v.vehicle_class]?.find((d) => d.model === v.model || d.z === v.size);
+    if (v.vehicle_class !== "exec" && v.vehicle_class !== "first") continue;
+    if (v.size !== "sedan" && v.size !== "suv" && v.size !== "van") continue;
     VEHICLES[v.vehicle_class].push({
       z: v.size,
       size: v.size_label,
       model: v.model,
       good: v.blurb,
-      img: v.image_url ?? fallback?.img ?? undefined,
-      alt: v.image_alt ?? fallback?.alt ?? undefined,
-      pax: v.passengers ?? fallback?.pax ?? null,
-      bags: v.bags ?? fallback?.bags ?? null,
+      img: v.image_url || undefined,
+      alt: v.image_alt || v.model,
+      pax: v.passengers ?? null,
+      bags: v.bags ?? null,
     });
   }
   return { SLIDES: site.fleet.slides, STANDARD: site.fleet.standard, HR, PP, VEHICLES };
@@ -110,7 +111,7 @@ export function FleetPage({ site }: { site?: SiteData | null } = {}) {
               <div key={v.model} className="flex flex-col bg-[#1E1E1E]">
                 {v.img ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={D + v.img} alt={v.alt} className="block aspect-[4/3] w-full bg-[#262626] object-cover" />
+                  <img src={v.img.startsWith("/") || v.img.startsWith("http") ? v.img : D + v.img} alt={v.alt} className="block aspect-[4/3] w-full bg-[#262626] object-cover" />
                 ) : (
                   <div className="flex aspect-[4/3] items-center justify-center bg-[#262626] p-6 text-center text-[13px] tracking-[0.08em] text-[#9A948C]">[ARCHER FLEET PHOTO: {v.model}]</div>
                 )}

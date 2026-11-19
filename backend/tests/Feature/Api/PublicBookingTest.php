@@ -6,18 +6,21 @@ use Database\Seeders\SiteContentSeeder;
 use App\Models\AssistantProfile;
 use App\Models\AuditLog;
 use App\Models\RideRequest;
+use App\Models\Vehicle;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\SeedsOperationalFleet;
 use Tests\TestCase;
 
 class PublicBookingTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, SeedsOperationalFleet;
 
     // Bookings are validated against the Admin website catalog (tiers + fleet).
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(SiteContentSeeder::class);
+        $this->seedOperationalFleet();
     }
 
     private const URL = '/api/v1/booking-requests';
@@ -79,7 +82,7 @@ class PublicBookingTest extends TestCase
 
     public function test_vehicle_must_be_an_active_website_fleet_entry(): void
     {
-        \App\Models\SiteVehicle::where('vehicle_class', 'exec')->where('size', 'suv')->update(['is_active' => false]);
+        Vehicle::where('form_value', 'exec|suv')->update(['is_active' => false]);
 
         $this->postJson(self::URL, $this->p2p())->assertStatus(422)->assertJsonStructure(['error' => ['details' => ['vehicle_size']]]);
         $this->postJson(self::URL, $this->p2p(['vehicle_class' => 'first']))->assertStatus(201);

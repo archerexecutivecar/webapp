@@ -21,6 +21,8 @@ class Driver extends Model
         'bio',
         'sort_order',
         'is_active',
+        'is_online',
+        'push_alerts_enabled',
         // The 3 Operating Switches
         'is_fleet_operator',
         'is_client_car_operator',
@@ -41,6 +43,8 @@ class Driver extends Model
         'service_tier' => 'integer',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
+        'is_online' => 'boolean',
+        'push_alerts_enabled' => 'boolean',
         'is_fleet_operator' => 'boolean',
         'is_client_car_operator' => 'boolean',
         'is_owner_operator' => 'boolean',

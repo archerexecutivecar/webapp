@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { D, HEAD } from "@/components/archer/v2/tokens";
+import { useSiteSettings } from "@/lib/site-settings";
 import { CLS_NAME, SIZES, SZ, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 
 export const slug = (label: string) => label.toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -11,18 +12,20 @@ export const inputCls = "rounded-sm border border-white/[0.18] bg-[#1E1E1E] px-3
 const labelCls = "flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]";
 
 export function FormShell({ children }: { children: ReactNode }) {
+  const st = useSiteSettings();
+  const logo = st.logo_url || `${D}baf2559ebfd040994cae07d1bc0aa928.png`;
   return (
     <div className="min-h-screen bg-[#121212] text-[16px] leading-[1.5] text-white" style={{ fontFamily: "var(--font-roboto), Arial, sans-serif" }}>
       <header className="mx-auto flex max-w-[1240px] items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3 md:px-6 md:py-5">
-        <Link href="/" aria-label="Archer Executive home" className="flex min-w-0 items-center gap-2.5 text-white md:gap-3">
+        <Link href="/" aria-label={`${st.brand_name} home`} className="flex min-w-0 items-center gap-2.5 text-white md:gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${D}baf2559ebfd040994cae07d1bc0aa928.png`} alt="" aria-hidden className="block h-9 w-auto shrink-0 md:h-11" />
+          <img src={logo} alt="" aria-hidden className="block h-9 w-auto shrink-0 md:h-11" />
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[13px] font-extrabold leading-none tracking-[0.05em] text-[#E87722] min-[400px]:text-[17px] min-[400px]:tracking-[0.08em] md:text-[22px] md:tracking-[0.1em]" style={HEAD}>ARCHER EXECUTIVE</span>
-            <span className="mt-1.5 hidden text-[10px] tracking-[0.26em] text-[#E6E1DA] sm:block">TRANSPORTATION &amp; SECURITY SPECIALISTS</span>
+            <span className="truncate text-[13px] font-extrabold leading-none tracking-[0.05em] text-[#E87722] min-[400px]:text-[17px] min-[400px]:tracking-[0.08em] md:text-[22px] md:tracking-[0.1em]" style={HEAD}>{st.brand_name}</span>
+            {st.tagline ? <span className="mt-1.5 hidden text-[10px] tracking-[0.26em] text-[#E6E1DA] sm:block">{st.tagline}</span> : null}
           </span>
         </Link>
-        <a href="tel:+18482319997" className="flex min-h-11 shrink-0 items-center text-[14px] text-[#C9C3BB] md:text-[15px]"><span className="hidden sm:inline">Prefer to call?&nbsp;</span>(848) 231-9997</a>
+        <a href={`tel:${st.phone_tel}`} className="flex min-h-11 shrink-0 items-center text-[14px] text-[#C9C3BB] md:text-[15px]"><span className="hidden sm:inline">Prefer to call?&nbsp;</span>{st.phone}</a>
       </header>
       <main className="mx-auto max-w-[1240px] px-4 pb-28 pt-8 md:px-6 md:pb-24 md:pt-12">{children}</main>
     </div>

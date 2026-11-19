@@ -5,7 +5,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const ROOTS = ["src/src", "apps/client/src", "apps/admin/src"];
+const ROOTS = ["src/src", "apps/client/src", "apps/admin/src", "apps/driver/src"];
 const SKIP = new Set(["node_modules", ".next"]);
 const PATTERN = /\[(?:ARCHER TO CONFIRM[^\]]*|CONFIRM[^\]]*|#|TBD|TODO)\]/gi;
 const hits = [];

@@ -9,12 +9,42 @@ export type QuoteInput = {
   vehicle_class?: string;
   vehicle_size?: string;
   hours?: number;
+  passengers?: number;
+  bags?: number;
   stops?: number;
   guards?: number;
   security_tier?: number;
+  guard_hours?: number;
+  airport_code?: string;
 };
 
-export type Quote = { total_cents: number; booking_fee_cents: number; subtotal_cents: number };
+export type QuoteLine = {
+  code: string;
+  label: string;
+  amount_cents: number;
+  unit_cents: number;
+  per: string;
+  quantity: number;
+  quantity_unit: string;
+  note?: string | null;
+};
+
+export type Quote = {
+  total_cents: number;
+  booking_fee_cents: number;
+  subtotal_cents: number;
+  tax_cents?: number;
+  tax_bp?: number;
+  card_fee_cents?: number;
+  lines?: QuoteLine[];
+  gratuity_suggested_cents?: number;
+  gratuity_suggested_bp?: number;
+  gratuity_included?: boolean;
+  is_estimate?: boolean;
+  is_from_price?: boolean;
+  dispatch_will_quote?: boolean;
+  dispatch_note?: string | null;
+};
 
 export type QuoteState = { quote: Quote | null; error: string | null; loading: boolean };
 

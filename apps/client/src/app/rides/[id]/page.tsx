@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { ACTIVE, api, ApiError, dispatchDisplay, dispatchTel, errorText, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
+import { api, ApiError, dispatchDisplay, dispatchTel, errorText, isLiveRide, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
+import { ScreenTitle } from "@/components/ScreenTitle";
 import { Shell } from "@/components/Shell";
 import { badgeClass } from "@/components/RideCard";
 import { RideCarProgress } from "@/components/RideCarProgress";
@@ -38,7 +39,7 @@ function Detail() {
     void load();
   }, [load]);
 
-  const active = ride ? ACTIVE.includes(ride.status) : false;
+  const active = ride ? isLiveRide(ride.status) : false;
   useEffect(() => {
     if (!active) return;
     const t = setInterval(() => { if (document.visibilityState === "visible") void load(); }, 15000);
@@ -48,19 +49,20 @@ function Detail() {
   if (missing) return <div className="empty"><span>We couldn&apos;t find that ride.</span><Link className="btn" href="/rides">BACK TO RIDES</Link></div>;
   if (!ride) return <div className="muted">{error ?? "Loading…"}</div>;
 
-  const extra = Object.entries(ride.details ?? {}).filter(([k, v]) => LABELS[k] && !SKIP.has(k) && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0));
+  const covered = new Set(["passengers", "bags", "checked_bags", "hours", "airline", "flight_number", "airline_flight", "terminal", "guards"]);
+  const extra = Object.entries(ride.details ?? {}).filter(([k, v]) => LABELS[k] && !SKIP.has(k) && !covered.has(k) && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0));
   const weekRides = Array.isArray(ride.details?.rides) ? (ride.details!.rides as Record<string, string>[]) : [];
 
   return (
     <div className="detail">
-      <Link href="/rides" className="link-btn" style={{ alignSelf: "flex-start" }}>← All rides</Link>
-      <div>
-        <div className="ref">{ride.reference}</div>
-        <h1 className="title">{serviceName(ride.service_type)}</h1>
-        <div className="ride-head">
-          <span className={badgeClass(ride.status)}>{ride.status_label.toUpperCase()}</span>
-          <span className="muted">{whenText(ride)}</span>
-        </div>
+      <Link href="/rides" className="link-btn" style={{ alignSelf: "flex-start" }}>← My trips</Link>
+      <ScreenTitle
+        mark={ride.service_type}
+        title={ride.summary?.service_name || serviceName(ride.service_type)}
+        line={`${ride.reference} · ${whenText(ride)}`}
+      />
+      <div className="ride-head">
+        <span className={badgeClass(ride.status)}>{ride.status_label.toUpperCase()}</span>
       </div>
 
       {error && <div role="alert" className="alert">{error}</div>}
@@ -80,7 +82,7 @@ function Detail() {
       {ride.chauffeur && (
         <section className="card" aria-label="Your chauffeur" style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
           <div className="avatar" style={ride.chauffeur.avatar_url ? { backgroundImage: `url(${ride.chauffeur.avatar_url})` } : undefined}>{ride.chauffeur.avatar_url ? "" : ride.chauffeur.name.slice(0, 1)}</div>
-          <div><div className="muted" style={{ fontSize: 13 }}>YOUR CHAUFFEUR</div><strong style={{ fontFamily: "var(--head)", fontSize: 18 }}>{ride.chauffeur.name}</strong></div>
+          <div><div className="muted" style={{ fontSize: 13 }}>YOUR CHAUFFEUR</div><strong style={{ fontFamily: "var(--head)", fontSize: 16 }}>{ride.chauffeur.name}</strong></div>
         </section>
       )}
 
@@ -90,8 +92,15 @@ function Detail() {
           {ride.pickup_location && <><dt>From</dt><dd>{ride.pickup_location}</dd></>}
           {ride.dropoff_location && <><dt>To</dt><dd>{ride.dropoff_location}</dd></>}
           <dt>When</dt><dd>{whenText(ride)}</dd>
-          {vehicleName(ride.vehicle) && <><dt>Vehicle</dt><dd>{vehicleName(ride.vehicle)}</dd></>}
-          <dt>Tier</dt><dd>Tier {ride.driver_tier}</dd>
+          {(ride.summary?.vehicle_model || ride.summary?.vehicle_text || vehicleName(ride.vehicle)) && (
+            <><dt>Vehicle</dt><dd>{[ride.summary?.vehicle_size_label, ride.summary?.vehicle_model || ride.summary?.vehicle_text || vehicleName(ride.vehicle)].filter(Boolean).join(" · ")}</dd></>
+          )}
+          <dt>Tier</dt><dd>{ride.summary?.tier_label || `Tier ${ride.driver_tier}`}{ride.summary?.tier_title ? ` · ${ride.summary.tier_title}` : ""}</dd>
+          {ride.summary?.flight && <><dt>Flight</dt><dd>{ride.summary.flight}</dd></>}
+          {ride.summary?.terminal && <><dt>Terminal</dt><dd>{ride.summary.terminal}</dd></>}
+          {ride.summary?.passengers != null && <><dt>Passengers</dt><dd>{ride.summary.passengers}</dd></>}
+          {ride.summary?.hours != null && <><dt>Hours</dt><dd>{ride.summary.hours}</dd></>}
+          {ride.summary?.guards != null && <><dt>Guards</dt><dd>{ride.summary.guards}</dd></>}
           {extra.map(([k, v]) => <Fragment key={k}><dt>{LABELS[k]}</dt><dd>{show(v)}</dd></Fragment>)}
         </dl>
       </section>

@@ -17,6 +17,7 @@ use App\Http\Controllers\Customer\CustomerAuthController;
 use App\Http\Controllers\Customer\CustomerPortalController;
 use App\Http\Controllers\Driver\DriverPortalController;
 use App\Http\Controllers\PublicBookingController;
+use App\Http\Controllers\PublicBrandController;
 use App\Http\Controllers\PublicContentController;
 use App\Http\Controllers\PublicSiteController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +39,8 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/pages/{slug}', [PublicContentController::class, 'page']);
     Route::get('/testimonials', [PublicContentController::class, 'testimonials']);
     Route::get('/site', [PublicSiteController::class, 'show']);
+    Route::get('/fleet-availability', [PublicSiteController::class, 'availability'])->middleware('throttle:60,1');
+    Route::get('/brand', [PublicBrandController::class, 'show']);
     Route::get('/faqs', [PublicContentController::class, 'faqs']);
 
     // Customer account: register directly, sign in with an emailed code (no password), or with email + password via /auth/login.
@@ -48,6 +51,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::middleware(['auth:api', 'permission:self.profile'])->group(function (): void {
             Route::get('/me', [CustomerPortalController::class, 'me']);
+            Route::put('/profile', [CustomerPortalController::class, 'updateProfile']);
             Route::get('/rides', [CustomerPortalController::class, 'rides']);
             Route::get('/rides/{id}', [CustomerPortalController::class, 'show']);
             Route::get('/assistant-profiles', [CustomerPortalController::class, 'assistantProfiles']);
@@ -144,6 +148,11 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/rates', [RateCardController::class, 'update']);
             Route::get('/site-rates/matrix', [RateCardController::class, 'matrix']);
             Route::put('/site-rates/matrix', [RateCardController::class, 'updateMatrix']);
+            Route::post('/site-rates/classes', [RateCardController::class, 'storeClass']);
+            Route::post('/site-rates/sizes', [RateCardController::class, 'storeSize']);
+            Route::post('/site-rates/tiers', [RateCardController::class, 'storeTier']);
+            Route::post('/site-rates/classes/{key}/retire', [RateCardController::class, 'retireClass']);
+            Route::post('/site-rates/sizes/{key}/retire', [RateCardController::class, 'retireSize']);
             Route::get('/pricing-settings', [\App\Http\Controllers\Admin\PricingSettingController::class, 'index']);
             Route::put('/pricing-settings/{service}', [\App\Http\Controllers\Admin\PricingSettingController::class, 'update']);
             Route::post('/pricing/simulate', [\App\Http\Controllers\QuoteController::class, 'store']);
@@ -168,6 +177,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/platform-settings/reset', [\App\Http\Controllers\Admin\PlatformSettingsController::class, 'reset']);
             Route::get('/integrations', [\App\Http\Controllers\Admin\IntegrationSettingsController::class, 'show']);
             Route::put('/integrations', [\App\Http\Controllers\Admin\IntegrationSettingsController::class, 'update']);
+            Route::get('/brand-settings', [\App\Http\Controllers\Admin\BrandSettingsController::class, 'show']);
+            Route::put('/brand-settings', [\App\Http\Controllers\Admin\BrandSettingsController::class, 'update']);
         });
 
         Route::get('/drivers', [DriverController::class, 'index'])->middleware('permission:drivers.view');
@@ -241,7 +252,11 @@ Route::prefix('v1')->group(function (): void {
     // Driver Portal APIs
     Route::prefix('driver')->middleware(['auth:api', 'permission:driver.portal'])->group(function (): void {
         Route::get('/profile', [DriverPortalController::class, 'profile']);
+        Route::put('/presence', [DriverPortalController::class, 'updatePresence']);
+        Route::get('/offers', [DriverPortalController::class, 'offers']);
+        Route::post('/offers/{rideId}/accept', [DriverPortalController::class, 'acceptOffer']);
         Route::get('/rides', [DriverPortalController::class, 'myRides']);
+        Route::get('/earnings', [DriverPortalController::class, 'earnings']);
         Route::get('/security-shifts', [DriverPortalController::class, 'mySecurityShifts']);
         Route::put('/rides/{rideId}/status', [DriverPortalController::class, 'updateRideStatus']);
         Route::get('/notifications', [DriverPortalController::class, 'notifications']);

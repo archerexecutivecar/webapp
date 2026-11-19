@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ACTIVE, api, errorText, SITE_URL, type Ride } from "@/lib/api";
+import { api, errorText, isLiveRide, type Ride } from "@/lib/api";
 import { RideCard } from "@/components/RideCard";
+import { ScreenTitle } from "@/components/ScreenTitle";
 import { Shell } from "@/components/Shell";
 
 function RidesList() {
@@ -24,41 +25,31 @@ function RidesList() {
     return () => clearInterval(t);
   }, [load]);
 
-  const upcoming = (rides ?? []).filter((r) => ACTIVE.includes(r.status));
-  const past = (rides ?? []).filter((r) => !ACTIVE.includes(r.status));
+  const upcoming = (rides ?? []).filter((r) => isLiveRide(r.status));
+  const past = (rides ?? []).filter((r) => !isLiveRide(r.status));
   const list = tab === "upcoming" ? upcoming : past;
 
   return (
-    <div className="stack" style={{ gap: 20 }}>
-      {/* Uber style "Where to?" action card */}
-      <Link href="/book" className="hero-book-banner">
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "var(--accent)", color: "#000", display: "grid", placeItems: "center" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="16" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-          </div>
-          <div>
-            <div style={{ color: "#FFF", fontWeight: 700, fontSize: 17 }}>Where to next?</div>
-            <div style={{ color: "var(--muted)", fontSize: 13 }}>Reserve private chauffeur transportation</div>
-          </div>
-        </div>
-        <div style={{ color: "var(--accent)", fontWeight: 700, fontSize: 14 }}>BOOK &rarr;</div>
-      </Link>
+    <div className="discover">
+      <ScreenTitle title="My trips" mark="hourly" line={rides ? `${upcoming.length} upcoming` : undefined} />
 
-      <div>
-        <span className="eyebrow">YOUR RESERVATIONS</span>
-        <h1 className="title">Active Itinerary</h1>
+      <div className="where-row">
+        <Link href="/book" className="where-bar">
+          <svg viewBox="0 0 24 24" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <span>Where to?</span>
+        </Link>
+        <Link href="/book" className="later-btn">
+          <svg viewBox="0 0 24 24" aria-hidden><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+          Later
+        </Link>
       </div>
 
-      <div className="seg" role="group" aria-label="Rides filter">
-        <button type="button" aria-pressed={tab === "upcoming"} onClick={() => setTab("upcoming")}>
-          UPCOMING {rides ? `(${upcoming.length})` : ""}
+      <div className="lane-tabs" role="tablist" aria-label="Rides filter">
+        <button type="button" role="tab" aria-selected={tab === "upcoming"} onClick={() => setTab("upcoming")}>
+          Upcoming{rides ? ` ${upcoming.length}` : ""}
         </button>
-        <button type="button" aria-pressed={tab === "past"} onClick={() => setTab("past")}>
-          PAST TRIPS {rides ? `(${past.length})` : ""}
+        <button type="button" role="tab" aria-selected={tab === "past"} onClick={() => setTab("past")}>
+          Past{rides ? ` ${past.length}` : ""}
         </button>
       </div>
 
@@ -67,23 +58,15 @@ function RidesList() {
 
       {rides !== null && list.length === 0 && (
         <div className="empty">
-          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255,255,255,0.05)", display: "grid", placeItems: "center", color: "var(--muted)" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </div>
+          <span className="for-you-icon">
+            <svg viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="8" /><path d="M12 8v4l2 2" /></svg>
+          </span>
           <div>
             <div style={{ color: "#FFF", fontWeight: 600, fontSize: 16 }}>{tab === "upcoming" ? "No upcoming rides" : "No past rides yet"}</div>
             <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-              {tab === "upcoming" ? "Schedule your next executive trip with Archer." : "Your completed ride receipts will appear here."}
+              {tab === "upcoming" ? "Schedule your next trip." : "Completed trips show up here."}
             </div>
           </div>
-          {tab === "upcoming" && (
-            <Link className="btn" href="/book" style={{ marginTop: 8 }}>
-              RESERVE A RIDE
-            </Link>
-          )}
         </div>
       )}
 

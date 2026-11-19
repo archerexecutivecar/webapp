@@ -1,20 +1,22 @@
 import Link from "next/link";
-import { ACTIVE, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
+import { isLiveRide, serviceName, vehicleName, whenText, type Ride } from "@/lib/api";
 import { RideCarProgress } from "@/components/RideCarProgress";
+import { ServiceMark } from "@/components/ServiceMark";
 
 export function badgeClass(status: string) {
   return status === "completed" ? "badge done" : status === "cancelled" ? "badge cancelled" : "badge";
 }
 
 export function RideCard({ r }: { r: Ride }) {
-  const isActive = ACTIVE.includes(r.status);
+  const isActive = isLiveRide(r.status);
 
   return (
     <Link href={`/rides/${r.id}`} className="card">
       <div className="card-top">
-        <div>
+        <span className="for-you-icon sm"><ServiceMark kind={r.service_type} /></span>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <span className="ref">{r.reference}</span>
-          <h3 style={{ fontSize: 18, marginTop: 2, color: "#FFF" }}>{serviceName(r.service_type)}</h3>
+          <h3 style={{ fontSize: 16, marginTop: 2, color: "#FFF" }}>{r.summary?.service_name || serviceName(r.service_type)}</h3>
         </div>
         <span className={badgeClass(r.status)}>
           {isActive && <span className="pulse-dot" />}
@@ -60,7 +62,9 @@ export function RideCard({ r }: { r: Ride }) {
           ) : (
             <span>Chauffeur pending dispatch</span>
           )}
-          {r.vehicle && <span>· {vehicleName(r.vehicle)}</span>}
+          {(r.summary?.vehicle_model || r.summary?.vehicle_text || r.vehicle) && (
+            <span>· {r.summary?.vehicle_model || r.summary?.vehicle_text || vehicleName(r.vehicle)}</span>
+          )}
         </div>
       )}
     </Link>

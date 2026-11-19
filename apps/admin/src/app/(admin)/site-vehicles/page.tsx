@@ -24,6 +24,9 @@ interface VehicleItem {
   plate: string;
   class_type: string;
   category: string;
+  size?: string | null;
+  passengers?: number | null;
+  luggage?: number | null;
   class_and_size: string;
   available_from: string;
   available_until: string;
@@ -67,7 +70,9 @@ export default function FleetAvailabilityPage() {
   // Selected date for Gantt schedule
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newVehicle, setNewVehicle] = useState({ name: '', plate: '', class_type: 'exec', category: 'SUV' });
+  const [catalogClasses, setCatalogClasses] = useState<Array<{ id: string; name: string; is_active?: boolean }>>([]);
+  const [catalogSizes, setCatalogSizes] = useState<Array<{ id: string; name: string; is_active?: boolean }>>([]);
+  const [newVehicle, setNewVehicle] = useState({ name: '', plate: '', class_type: 'exec', size: 'suv', passengers: '3', luggage: '3' });
   const [savingVehicle, setSavingVehicle] = useState(false);
 
   // Payload data
@@ -92,6 +97,8 @@ export default function FleetAvailabilityPage() {
 
       setCounters(payload.counters ?? {});
       setVehicles(payload.vehicles ?? []);
+      setCatalogClasses(payload.classes ?? []);
+      setCatalogSizes(payload.sizes ?? []);
       setTimelineTracks(payload.timeline?.tracks ?? []);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load fleet schedule.');
@@ -158,10 +165,14 @@ export default function FleetAvailabilityPage() {
       await api('/admin/fleet/vehicles', {
         method: 'POST',
         auth: true,
-        body: newVehicle,
+        body: {
+          ...newVehicle,
+          passengers: Number(newVehicle.passengers) || 3,
+          luggage: Number(newVehicle.luggage) || 0,
+        },
       });
       setIsCreateOpen(false);
-      setNewVehicle({ name: '', plate: '', class_type: 'exec', category: 'SUV' });
+      setNewVehicle({ name: '', plate: '', class_type: 'exec', size: 'suv', passengers: '3', luggage: '3' });
       setSuccess('Fleet vehicle added.');
       fetchData(selectedDate);
       setTimeout(() => setSuccess(null), 3000);
@@ -233,8 +244,7 @@ export default function FleetAvailabilityPage() {
         </div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="text-xs text-muted-foreground leading-relaxed max-w-4xl">
-            Rides in an Archer vehicle can only be booked when a vehicle of that class and size is free. Set each vehicle&apos;s days and hours, block out time for maintenance or other use, or take a vehicle out of service. Client Car rides don&apos;t use the fleet. Website gallery vehicles are managed under{' '}
-            <Link href="/website-fleet" className="text-primary underline">Website fleet</Link>.
+            Rides in an Archer vehicle can only be booked when a vehicle of that class and size is free. Set each vehicle&apos;s days and hours, block out time for maintenance or other use, or take a vehicle out of service. Active vehicles here are the ones shown on the public website. Client Car rides don&apos;t use the fleet.
           </p>
           <button
             type="button"
@@ -269,13 +279,26 @@ export default function FleetAvailabilityPage() {
             </label>
             <label className="block text-xs space-y-1">Class
               <select className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.class_type} onChange={(e) => setNewVehicle({ ...newVehicle, class_type: e.target.value })}>
-                <option value="exec">Executive</option>
-                <option value="first">1st Class</option>
+                {(catalogClasses.length ? catalogClasses : [{ id: 'exec', name: 'Executive' }, { id: 'first', name: '1st Class' }]).filter((c) => c.is_active !== false).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
               </select>
             </label>
-            <label className="block text-xs space-y-1">Category
-              <input className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.category} onChange={(e) => setNewVehicle({ ...newVehicle, category: e.target.value })} />
+            <label className="block text-xs space-y-1">Size
+              <select className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.size} onChange={(e) => setNewVehicle({ ...newVehicle, size: e.target.value })}>
+                {(catalogSizes.length ? catalogSizes : [{ id: 'sedan', name: 'Sedan / Compact SUV' }, { id: 'suv', name: 'SUV' }, { id: 'van', name: 'Sprinter' }]).filter((s) => s.is_active !== false).map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs space-y-1">Passengers
+                <input type="number" min={1} className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.passengers} onChange={(e) => setNewVehicle({ ...newVehicle, passengers: e.target.value })} />
+              </label>
+              <label className="block text-xs space-y-1">Bags
+                <input type="number" min={0} className="w-full border border-border rounded px-2 py-1.5" value={newVehicle.luggage} onChange={(e) => setNewVehicle({ ...newVehicle, luggage: e.target.value })} />
+              </label>
+            </div>
         </form>
       </RightDrawer>
 
@@ -538,14 +561,19 @@ export default function FleetAvailabilityPage() {
                     Class and size
                   </label>
                   <select
-                    defaultValue={v.class_and_size}
+                    value={v.size ? `${v.class_type}|${v.size}` : ''}
+                    onChange={(e) => {
+                      const [class_type, size] = e.target.value.split('|');
+                      if (class_type && size) void handleSaveVehicleInfo(v, { class_type, size } as Partial<VehicleItem>);
+                    }}
                     className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs"
                   >
-                    <option value="1st Class · SUV">1st Class · SUV</option>
-                    <option value="Executive Class · SUV">Executive Class · SUV</option>
-                    <option value="Executive Class · Sedan / Compact SUV">Executive Class · Sedan / Compact SUV</option>
-                    <option value="1st Class · Sedan / Compact SUV">1st Class · Sedan / Compact SUV</option>
-                    <option value="Executive Class · Sprinter">Executive Class · Sprinter</option>
+                    {!v.size && <option value="">Choose class and size</option>}
+                    {(catalogClasses.length ? catalogClasses : [{ id: v.class_type, name: v.class_type }]).filter((c) => c.is_active !== false).map((c) =>
+                      (catalogSizes.length ? catalogSizes : [{ id: 'sedan', name: 'Sedan' }, { id: 'suv', name: 'SUV' }, { id: 'van', name: 'Sprinter' }]).filter((s) => s.is_active !== false).map((s) => (
+                        <option key={`${c.id}|${s.id}`} value={`${c.id}|${s.id}`}>{c.name} · {s.name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -572,6 +600,17 @@ export default function FleetAvailabilityPage() {
                     className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <label className="block">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Passengers</span>
+                  <input type="number" min={1} defaultValue={v.passengers ?? ''} onBlur={(e) => handleSaveVehicleInfo(v, { passengers: Number(e.target.value) || undefined })} className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs" />
+                </label>
+                <label className="block">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Bags</span>
+                  <input type="number" min={0} defaultValue={v.luggage ?? ''} onBlur={(e) => handleSaveVehicleInfo(v, { luggage: Number(e.target.value) || 0 })} className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs" />
+                </label>
               </div>
 
               {/* Days of Week Pills */}

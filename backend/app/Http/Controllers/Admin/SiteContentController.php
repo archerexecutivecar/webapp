@@ -30,10 +30,20 @@ class SiteContentController extends Controller
         if ($key === 'settings') {
             $request->validate([
                 'data.phone' => 'required|string|max:50', 'data.phone_tel' => 'required|string|max:30',
+                'data.phone_secondary' => 'nullable|string|max:50',
                 'data.email' => 'required|email|max:150', 'data.address' => 'required|array|max:5',
+                'data.brand_name' => 'nullable|string|max:120',
+                'data.legal_name' => 'nullable|string|max:160',
+                'data.tagline' => 'nullable|string|max:160',
+                'data.logo_url' => 'nullable|url|max:500',
                 'data.apps_coming_soon' => 'required|boolean',
                 'data.social' => 'nullable|array:facebook,instagram,linkedin,x', 'data.social.*' => 'nullable|url|max:500',
                 'data.app_store_url' => 'nullable|url|max:500', 'data.play_store_url' => 'nullable|url|max:500',
+                'data.airports' => 'nullable|array|max:40',
+                'data.airports.*.code' => 'required|string|max:12',
+                'data.airports.*.region' => 'required|in:nj,ny_pa,other',
+                'data.security_venues' => 'nullable|array|max:40',
+                'data.security_venues.*' => 'string|max:80',
             ]);
         }
 

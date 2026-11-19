@@ -4,7 +4,12 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\SiteContent;
+use App\Models\SiteTier;
+use App\Models\SiteVehicle;
 use App\Support\AssistantProfileRules;
+use App\Support\OperationalFleet;
+use App\Support\RideStateMachine;
 use Illuminate\Support\Arr;
 use App\Models\AssistantProfile;
 use App\Models\RideRequest;
@@ -18,11 +23,33 @@ use Illuminate\Http\Request;
  */
 class CustomerPortalController extends Controller
 {
-    private const ACTIVE = ['pending', 'dispatched', 'in_progress'];
+    /** @var array{tiers: \Illuminate\Support\Collection, vehicles: \Illuminate\Support\Collection, services: array<string, string>}|null */
+    private ?array $catalog = null;
 
     public function me(Request $request): JsonResponse
     {
         return ApiResponse::data(CustomerAuthController::payload($request->user()));
+    }
+
+    /**
+     * PUT /v1/customer/profile — the customer may save their own home address.
+     * Preferred driver, notes, and payment flags stay with Admin.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'home_address' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        $prefs = $user->preferences ?? [];
+        $address = trim((string) ($data['home_address'] ?? ''));
+        $prefs['home_address'] = $address !== '' ? $address : null;
+        $user->forceFill(['preferences' => $prefs])->save();
+
+        AuditLog::record('customer.profile_updated', $user->getKey(), ['fields' => ['home_address']], $user);
+
+        return ApiResponse::data(CustomerAuthController::payload($user->fresh()));
     }
 
     /** GET /v1/customer/rides?scope=upcoming|past|all */
@@ -32,7 +59,7 @@ class CustomerPortalController extends Controller
 
         $query = RideRequest::with('assignedDriver')->where('customer_id', $request->user()->getKey());
         if ($scope === 'upcoming') {
-            $query->whereIn('status', self::ACTIVE);
+            $query->whereIn('status', RideStateMachine::UPCOMING);
         } elseif ($scope === 'past') {
             $query->whereIn('status', ['completed', 'cancelled']);
         }
@@ -129,6 +156,7 @@ class CustomerPortalController extends Controller
             'chauffeur' => $r->assignedDriver && in_array($r->status, ['dispatched', 'in_progress', 'completed'], true)
                 ? ['name' => $r->assignedDriver->name, 'avatar_url' => $r->assignedDriver->avatar_url]
                 : null,
+            'summary' => $this->summary($r),
         ];
 
         if ($full) {
@@ -140,12 +168,101 @@ class CustomerPortalController extends Controller
         return $out;
     }
 
+    /**
+     * Customer-safe card facts. Names come from Admin site content, tiers, and fleet.
+     * Internal notes, prices, and the raw details document stay off this object.
+     *
+     * @return array<string, mixed>
+     */
+    private function summary(RideRequest $r): array
+    {
+        $catalog = $this->catalog();
+        $details = is_array($r->details) ? $r->details : [];
+        $slug = match ($r->service_type) {
+            'p2p' => 'point-to-point',
+            'client', 'client-car' => 'client-car',
+            'assistant-week' => 'assistants',
+            default => (string) $r->service_type,
+        };
+        $kind = $r->service_type === 'security' ? 'security' : 'driver';
+        $tier = $catalog['tiers']->first(
+            fn (SiteTier $t) => $t->kind === $kind && (string) $t->tier === (string) $r->driver_tier
+        );
+
+        $model = null;
+        $sizeLabel = null;
+        $vehicleText = null;
+        if (is_string($r->vehicle) && preg_match('/^([^|]+)\|([^|]+)$/', $r->vehicle, $m)) {
+            $cars = OperationalFleet::active($m[1], $m[2]);
+            $model = $cars->isEmpty() ? null : $cars->pluck('name')->unique()->implode(' · ');
+            $sizeLabel = $cars->first()?->category;
+        } elseif (is_string($r->vehicle) && $r->vehicle !== '') {
+            $vehicleText = $r->vehicle;
+        }
+
+        $flight = $details['airline_flight'] ?? null;
+        if (! is_string($flight) || $flight === '') {
+            $flight = trim(((string) ($details['airline'] ?? '')).' '.((string) ($details['flight_number'] ?? '')));
+            $flight = $flight !== '' ? $flight : null;
+        }
+
+        $guards = $details['guards'] ?? null;
+        if (! is_numeric($guards) || (int) $guards < 1) {
+            $guards = is_numeric($r->security_addon) ? (int) $r->security_addon : null;
+        } else {
+            $guards = (int) $guards;
+        }
+
+        return [
+            'service_name' => $catalog['services'][$slug] ?? null,
+            'tier_label' => $tier?->label,
+            'tier_title' => $tier?->title,
+            'vehicle_model' => $model,
+            'vehicle_size_label' => $sizeLabel,
+            'vehicle_text' => $vehicleText,
+            'passengers' => is_numeric($details['passengers'] ?? null) ? (int) $details['passengers'] : null,
+            'bags' => is_numeric($details['bags'] ?? $details['checked_bags'] ?? null)
+                ? (int) ($details['bags'] ?? $details['checked_bags'])
+                : null,
+            'hours' => is_numeric($details['hours'] ?? null) ? (int) $details['hours'] : null,
+            'flight' => $flight,
+            'terminal' => is_string($details['terminal'] ?? null) && $details['terminal'] !== '' ? $details['terminal'] : null,
+            'guards' => $guards !== null && $guards > 0 ? $guards : null,
+        ];
+    }
+
+    /** @return array{tiers: \Illuminate\Support\Collection<int, SiteTier>, vehicles: \Illuminate\Support\Collection<int, SiteVehicle>, services: array<string, string>} */
+    private function catalog(): array
+    {
+        if ($this->catalog !== null) {
+            return $this->catalog;
+        }
+
+        $services = [];
+        foreach (SiteContent::query()->where('key', 'like', 'service.%')->get() as $row) {
+            $name = $row->data['name'] ?? null;
+            if (is_string($name) && $name !== '') {
+                $services[substr((string) $row->key, strlen('service.'))] = $name;
+            }
+        }
+
+        return $this->catalog = [
+            'tiers' => SiteTier::query()->where('is_active', true)->get(),
+            'vehicles' => SiteVehicle::query()->where('is_active', true)->get(),
+            'services' => $services,
+        ];
+    }
+
     private function label(RideRequest $r): string
     {
-        return match ($r->status) {
-            'pending' => 'Request received',
+        return match (RideStateMachine::normalize((string) $r->status)) {
+            'new', 'pending' => 'Request received',
+            'broadcast' => 'Finding a chauffeur',
             'dispatched' => 'Chauffeur assigned',
-            'in_progress' => 'On the way',
+            'on_my_way' => 'On the way',
+            'at_doorstep' => 'At the pickup',
+            'ride_started', 'in_progress' => 'Trip in progress',
+            'ride_ended', 'close_out' => 'Wrapping up',
             'completed' => 'Completed',
             'cancelled' => 'Cancelled',
             default => ucfirst(str_replace('_', ' ', (string) $r->status)),
@@ -159,7 +276,7 @@ class CustomerPortalController extends Controller
     private function timeline(RideRequest $r): array
     {
         $order = ['pending' => 0, 'dispatched' => 1, 'in_progress' => 2, 'completed' => 3];
-        $rank = $order[$r->status] ?? ($r->status === 'cancelled' ? -1 : 0);
+        $rank = RideStateMachine::progressRank($r->status);
         $steps = [
             ['key' => 'pending', 'label' => 'Request received'],
             ['key' => 'dispatched', 'label' => 'Chauffeur assigned'],

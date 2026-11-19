@@ -41,7 +41,7 @@ export default function SiteContentPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ background: 'var(--surface)', padding: '14px 18px', border: '1px solid var(--border)', borderRadius: 6 }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', margin: 0 }}>Page Content</h2>
-        <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Contact details, app launch status, and the copy on the Home, Fleet, Tiers and Service pages.</span>
+        <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'block', marginTop: 3 }}>Contact details, app launch status, and the copy on the Home, Fleet, Tiers and Service pages. In Contact & app settings, <code>airports</code> (code and region nj, ny_pa, or other) and <code>security_venues</code> are what the customer app offers.</span>
       </div>
       {error && <div className="alert">{error}</div>}
       {ok && <div className="notice">{ok}</div>}

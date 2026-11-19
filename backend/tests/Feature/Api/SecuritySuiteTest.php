@@ -9,12 +9,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\CreatesStaff;
+use Tests\Support\SeedsOperationalFleet;
 use Tests\TestCase;
 
 /** Rules under test: docs/SECURITY_OPERATIONS_RULES.md */
 class SecuritySuiteTest extends TestCase
 {
-    use RefreshDatabase, CreatesStaff;
+    use RefreshDatabase, CreatesStaff, SeedsOperationalFleet;
 
     private const BASE = '/api/v1/admin/security';
 
@@ -124,6 +125,7 @@ class SecuritySuiteTest extends TestCase
     public function test_website_security_booking_creates_one_linked_lead_and_other_bookings_do_not(): void
     {
         $this->seed(SiteContentSeeder::class);
+        $this->seedOperationalFleet();
         $contact = ['first_name' => 'Ada', 'last_name' => 'Lovelace', 'email' => 'ada@example.com', 'phone' => '(732) 555-0100', 'terms_accepted' => true];
         $date = now()->addDays(5)->format('Y-m-d');
 

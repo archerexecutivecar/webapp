@@ -135,12 +135,12 @@ export default function SettingsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { href: '/settings', label: 'Platform rules', desc: 'Booking notice & dispatch buttons' },
+          { href: '/settings/brand', label: 'Brand', desc: 'Name, logo, phone, and email' },
           { href: '/settings/integrations', label: 'Integrations', desc: 'Maps, Stripe, SMS, DocuSign' },
           { href: '/site-content', label: 'Page content', desc: 'Homepage & marketing copy' },
-          { href: '/site-tiers', label: 'Website tiers', desc: 'Public tier table' },
+          { href: '/site-tiers', label: 'Tiers', desc: 'Public tier table' },
           { href: '/testimonials', label: 'Testimonials', desc: 'Client quotes on site' },
           { href: '/cms-pages', label: 'CMS pages', desc: 'Marketing pages & sections' },
-          { href: '/website-fleet', label: 'Website fleet', desc: 'Public vehicle gallery' },
         ].map((card) => (
           <Link
             key={card.href + card.label}

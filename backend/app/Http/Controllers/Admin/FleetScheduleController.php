@@ -8,18 +8,21 @@ use App\Models\RideRequest;
 use App\Models\Vehicle;
 use App\Models\VehicleBlockout;
 use App\Support\ApiResponse;
+use App\Support\FleetAvailability;
+use App\Support\RateCatalog;
+use App\Support\SiteRateFleet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class FleetScheduleController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        if (!Schema::hasTable('vehicles')) {
+        if (! Schema::hasTable('vehicles')) {
             return ApiResponse::data([
                 'counters' => [
                     'cadillac_escalade' => ['name' => 'Cadillac Escalade', 'free' => 2, 'total' => 2],
@@ -48,7 +51,7 @@ class FleetScheduleController extends Controller
         foreach ($vehicles as $v) {
             $baseName = preg_replace('/\s*#\d+$/', '', $v->name);
             $slug = Str::slug($baseName, '_');
-            if (!isset($counters[$slug])) {
+            if (! isset($counters[$slug])) {
                 $counters[$slug] = [
                     'name' => $baseName,
                     'free' => 0,
@@ -69,20 +72,20 @@ class FleetScheduleController extends Controller
                 try {
                     $hasActiveRide = RideRequest::where(function ($q) use ($v) {
                         $q->where('vehicle_id', $v->id)
-                          ->orWhere('assigned_vehicle', 'like', '%' . $v->name . '%');
+                            ->orWhere('assigned_vehicle', 'like', '%'.$v->name.'%');
                     })->where('status', 'in_progress')->exists();
                 } catch (\Throwable $e) {
                     $hasActiveRide = false;
                 }
             }
-            if (!$v->is_out_of_service && !$isBlocked && !$hasActiveRide) {
+            if (! $v->is_out_of_service && ! $isBlocked && ! $hasActiveRide) {
                 $counters[$slug]['free']++;
             }
         }
 
         // Format vehicle list cards & schedule
         $formattedVehicles = $vehicles->map(function (Vehicle $v) {
-            $classAndSize = $v->category ? (($v->class_type === 'first' ? '1st Class · ' : 'Executive Class · ') . $v->category) : '1st Class · SUV';
+            $classAndSize = $v->category ? (($v->class_type === 'first' ? '1st Class · ' : 'Executive Class · ').$v->category) : '1st Class · SUV';
 
             $bookedRides = [];
             if (str_contains($v->name, 'Escalade #1')) {
@@ -107,6 +110,9 @@ class FleetScheduleController extends Controller
                 'plate' => $v->plate ?: 'Add plate',
                 'class_type' => $v->class_type,
                 'category' => $v->category,
+                'size' => FleetAvailability::sizeOf($v),
+                'passengers' => $v->passengers,
+                'luggage' => $v->luggage,
                 'class_and_size' => $classAndSize,
                 'available_from' => $v->available_from ?: '00:00',
                 'available_until' => $v->available_until ?: '23:59',
@@ -132,24 +138,25 @@ class FleetScheduleController extends Controller
                 try {
                     $rideBookings = RideRequest::where(function ($q) use ($v) {
                         $q->where('vehicle_id', $v->id)
-                          ->orWhere('assigned_vehicle', 'like', '%' . $v->name . '%');
+                            ->orWhere('assigned_vehicle', 'like', '%'.$v->name.'%');
                     })
-                    ->whereDate('pickup_at', $selectedDate)
-                    ->whereNotIn('status', ['cancelled'])
-                    ->get()
-                    ->map(function ($ride) {
-                        $start = Carbon::parse($ride->pickup_at);
-                        $startHour = $start->hour + ($start->minute / 60);
-                        $hours = $ride->hours ?: 3;
-                        return [
-                            'ride_reference' => $ride->reference,
-                            'client_name' => $ride->customer_name ?? 'Client',
-                            'label' => $ride->reference . ' · ' . ($ride->customer_name ?? 'Client'),
-                            'start_hour' => round($startHour, 2),
-                            'end_hour' => round(min(24, $startHour + $hours), 2),
-                            'color' => 'amber',
-                        ];
-                    });
+                        ->whereDate('pickup_at', $selectedDate)
+                        ->whereNotIn('status', ['cancelled'])
+                        ->get()
+                        ->map(function ($ride) {
+                            $start = Carbon::parse($ride->pickup_at);
+                            $startHour = $start->hour + ($start->minute / 60);
+                            $hours = $ride->hours ?: 3;
+
+                            return [
+                                'ride_reference' => $ride->reference,
+                                'client_name' => $ride->customer_name ?? 'Client',
+                                'label' => $ride->reference.' · '.($ride->customer_name ?? 'Client'),
+                                'start_hour' => round($startHour, 2),
+                                'end_hour' => round(min(24, $startHour + $hours), 2),
+                                'color' => 'amber',
+                            ];
+                        });
                 } catch (\Throwable $e) {
                     $rideBookings = collect();
                 }
@@ -164,10 +171,11 @@ class FleetScheduleController extends Controller
                     $end = Carbon::parse($b->end_at);
                     $startHour = $start->hour + ($start->minute / 60);
                     $endHour = $end->hour + ($end->minute / 60);
+
                     return [
                         'ride_reference' => 'BLOCKOUT',
                         'client_name' => $b->reason,
-                        'label' => 'Blocked · ' . $b->reason,
+                        'label' => 'Blocked · '.$b->reason,
                         'start_hour' => round($startHour, 2),
                         'end_hour' => round($endHour, 2),
                         'color' => 'gray',
@@ -206,6 +214,8 @@ class FleetScheduleController extends Controller
         return ApiResponse::data([
             'counters' => $counters,
             'vehicles' => $formattedVehicles,
+            'classes' => SiteRateFleet::classes(),
+            'sizes' => SiteRateFleet::sizes(),
             'timeline' => $timeline,
         ]);
     }
@@ -241,15 +251,18 @@ class FleetScheduleController extends Controller
 
     public function storeVehicle(Request $request): JsonResponse
     {
-        if (!Schema::hasTable('vehicles')) {
+        if (! Schema::hasTable('vehicles')) {
             return ApiResponse::error('SCHEMA_MISSING', 'Fleet vehicles table is not available.', 503);
         }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'plate' => 'nullable|string|max:50',
-            'class_type' => 'nullable|string|in:exec,first',
+            'class_type' => ['nullable', 'string', Rule::in(RateCatalog::classKeys())],
+            'size' => ['nullable', 'string', Rule::in(RateCatalog::sizeKeys())],
             'category' => 'nullable|string|max:100',
+            'passengers' => 'nullable|integer|min:1|max:60',
+            'luggage' => 'nullable|integer|min:0|max:60',
             'available_from' => 'nullable|string|max:10',
             'available_until' => 'nullable|string|max:10',
             'available_days' => 'nullable|array',
@@ -259,15 +272,19 @@ class FleetScheduleController extends Controller
         ]);
 
         $class = $validated['class_type'] ?? 'exec';
-        $category = $validated['category'] ?? 'SUV';
+        $size = $validated['size'] ?? 'suv';
+        $sizeName = collect(SiteRateFleet::sizes())->firstWhere('id', $size)['name'] ?? $size;
+        $category = $validated['category'] ?? $sizeName;
 
         $vehicle = Vehicle::create([
             'name' => $validated['name'],
-            'slug' => Str::slug($validated['name']) . '-' . Str::lower(Str::random(4)),
+            'slug' => Str::slug($validated['name']).'-'.Str::lower(Str::random(4)),
             'plate' => $validated['plate'] ?? null,
             'class_type' => $class,
             'category' => $category,
-            'form_value' => $class . '|' . Str::slug($category),
+            'form_value' => $class.'|'.$size,
+            'passengers' => $validated['passengers'] ?? 3,
+            'luggage' => $validated['luggage'] ?? 3,
             'available_from' => $validated['available_from'] ?? '00:00',
             'available_until' => $validated['available_until'] ?? '23:59',
             'available_days' => $validated['available_days'] ?? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -296,11 +313,29 @@ class FleetScheduleController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'plate' => 'nullable|string|max:50',
+            'class_type' => ['sometimes', 'string', Rule::in(RateCatalog::classKeys())],
+            'size' => ['sometimes', 'string', Rule::in(RateCatalog::sizeKeys())],
+            'category' => 'nullable|string|max:100',
+            'passengers' => 'nullable|integer|min:1|max:60',
+            'luggage' => 'nullable|integer|min:0|max:60',
             'available_from' => 'nullable|string|max:10',
             'available_until' => 'nullable|string|max:10',
             'available_days' => 'nullable|array',
             'is_out_of_service' => 'nullable|boolean',
         ]);
+
+        if (array_key_exists('class_type', $validated) || array_key_exists('size', $validated)) {
+            $class = $validated['class_type'] ?? $vehicle->class_type;
+            $size = $validated['size'] ?? FleetAvailability::sizeOf($vehicle);
+            if (is_string($size) && $size !== '') {
+                $validated['class_type'] = $class;
+                $validated['form_value'] = $class.'|'.$size;
+                if (! array_key_exists('category', $validated) || $validated['category'] === null || $validated['category'] === '') {
+                    $validated['category'] = collect(SiteRateFleet::sizes())->firstWhere('id', $size)['name'] ?? $vehicle->category;
+                }
+            }
+        }
+        unset($validated['size']);
 
         $vehicle->update($validated);
 
@@ -327,6 +362,7 @@ class FleetScheduleController extends Controller
         ];
 
         foreach ($seeds as $v) {
+            $size = str_contains(strtolower($v['category']), 'compact') ? 'sedan' : 'suv';
             Vehicle::firstOrCreate(
                 ['name' => $v['name']],
                 [
@@ -334,7 +370,9 @@ class FleetScheduleController extends Controller
                     'class_type' => $v['class_type'],
                     'category' => $v['category'],
                     'plate' => $v['plate'],
-                    'form_value' => $v['class_type'] . '|' . Str::slug($v['category']),
+                    'form_value' => $v['class_type'].'|'.$size,
+                    'passengers' => $size === 'suv' ? 6 : 3,
+                    'luggage' => $size === 'suv' ? 6 : 3,
                     'available_from' => '00:00',
                     'available_until' => '23:59',
                     'available_days' => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],

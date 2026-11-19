@@ -9,6 +9,7 @@ use App\Models\CmsTestimonial;
 use App\Models\Driver;
 use App\Models\PricingSetting;
 use App\Models\RideRequest;
+use App\Models\SiteContent;
 use App\Models\SiteTier;
 use App\Support\ApiResponse;
 use App\Support\CustomerMailer;
@@ -28,8 +29,16 @@ class PublicContentController extends Controller
      */
     public function bookingOptions(): JsonResponse
     {
+        $copy = SiteContent::query()->where('key', 'like', 'service.%')->get()->keyBy(fn ($row) => substr((string) $row->key, strlen('service.')));
         $services = PricingSetting::where('is_active', true)->get(['service'])
-            ->map(fn (PricingSetting $s) => ['slug' => $s->service, 'name' => self::SERVICE_NAMES[$s->service] ?? $s->service, 'tagline' => null])
+            ->map(function (PricingSetting $s) use ($copy) {
+                $doc = $copy->get($s->service);
+                $data = is_array($doc?->data) ? $doc->data : [];
+                $name = is_string($data['name'] ?? null) && $data['name'] !== '' ? $data['name'] : (self::SERVICE_NAMES[$s->service] ?? $s->service);
+                $tagline = is_string($data['tagline'] ?? null) && $data['tagline'] !== '' ? $data['tagline'] : null;
+
+                return ['slug' => $s->service, 'name' => $name, 'tagline' => $tagline];
+            })
             ->values();
         $tiers = SiteTier::where('kind', 'driver')->where('is_active', true)->orderBy('sort_order')->get(['tier', 'label', 'title', 'call_only']);
         $security = SiteTier::where('kind', 'security')->where('is_active', true)->orderBy('sort_order')->get(['tier', 'label', 'title', 'call_only']);

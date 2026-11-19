@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\PricingSetting;
 use App\Models\RateCard;
+use App\Models\SiteTier;
 use App\Support\ApiResponse;
+use App\Support\ChauffeurPay;
+use App\Support\RateCatalog;
+use App\Support\SiteRateFleet;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,25 +59,44 @@ class RateCardController extends Controller
         $securityRates = RateCard::where('kind', 'security_hourly')->get();
         $hourlySetting = PricingSetting::where('service', 'hourly')->first();
 
-        // 1. Classes & Sizes lists
-        $classes = [
-            ['id' => 'exec', 'name' => 'Executive Class'],
-            ['id' => 'first', 'name' => '1st Class'],
-        ];
+        $classes = SiteRateFleet::classes();
+        $sizes = SiteRateFleet::sizes();
 
-        $sizes = [
-            ['id' => 'sedan', 'name' => 'Sedan / Compact SUV'],
-            ['id' => 'suv', 'name' => 'SUV'],
-            ['id' => 'van', 'name' => 'Sprinter'],
-        ];
+        $knownNames = [1 => 'Essential', 2 => 'Executive', 3 => 'Elite', 4 => 'Armed'];
+        $driverTiers = SiteTier::where('kind', 'driver')->get()->keyBy('tier');
+        $tierNumbers = collect(RateCard::query()->distinct()->orderBy('tier')->pluck('tier'))
+            ->map(fn ($tier) => (int) $tier)
+            ->unique()
+            ->sort()
+            ->values();
+        if ($tierNumbers->isEmpty()) {
+            $tierNumbers = collect([1, 2, 3, 4]);
+        }
 
-        // 2. Chauffeur Pay per hour ($25, $30, $35, $55)
-        $chauffeurPay = [
-            1 => ['tier' => 1, 'name' => 'Essential', 'hourly_rate' => 25],
-            2 => ['tier' => 2, 'name' => 'Executive', 'hourly_rate' => 30],
-            3 => ['tier' => 3, 'name' => 'Elite', 'hourly_rate' => 35],
-            4 => ['tier' => 4, 'name' => 'Armed', 'hourly_rate' => 55],
-        ];
+        $chauffeurPay = [];
+        $clientCarAndSecurity = [];
+        foreach ($tierNumbers as $tier) {
+            $label = $driverTiers->get($tier)?->label;
+            $fallbackName = $knownNames[$tier] ?? null;
+            $chauffeurPay[$tier] = [
+                'tier' => $tier,
+                'name' => $label ?: ($fallbackName ? 'T'.$tier.' '.$fallbackName : 'Tier '.$tier),
+                'hourly_rate' => ChauffeurPay::dollarsForTier($tier),
+            ];
+
+            $clientCard = $clientCarRates->first(fn ($r) => (int) $r->tier === $tier && $r->vehicle_class === null && $r->size === null);
+            $securityCard = $securityRates->first(fn ($r) => (int) $r->tier === $tier && $r->vehicle_class === null && $r->size === null);
+            $clientCarAndSecurity[] = [
+                'tier' => $tier,
+                'tier_label' => $label ?: ($fallbackName ? 'T'.$tier.' '.$fallbackName : 'Tier '.$tier),
+                'client_car_card_id' => $clientCard?->id,
+                'client_rate' => $clientCard ? $clientCard->amount_cents / 100 : 0,
+                'client_car_active' => (bool) ($clientCard?->is_active),
+                'security_card_id' => $securityCard?->id,
+                'security_rate' => $securityCard ? $securityCard->amount_cents / 100 : 0,
+                'security_active' => (bool) ($securityCard?->is_active),
+            ];
+        }
 
         // 3. Fees and Pay Rules
         $feesAndPayRules = [
@@ -89,74 +112,39 @@ class RateCardController extends Controller
             'tier_4_armed_enabled' => false,
         ];
 
-        // 4. Combined Client Car and Security Rates table
-        $clientCarAndSecurity = [
-            [
-                'tier' => 1,
-                'tier_label' => 'T1 Essential',
-                'client_rate' => 45,
-                'driver_guard_pay' => 30,
-                'archer_keeps' => 15,
-            ],
-            [
-                'tier' => 2,
-                'tier_label' => 'T2 Executive',
-                'client_rate' => 60,
-                'driver_guard_pay' => 40,
-                'archer_keeps' => 20,
-            ],
-            [
-                'tier' => 3,
-                'tier_label' => 'T3 Elite',
-                'client_rate' => 75,
-                'driver_guard_pay' => 50,
-                'archer_keeps' => 25,
-            ],
-            [
-                'tier' => 4,
-                'tier_label' => 'T4 Armed',
-                'client_rate' => 'Call',
-                'driver_guard_pay' => 100,
-                'archer_keeps' => null,
-            ],
-        ];
-
-        // 5. Client Rate Table (Tier × Class × Size Matrix)
-        $vehicleInfo = [
-            'exec|sedan' => ['class_label' => 'Executive Class', 'size_vehicle' => 'Sedan / Compact SUV', 'model' => 'Chevrolet Traverse'],
-            'exec|suv' => ['class_label' => 'Executive Class', 'size_vehicle' => 'SUV', 'model' => 'Chevrolet Suburban'],
-            'exec|van' => ['class_label' => 'Executive Class', 'size_vehicle' => 'Sprinter', 'model' => 'Mercedes-Benz Sprinter (14)'],
-            'first|sedan' => ['class_label' => '1st Class', 'size_vehicle' => 'Sedan / Compact SUV', 'model' => 'Lincoln Aviator'],
-            'first|suv' => ['class_label' => '1st Class', 'size_vehicle' => 'SUV', 'model' => 'Cadillac Escalade'],
-            'first|van' => ['class_label' => '1st Class', 'size_vehicle' => 'Sprinter', 'model' => 'Mercedes-Benz Sprinter (11)'],
-        ];
+        $vehicleInfo = [];
+        foreach (SiteRateFleet::vehicles() as $key => $info) {
+            $vehicleInfo[$key] = [
+                'class_label' => $info['class_label'],
+                'size_vehicle' => $info['size_name'],
+                'model' => $info['model'],
+            ];
+        }
 
         $matrix = [];
-        for ($tier = 1; $tier <= 4; $tier++) {
+        foreach ($tierNumbers as $tier) {
             $matrix[$tier] = [];
             foreach ($vehicleInfo as $key => $info) {
-                [$cls, $sz] = explode('|', $key);
+                [$cls, $sz] = explode('|', $key, 2);
 
-                $hCard = $hourlyRates->first(fn ($r) => $r->vehicle_class === $cls && $r->size === $sz && $r->tier === $tier);
-                $pCard = $p2pRates->first(fn ($r) => $r->vehicle_class === $cls && $r->size === $sz && $r->tier === $tier);
+                $hCard = $hourlyRates->first(fn ($r) => $r->vehicle_class === $cls && $r->size === $sz && (int) $r->tier === $tier);
+                $pCard = $p2pRates->first(fn ($r) => $r->vehicle_class === $cls && $r->size === $sz && (int) $r->tier === $tier);
 
-                $isSprinter = $sz === 'van';
-                $hourlyDollars = $hCard ? ($hCard->amount_cents / 100) : ($isSprinter ? ($cls === 'first' ? 225 : 175) : 70);
+                $hourlyDollars = $hCard ? ($hCard->amount_cents / 100) : 0;
                 $p2pDollars = ($pCard && $pCard->is_active && $pCard->amount_cents > 0) ? ($pCard->amount_cents / 100) : null;
-                $callForPricing = $isSprinter || ($p2pDollars === null);
 
                 $matrix[$tier][] = [
                     'key' => $key,
                     'class_key' => $cls,
                     'size_key' => $sz,
                     'class_label' => $info['class_label'],
-                    'size_vehicle' => $info['size_vehicle'] . ' · ' . $info['model'],
+                    'size_vehicle' => $info['size_vehicle'].' · '.$info['model'],
                     'hourly_card_id' => $hCard?->id,
                     'hourly_rate' => $hourlyDollars,
                     'p2p_card_id' => $pCard?->id,
                     'p2p_rate' => $p2pDollars,
-                    'call_for_pricing' => $callForPricing,
-                    'bookable' => $hCard ? (bool) $hCard->is_active : true,
+                    'call_for_pricing' => $sz === 'van' || $p2pDollars === null,
+                    'bookable' => $hCard ? (bool) $hCard->is_active : false,
                 ];
             }
         }
@@ -182,11 +170,21 @@ class RateCardController extends Controller
             'rate_updates.*.card_id' => 'required|uuid|exists:rate_cards,id',
             'rate_updates.*.amount_cents' => 'required|integer|min:0',
             'rate_updates.*.is_active' => 'nullable|boolean',
+            'client_car_rates' => 'nullable|array|max:30',
+            'client_car_rates.*.tier' => 'required|integer|min:1|max:255',
+            'client_car_rates.*.amount_cents' => 'required|integer|min:0|max:100000000',
+            'client_car_rates.*.is_active' => 'required|boolean',
+            'security_rates' => 'nullable|array|max:30',
+            'security_rates.*.tier' => 'required|integer|min:1|max:255',
+            'security_rates.*.amount_cents' => 'required|integer|min:0|max:100000000',
+            'security_rates.*.is_active' => 'required|boolean',
+            'chauffeur_pay' => 'nullable|array|max:30',
+            'chauffeur_pay.*.tier' => 'required|integer|min:1|max:255',
+            'chauffeur_pay.*.hourly_rate' => 'nullable|numeric|min:0|max:100000',
         ]);
 
         DB::transaction(function () use ($validated, $request) {
-            // 1. Update individual rate cards
-            if (!empty($validated['rate_updates'])) {
+            if (! empty($validated['rate_updates'])) {
                 foreach ($validated['rate_updates'] as $update) {
                     $card = RateCard::lockForUpdate()->findOrFail($update['card_id']);
                     $card->update([
@@ -196,8 +194,29 @@ class RateCardController extends Controller
                 }
             }
 
-            // 2. Update booking fee & rules in PricingSetting
-            if (!empty($validated['fees_and_pay_rules'])) {
+            if (! empty($validated['client_car_rates'])) {
+                foreach ($validated['client_car_rates'] as $row) {
+                    $this->saveFlatRate('client_car_hourly', (int) $row['tier'], (int) $row['amount_cents'], (bool) $row['is_active'], $request);
+                    if ($row['is_active']) {
+                        RateCatalog::offerTier('driver', (int) $row['tier']);
+                    }
+                }
+            }
+            if (! empty($validated['chauffeur_pay'])) {
+                foreach ($validated['chauffeur_pay'] as $row) {
+                    $cents = $row['hourly_rate'] === null ? null : (int) round(((float) $row['hourly_rate']) * 100);
+                    SiteTier::where('kind', 'driver')->where('tier', (int) $row['tier'])->update(['pay_cents' => $cents]);
+                }
+            }
+            if (! empty($validated['security_rates'])) {
+                foreach ($validated['security_rates'] as $row) {
+                    $this->saveFlatRate('security_hourly', (int) $row['tier'], (int) $row['amount_cents'], (bool) $row['is_active'], $request);
+                    if ($row['is_active']) {
+                        RateCatalog::offerTier('security', (int) $row['tier']);
+                    }
+                }
+            }
+            if (! empty($validated['fees_and_pay_rules'])) {
                 $rules = $validated['fees_and_pay_rules'];
                 if (isset($rules['booking_fee'])) {
                     $feeCents = (int) round($rules['booking_fee'] * 100);
@@ -213,5 +232,77 @@ class RateCardController extends Controller
         });
 
         return $this->matrix();
+    }
+
+    public function storeClass(Request $request): JsonResponse
+    {
+        $data = $request->validate(['name' => 'required|string|max:80']);
+        $row = RateCatalog::addClass(trim($data['name']));
+        AuditLog::record('site.rate_class.created', $request->user()->getKey(), ['key' => $row->key, 'name' => $row->name]);
+
+        return ApiResponse::data(['class' => ['id' => $row->key, 'name' => $row->name, 'is_active' => true]], 201);
+    }
+
+    public function storeSize(Request $request): JsonResponse
+    {
+        $data = $request->validate(['name' => 'required|string|max:80']);
+        $row = RateCatalog::addSize(trim($data['name']));
+        AuditLog::record('site.rate_size.created', $request->user()->getKey(), ['key' => $row->key, 'name' => $row->name]);
+
+        return ApiResponse::data(['size' => ['id' => $row->key, 'name' => $row->name, 'is_active' => true]], 201);
+    }
+
+    public function storeTier(Request $request): JsonResponse
+    {
+        $data = $request->validate(['label' => 'required|string|max:80']);
+        $row = RateCatalog::addTier(trim($data['label']));
+        AuditLog::record('site.rate_tier.created', $request->user()->getKey(), ['tier' => $row->tier, 'label' => $row->label], $row);
+
+        return ApiResponse::data(['tier' => ['tier' => $row->tier, 'label' => $row->label]], 201);
+    }
+
+    public function retireClass(Request $request, string $key): JsonResponse
+    {
+        RateCatalog::retireClass($key);
+        AuditLog::record('site.rate_class.retired', $request->user()->getKey(), ['key' => $key]);
+
+        return ApiResponse::data(['message' => 'Class retired.']);
+    }
+
+    public function retireSize(Request $request, string $key): JsonResponse
+    {
+        RateCatalog::retireSize($key);
+        AuditLog::record('site.rate_size.retired', $request->user()->getKey(), ['key' => $key]);
+
+        return ApiResponse::data(['message' => 'Size retired.']);
+    }
+
+    private function saveFlatRate(string $kind, int $tier, int $cents, bool $active, Request $request): void
+    {
+        $card = RateCard::where('kind', $kind)->where('tier', $tier)->whereNull('vehicle_class')->whereNull('size')->lockForUpdate()->first();
+        if (! $card) {
+            $card = RateCard::create([
+                'kind' => $kind,
+                'vehicle_class' => null,
+                'size' => null,
+                'tier' => $tier,
+                'amount_cents' => $cents,
+                'is_active' => $active,
+            ]);
+            AuditLog::record('site.rate.updated', $request->user()->getKey(), [
+                'kind' => $kind, 'tier' => $tier, 'after' => ['amount_cents' => $cents, 'is_active' => $active],
+            ], $card);
+
+            return;
+        }
+
+        $before = ['amount_cents' => $card->amount_cents, 'is_active' => $card->is_active];
+        $card->update(['amount_cents' => $cents, 'is_active' => $active]);
+        if ($card->wasChanged()) {
+            AuditLog::record('site.rate.updated', $request->user()->getKey(), [
+                'kind' => $kind, 'tier' => $tier,
+                'before' => $before, 'after' => ['amount_cents' => $card->amount_cents, 'is_active' => $card->is_active],
+            ], $card);
+        }
     }
 }

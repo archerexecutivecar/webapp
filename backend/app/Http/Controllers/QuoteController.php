@@ -6,6 +6,7 @@ use App\Models\PricingSetting;
 use App\Support\ApiResponse;
 use App\Support\Pricing\QuoteException;
 use App\Support\Pricing\QuoteService;
+use App\Support\RateCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,15 +21,15 @@ class QuoteController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        if ($request->has('size') && !$request->has('vehicle_size')) {
+        if ($request->has('size') && ! $request->has('vehicle_size')) {
             $request->merge(['vehicle_size' => $request->input('size')]);
         }
 
         $data = $request->validate([
             'service' => ['required', Rule::in(PricingSetting::SERVICES)],
-            'tier' => ['required', 'integer', 'between:1,9'],
-            'vehicle_class' => ['nullable', 'required_unless:service,client,security', Rule::in(['exec', 'first'])],
-            'vehicle_size' => ['nullable', 'required_unless:service,client,security', Rule::in(['sedan', 'suv', 'van'])],
+            'tier' => ['required', 'integer', 'min:1', 'max:255'],
+            'vehicle_class' => ['nullable', 'required_unless:service,client,security', Rule::in(RateCatalog::classKeys())],
+            'vehicle_size' => ['nullable', 'required_unless:service,client,security', Rule::in(RateCatalog::sizeKeys())],
             'airport_code' => ['nullable', 'string', 'max:20'],
             'airport' => ['nullable', 'string', 'max:20'],
             'round_trip' => ['nullable', 'boolean'],
@@ -41,7 +42,7 @@ class QuoteController extends Controller
             'bags' => ['nullable', 'integer', 'between:0,60'],
             'stops' => ['nullable', 'integer', 'between:0,50'],
             'guards' => ['nullable', 'integer', 'between:0,10'],
-            'security_tier' => ['nullable', 'integer', 'between:1,9'],
+            'security_tier' => ['nullable', 'integer', 'min:1', 'max:255'],
             'guard_hours' => ['nullable', 'integer', 'between:1,24'],
         ]);
 

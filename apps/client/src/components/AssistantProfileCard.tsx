@@ -153,7 +153,7 @@ export function AssistantProfileCard() {
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div>
           <span className="eyebrow">EA / PA PROFILE · {p.reference}</span>
-          <h2 style={{ fontSize: 20, margin: "4px 0 0" }}>{p.company ?? "Your profile"}</h2>
+          <h2 style={{ fontSize: 16, margin: "4px 0 0" }}>{p.company ?? "Your profile"}</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>Archer uses this to prefill your bookings.</p>
         </div>
         <button type="button" className="btn ghost" onClick={startEdit}>EDIT PROFILE</button>

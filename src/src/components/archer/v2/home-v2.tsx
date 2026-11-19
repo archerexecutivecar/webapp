@@ -223,7 +223,7 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
         <div className={`${WRAP} pb-9 pt-12 md:pt-[72px]`}>
           <div className="grid gap-8 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]">
             <div className="flex flex-col gap-3">
-              <span className="text-[18px] font-extrabold tracking-[0.1em] text-[#E87722]" style={HEAD}>ARCHER EXECUTIVE</span>
+              <span className="text-[18px] font-extrabold tracking-[0.1em] text-[#E87722]" style={HEAD}>{st.brand_name}</span>
               <span>{st.address.map((l, i) => (<span key={l}>{i > 0 && <br />}{l}</span>))}</span>
               <span>{st.phone}{st.phone_secondary && <><br />{st.phone_secondary}</>}<br />{st.email}</span>
               <SocialLinks />
@@ -233,7 +233,7 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
             <FooterCol title="BOOK" links={[["Book a Ride", "/book"], [`Call ${st.phone}`, `tel:${st.phone_tel}`]]} />
           </div>
           <div className="mt-12 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[#2E2E2E] pt-[22px] text-[12px]">
-            <span>© 2026 Archer Enterprises LLC · SORA-certified</span>
+            <span>© 2026 {st.legal_name} · SORA-certified</span>
             <LegalLinks />
           </div>
         </div>

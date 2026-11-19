@@ -9,17 +9,19 @@ use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Tests\Support\CreatesStaff;
+use Tests\Support\SeedsOperationalFleet;
 use Tests\TestCase;
 
 class CustomerNotificationEmailsTest extends TestCase
 {
-    use CreatesStaff, RefreshDatabase;
+    use CreatesStaff, RefreshDatabase, SeedsOperationalFleet;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         $this->seed(SiteContentSeeder::class);
+        $this->seedOperationalFleet();
     }
 
     private function sentMessages(): Collection

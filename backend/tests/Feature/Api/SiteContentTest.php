@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\RateCard;
+use App\Models\Vehicle;
 use Database\Seeders\SiteContentSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesStaff;
@@ -20,36 +21,47 @@ class SiteContentTest extends TestCase
         $d = $this->getJson('/api/v1/site')->assertOk()->json('data');
         $this->assertCount(6, $d['services']);
         $this->assertCount(8, $d['tier_list']);
-        $this->assertCount(6, $d['vehicles']);
-        $this->assertCount(48, $d["rates"]);
+        $this->assertCount(0, $d['vehicles']);
+        $this->assertCount(0, $d['rate_fleet']);
+        $this->assertSame('EWR', $d['settings']['airports'][0]['code']);
+        $this->assertNotEmpty($d['settings']['security_venues']);
+        $this->assertCount(48, $d['rates']);
         $this->assertTrue($d['settings']['apps_coming_soon']);
         $rate = collect($d['rates'])->first(fn ($r) => $r['kind'] === 'hourly' && $r['vehicle_class'] === 'exec' && $r['size'] === 'sedan' && $r['tier'] === 1);
         $this->assertSame(7000, $rate['amount_cents']);
     }
 
-    public function test_hidden_items_are_not_public(): void
+    public function test_public_fleet_lists_active_operational_vehicles_without_plates(): void
     {
         $this->seed(SiteContentSeeder::class);
-        [, $h] = $this->actingAsRole('super_admin');
-        $id = $this->getJson('/api/v1/admin/site-vehicles', $h)->json('data.vehicles.0.id');
-        $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['is_active' => false], $h)->assertOk();
+        $this->fleetCar('Chevrolet Traverse', 'exec', 'Compact SUV', 'exec|sedan', 'NJ TRV-301', true, 3, 2);
+        $this->fleetCar('Hidden Suburban', 'exec', 'SUV', 'exec|suv', 'NJ SUB-201', false, 6, 6);
 
-        $this->assertCount(5, $this->getJson('/api/v1/site')->json('data.vehicles'));
+        $vehicles = $this->getJson('/api/v1/site')->assertOk()->json('data.vehicles');
+
+        $this->assertCount(1, $vehicles);
+        $this->assertSame('Chevrolet Traverse', $vehicles[0]['model']);
+        $this->assertSame('exec', $vehicles[0]['vehicle_class']);
+        $this->assertSame('Executive Class', $vehicles[0]['class_label']);
+        $this->assertSame('sedan', $vehicles[0]['size']);
+        $this->assertSame('Compact SUV', $vehicles[0]['size_label']);
+        $this->assertSame([3, 2], [$vehicles[0]['passengers'], $vehicles[0]['bags']]);
+        $fleet = collect($this->getJson('/api/v1/site')->json('data.rate_fleet'));
+        $this->assertSame('Chevrolet Traverse', $fleet->firstWhere('size', 'sedan')['model']);
+        $this->assertNull($fleet->firstWhere('model', 'Hidden Suburban'));
+        $this->assertArrayNotHasKey('plate', $vehicles[0]);
+        $this->assertStringNotContainsString('NJ TRV-301', json_encode($vehicles));
     }
 
-    public function test_vehicle_capacity_is_optional_validated_and_public(): void
+    public function test_vehicle_capacity_is_optional_and_validated(): void
     {
         $this->seed(SiteContentSeeder::class);
-        $this->assertNull($this->getJson('/api/v1/site')->json('data.vehicles.0.passengers'));
-
         [, $h] = $this->actingAsRole('super_admin');
         $id = $this->getJson('/api/v1/admin/site-vehicles', $h)->json('data.vehicles.0.id');
         $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['passengers' => 0], $h)->assertUnprocessable();
         $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['bags' => -1], $h)->assertUnprocessable();
         $this->putJson("/api/v1/admin/site-vehicles/{$id}", ['passengers' => 6, 'bags' => 4], $h)->assertOk();
 
-        $v = $this->getJson('/api/v1/site')->json('data.vehicles.0');
-        $this->assertSame([6, 4], [$v['passengers'], $v['bags']]);
         $this->assertDatabaseHas('audit_logs', ['event' => 'site.vehicle.updated']);
     }
 
@@ -67,7 +79,6 @@ class SiteContentTest extends TestCase
 
         $this->assertSame(9900, $card->fresh()->amount_cents);
 
-        // A rate can be switched off and on; an inactive rate is not public.
         $this->putJson('/api/v1/admin/rates', ['rates' => [['id' => $card->id, 'amount_cents' => 9900, 'is_active' => false]]], $ops)->assertOk();
         $this->assertFalse($card->fresh()->is_active);
         $this->assertCount(47, $this->getJson('/api/v1/site')->json('data.rates'));
@@ -86,5 +97,20 @@ class SiteContentTest extends TestCase
         $settings['phone'] = '(848) 000-0000';
         $this->putJson('/api/v1/admin/site-content/settings', ['data' => $settings], $h)->assertOk();
         $this->assertSame('(848) 000-0000', $this->getJson('/api/v1/site')->json('data.settings.phone'));
+    }
+
+    private function fleetCar(string $name, string $class, string $category, string $form, string $plate, bool $active, int $passengers, int $bags): void
+    {
+        Vehicle::create([
+            'name' => $name,
+            'slug' => str($name)->slug()->toString(),
+            'class_type' => $class,
+            'category' => $category,
+            'form_value' => $form,
+            'plate' => $plate,
+            'passengers' => $passengers,
+            'luggage' => $bags,
+            'is_active' => $active,
+        ]);
     }
 }

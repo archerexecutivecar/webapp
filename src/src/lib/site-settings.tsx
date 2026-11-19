@@ -1,12 +1,29 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
-import type { SiteData } from "@/lib/site-api";
 
-export type SiteSettings = NonNullable<SiteData["settings"]>;
+export type SiteSettings = {
+  brand_name: string;
+  legal_name: string;
+  tagline: string | null;
+  logo_url: string | null;
+  phone: string;
+  phone_tel: string;
+  email: string;
+  address: string[];
+  phone_secondary?: string | null;
+  social?: Partial<Record<"facebook" | "instagram" | "linkedin" | "x", string | null>>;
+  apps_coming_soon: boolean;
+  app_store_url: string | null;
+  play_store_url: string | null;
+};
 
 /** Built-in values used when the API is unreachable, so the footer and app panel never break. */
 export const DEFAULT_SETTINGS: SiteSettings = {
+  brand_name: "ARCHER EXECUTIVE",
+  legal_name: "Archer Enterprises LLC",
+  tagline: "TRANSPORTATION & SECURITY SPECIALISTS",
+  logo_url: null,
   phone: "(848) 231-9997",
   phone_tel: "+18482319997",
   email: "info@archerexecutivecar.com",
@@ -25,7 +42,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 
 const Ctx = createContext<SiteSettings>(DEFAULT_SETTINGS);
 
-export function SiteSettingsProvider({ settings, children }: { settings: SiteSettings | null; children: ReactNode }) {
+export function SiteSettingsProvider({ settings, children }: { settings: Partial<SiteSettings> | null; children: ReactNode }) {
   return <Ctx.Provider value={{ ...DEFAULT_SETTINGS, ...(settings ?? {}) }}>{children}</Ctx.Provider>;
 }
 

@@ -14,13 +14,13 @@ const REQUEST_TIMEOUT_MS = 15000;
 
 /** Only same-app relative paths are allowed as a post-login destination (prevents open redirects). */
 export function safeNext(raw: string | null | undefined): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\") || raw.startsWith("/login")) return "/rides";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\") || raw.startsWith("/login")) return "/";
   return raw;
 }
 
 /** Login URL that returns the visitor to where they were headed. */
 export const loginHref = (next?: string) =>
-  next && safeNext(next) !== "/rides" ? `/login?next=${encodeURIComponent(next)}` : "/login";
+  next && safeNext(next) !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public details: Record<string, string[]> = {}) {
@@ -65,18 +65,46 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   return json.data as T;
 }
 
-export type Customer = { id: number; name: string; email: string; phone: string | null; has_password: boolean; roles: string[] };
+export type Customer = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  has_password: boolean;
+  home_address: string | null;
+  preferred_driver: string | null;
+  roles: string[];
+};
 export type TimelineStep = { key: string; label: string; reached: boolean; current: boolean; at: string | null };
+export type RideSummary = {
+  service_name: string | null;
+  tier_label: string | null;
+  tier_title: string | null;
+  vehicle_model: string | null;
+  vehicle_size_label: string | null;
+  vehicle_text: string | null;
+  passengers: number | null;
+  bags: number | null;
+  hours: number | null;
+  flight: string | null;
+  terminal: string | null;
+  guards: number | null;
+};
 export type Ride = {
   id: string; reference: string; request_type: string | null; service_type: string; status: string; status_label: string;
   ride_date: string | null; ride_time: string | null; pickup_location: string | null; dropoff_location: string | null;
   vehicle: string | null; driver_tier: string; created_at: string;
   chauffeur: { name: string; avatar_url: string | null } | null;
+  summary?: RideSummary | null;
   details?: Record<string, unknown> | null; timeline?: TimelineStep[]; updated_at?: string;
 };
 export type Session = { token: string; user: Customer };
 
-export const ACTIVE = ["pending", "dispatched", "in_progress"];
+/** Closed rides leave the upcoming list. Every other status, including driver progress, stays live. */
+export const CLOSED_RIDE = ["completed", "cancelled"];
+export const isLiveRide = (status: string) => !CLOSED_RIDE.includes(status);
+/** @deprecated Use isLiveRide. Kept so older imports still compile. */
+export const ACTIVE = ["pending", "broadcast", "dispatched", "on_my_way", "at_doorstep", "ride_started", "in_progress", "ride_ended", "close_out"];
 
 export function errorText(e: unknown): string {
   if (e instanceof ApiError) {

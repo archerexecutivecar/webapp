@@ -89,14 +89,16 @@ export function SiteMenu({ active = "" }: { active?: string }) {
 }
 
 export function SiteHeader({ active }: { active: string }) {
+  const st = useSiteSettings();
+  const logo = st.logo_url || `${D}baf2559ebfd040994cae07d1bc0aa928.png`;
   return (
     <header className={`${WRAP} flex items-center justify-between gap-3 py-3 md:gap-8 md:py-5`}>
-      <Link href="/" aria-label="Archer Executive home" className="flex min-w-0 items-center gap-2.5 text-[#F4F1EC] md:gap-3">
+      <Link href="/" aria-label={`${st.brand_name} home`} className="flex min-w-0 items-center gap-2.5 text-[#F4F1EC] md:gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${D}baf2559ebfd040994cae07d1bc0aa928.png`} alt="" aria-hidden className="block h-9 w-auto shrink-0 md:h-11" />
+        <img src={logo} alt="" aria-hidden className="block h-9 w-auto shrink-0 md:h-11" />
         <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[13px] font-extrabold leading-none tracking-[0.05em] text-[#E87722] min-[400px]:text-[17px] min-[400px]:tracking-[0.08em] md:text-[22px] md:tracking-[0.1em]" style={HEAD}>ARCHER EXECUTIVE</span>
-          <span className="mt-1.5 hidden text-[10px] tracking-[0.26em] text-[#E6E1DA] sm:block">TRANSPORTATION &amp; SECURITY SPECIALISTS</span>
+          <span className="truncate text-[13px] font-extrabold leading-none tracking-[0.05em] text-[#E87722] min-[400px]:text-[17px] min-[400px]:tracking-[0.08em] md:text-[22px] md:tracking-[0.1em]" style={HEAD}>{st.brand_name}</span>
+          {st.tagline ? <span className="mt-1.5 hidden text-[10px] tracking-[0.26em] text-[#E6E1DA] sm:block">{st.tagline}</span> : null}
         </span>
       </Link>
       <SiteMenu active={active} />
@@ -200,7 +202,7 @@ export function MiniFooter() {
   return (
     <footer className="border-t border-[#2E2E2E] bg-[#0A0A0A] text-[13px] text-[#B3ADA5]">
       <div className={`${WRAP} flex flex-wrap justify-between gap-x-8 gap-y-3 py-7`}>
-        <span>© 2026 Archer Enterprises LLC · SORA-certified</span>
+        <span>© 2026 {st.legal_name} · SORA-certified</span>
         <span>{st.phone}{st.phone_secondary ? ` · ${st.phone_secondary}` : ""} · {st.email}</span>
         <SocialLinks />
         <LegalLinks />

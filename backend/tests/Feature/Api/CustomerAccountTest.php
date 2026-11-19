@@ -10,11 +10,12 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesStaff;
+use Tests\Support\SeedsOperationalFleet;
 use Tests\TestCase;
 
 class CustomerAccountTest extends TestCase
 {
-    use CreatesStaff, RefreshDatabase;
+    use CreatesStaff, RefreshDatabase, SeedsOperationalFleet;
 
     private function book(string $email, array $over = []): string
     {
@@ -48,6 +49,7 @@ class CustomerAccountTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         $this->seed(SiteContentSeeder::class);
+        $this->seedOperationalFleet();
     }
 
     public function test_booking_creates_a_customer_account_and_links_the_ride(): void
@@ -282,6 +284,11 @@ class CustomerAccountTest extends TestCase
             ->assertJsonPath('data.ride.chauffeur.name', 'Jordan Reyes');
         $this->assertStringNotContainsString('SECRET', $res->getContent());
 
+        RideRequest::query()->update(['status' => 'on_my_way']);
+        $live = $this->getJson('/api/v1/customer/rides?scope=upcoming', $h)->assertOk()->json('data.rides.0');
+        $this->assertSame('On the way', $live['status_label']);
+        $this->assertSame('on_my_way', $live['status']);
+
         RideRequest::query()->update(['status' => 'completed']);
         $this->assertCount(0, $this->getJson('/api/v1/customer/rides?scope=upcoming', $h)->json('data.rides'));
         $this->assertCount(1, $this->getJson('/api/v1/customer/rides?scope=past', $h)->json('data.rides'));
@@ -301,5 +308,58 @@ class CustomerAccountTest extends TestCase
     {
         [, $h] = $this->actingAsRole('dispatcher');
         $this->getJson('/api/v1/customer/rides', $h)->assertStatus(403);
+    }
+
+    public function test_ride_summary_uses_site_catalog_and_omits_internal_notes(): void
+    {
+        $this->book('ada@example.com', [
+            'request_type' => 'airport',
+            'direction' => 'to',
+            'airport' => 'EWR',
+            'airline' => 'United',
+            'flight_number' => '1422',
+            'terminal' => 'Terminal B',
+            'address' => '14 Riverside Dr, Rumson',
+            'meet' => 'curb',
+            'passengers' => 1,
+            'tier' => 3,
+            'vehicle_class' => 'first',
+            'vehicle_size' => 'suv',
+        ]);
+        RideRequest::query()->update(['dispatch_notes' => 'SECRET INTERNAL NOTE']);
+        $h = $this->signedIn('ada@example.com');
+
+        $ride = $this->getJson('/api/v1/customer/rides?scope=upcoming', $h)->assertOk()->json('data.rides.0');
+        $this->assertArrayNotHasKey('details', $ride);
+        $this->assertSame('Airport Transportation', $ride['summary']['service_name']);
+        $this->assertSame('TIER 3 · ELITE', $ride['summary']['tier_label']);
+        $this->assertSame('Cadillac Escalade', $ride['summary']['vehicle_model']);
+        $this->assertSame('FULL-SIZE SUV', $ride['summary']['vehicle_size_label']);
+        $this->assertSame(1, $ride['summary']['passengers']);
+        $this->assertSame('United 1422', $ride['summary']['flight']);
+        $this->assertSame('Terminal B', $ride['summary']['terminal']);
+        $this->assertStringNotContainsString('SECRET', json_encode($ride));
+    }
+
+    public function test_customer_can_save_only_their_home_address(): void
+    {
+        $this->book('ada@example.com');
+        $h = $this->signedIn('ada@example.com');
+
+        $this->putJson('/api/v1/customer/profile', [
+            'home_address' => '14 Riverside Dr, Rumson, NJ 07760',
+            'preferred_driver' => 'Should not stick',
+            'notes' => 'secret',
+        ], $h)->assertOk()
+            ->assertJsonPath('data.home_address', '14 Riverside Dr, Rumson, NJ 07760')
+            ->assertJsonPath('data.preferred_driver', null);
+
+        $user = User::where('email', 'ada@example.com')->firstOrFail();
+        $this->assertSame('14 Riverside Dr, Rumson, NJ 07760', $user->preferences['home_address']);
+        $this->assertArrayNotHasKey('notes', $user->preferences);
+        $this->assertArrayNotHasKey('preferred_driver', $user->preferences);
+
+        $this->putJson('/api/v1/customer/profile', ['home_address' => '  '], $h)->assertOk()
+            ->assertJsonPath('data.home_address', null);
     }
 }

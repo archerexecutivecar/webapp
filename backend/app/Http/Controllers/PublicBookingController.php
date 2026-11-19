@@ -7,16 +7,19 @@ use App\Models\AssistantProfile;
 use App\Models\AuditLog;
 use App\Models\RideRequest;
 use App\Models\SiteTier;
-use App\Models\SiteVehicle;
 use App\Support\ApiResponse;
 use App\Support\AssistantProfileRules;
 use App\Support\CustomerAccounts;
 use App\Support\CustomerMailer;
+use App\Support\FleetAvailability;
+use App\Support\OperationalFleet;
+use App\Support\RateCatalog;
+use App\Support\ServiceAreas;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -38,7 +41,6 @@ class PublicBookingController extends Controller
         'assistant_week' => ['prefix' => 'WEEK', 'label' => 'EA/PA weekly plan'],
     ];
 
-    private const AIRPORTS = ['EWR', 'JFK', 'LGA', 'PHL', 'ACY', 'TEB', 'MMU', 'OTHER'];
 
     /** POST /v1/booking-requests */
     public function store(Request $request): JsonResponse
@@ -57,6 +59,7 @@ class PublicBookingController extends Controller
 
         $data = $request->validate($this->rules($type, $request->input('service')));
         $this->assertVehicleInCatalog($data);
+        $this->assertVehicleAvailable($data);
 
         $columns = $this->columns($type, $data);
         $details = Arr::except($data, ['request_type', 'first_name', 'last_name', 'email', 'phone', 'terms_accepted']);
@@ -157,7 +160,7 @@ class PublicBookingController extends Controller
         }
         try {
             $name = trim($ride->first_name.' '.$ride->last_name);
-            \Illuminate\Support\Facades\DB::table('security_leads')->insertOrIgnore([
+            DB::table('security_leads')->insertOrIgnore([
                 'client_name' => $name, 'contact_name' => $name, 'phone' => $ride->phone, 'email' => $ride->email,
                 'status' => 'new', 'source' => 'website', 'ride_request_id' => $ride->getKey(),
                 'coverage_type' => 'Website request', 'starts_at' => $d['date'] ?? null,
@@ -186,22 +189,41 @@ class PublicBookingController extends Controller
         return is_string($key) && $key !== '' && strlen($key) <= 100 && preg_match('/^[A-Za-z0-9._-]+$/', $key) ? $key : null;
     }
 
-    /** The requested class + size must be an active Website Fleet entry. */
+    /** The requested class + size must be an active car on Fleet & availability. */
     private function assertVehicleInCatalog(array $data): void
     {
         $pairs = [];
         if (! empty($data['vehicle_class']) && ! empty($data['vehicle_size'])) {
             $pairs['vehicle_size'] = [$data['vehicle_class'], $data['vehicle_size']];
         }
-        if (isset($data['vehicle']) && preg_match('/^(exec|first)\|(sedan|suv|van)$/', $data['vehicle'], $m)) {
+        if (isset($data['vehicle']) && preg_match('/^([^|]+)\|([^|]+)$/', $data['vehicle'], $m)) {
             $pairs['vehicle'] = [$m[1], $m[2]];
         }
 
         foreach ($pairs as $field => [$class, $size]) {
-            $offered = SiteVehicle::where('vehicle_class', $class)->where('size', $size)->where('is_active', true)->exists();
-            if (! $offered) {
+            if (! OperationalFleet::offered($class, $size)) {
                 throw ValidationException::withMessages([$field => ['This vehicle is not currently offered.']]);
             }
+        }
+    }
+
+    /** Reject a class and size when every matching Site Vehicles car is out of service or blocked. */
+    private function assertVehicleAvailable(array $data): void
+    {
+        $class = $data['vehicle_class'] ?? null;
+        $size = $data['vehicle_size'] ?? null;
+        if ((! $class || ! $size) && isset($data['vehicle']) && preg_match('/^([^|]+)\|([^|]+)$/', $data['vehicle'], $m)) {
+            [$class, $size] = [$m[1], $m[2]];
+        }
+        $message = FleetAvailability::unavailableMessage(
+            is_string($class) ? $class : null,
+            is_string($size) ? $size : null,
+            $data['date'] ?? null,
+            $data['time'] ?? null,
+            isset($data['hours']) ? (int) $data['hours'] : null,
+        );
+        if ($message) {
+            throw ValidationException::withMessages(['vehicle_size' => [$message]]);
         }
     }
 
@@ -276,8 +298,8 @@ class PublicBookingController extends Controller
         $time = ['required', 'date_format:H:i'];
         // The Admin website catalog (Website Tiers / Website Fleet) is the source of truth for what can be booked.
         $tier = ['required', 'integer', Rule::in(SiteTier::where('kind', $tierKind)->where('is_active', true)->where('call_only', false)->pluck('tier')->all())];
-        $cls = ['required', Rule::in(['exec', 'first'])];
-        $size = ['required', Rule::in(['sedan', 'suv', 'van'])];
+        $cls = ['required', Rule::in(RateCatalog::classKeys())];
+        $size = ['required', Rule::in(RateCatalog::sizeKeys())];
         $stops = ['nullable', 'array', 'max:5'];
 
         $contact = [
@@ -300,8 +322,8 @@ class PublicBookingController extends Controller
                 'hours' => ['nullable', 'integer', 'between:3,24'],
                 'airline_flight' => $short, 'terminal' => $short,
                 'tier' => $tier,
-                'vehicle_class' => ['nullable', 'required_if:service,hourly,airport,p2p', Rule::in(['exec', 'first'])],
-                'vehicle_size' => ['nullable', 'required_if:service,hourly,airport,p2p', Rule::in(['sedan', 'suv', 'van'])],
+                'vehicle_class' => ['nullable', 'required_if:service,hourly,airport,p2p', Rule::in(RateCatalog::classKeys())],
+                'vehicle_size' => ['nullable', 'required_if:service,hourly,airport,p2p', Rule::in(RateCatalog::sizeKeys())],
                 'client_vehicle' => ['nullable', 'required_if:service,client', 'string', 'max:150'],
                 'guards' => ['nullable', 'integer', 'between:0,10'],
             ],
@@ -315,7 +337,7 @@ class PublicBookingController extends Controller
             ],
             'airport' => [
                 'direction' => ['required', Rule::in(['from', 'to'])],
-                'airport' => ['required', Rule::in(self::AIRPORTS)],
+                'airport' => ['required', Rule::in(ServiceAreas::codes())],
                 'airline' => $short, 'flight_number' => ['required', 'string', 'max:20'], 'terminal' => $short,
                 'date' => $date, 'time' => $time, 'address' => ['required', 'string', 'max:255'],
                 'passengers' => ['required', 'integer', 'between:1,60'],
@@ -342,7 +364,7 @@ class PublicBookingController extends Controller
             ],
             'assistant_week' => [
                 'executive_name' => ['required', 'string', 'max:150'], 'executive_mobile' => ['nullable', 'string', 'max:50'],
-                'vehicle' => ['required', 'regex:/^(exec|first)\|(sedan|suv|van)$/'],
+                'vehicle' => ['required', 'regex:/^[a-z][a-z0-9_]{0,19}\|[a-z][a-z0-9_]{0,19}$/'],
                 'passengers' => ['required', 'integer', 'between:1,60'],
                 'tier' => $tier, 'preferences' => ['nullable', 'string', 'max:2000'],
                 'rides' => ['required', 'array', 'min:1', 'max:12'],

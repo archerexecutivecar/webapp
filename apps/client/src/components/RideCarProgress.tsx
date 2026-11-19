@@ -12,14 +12,26 @@ const STEPS = [
 
 function getStepIndex(status: string): number {
   switch (status) {
+    case "new":
     case "pending":
+    case "broadcast":
       return 0;
     case "dispatched":
+    case "accepted":
+    case "driver_assigned":
       return 1;
+    case "on_my_way":
+    case "at_doorstep":
+    case "at_your_doorstep":
+    case "ride_started":
     case "in_progress":
+    case "ride_ended":
+    case "close_out":
       return 2;
     case "completed":
       return 3;
+    case "cancelled":
+      return -1;
     default:
       return 0;
   }
@@ -129,16 +141,26 @@ export function RideCarProgress({
   const narrative = (() => {
     switch (status) {
       case "pending":
+      case "new":
+      case "broadcast":
         return {
-          badge: "REQUEST RECEIVED",
+          badge: status === "broadcast" ? "FINDING A CHAUFFEUR" : "REQUEST RECEIVED",
           desc: "Archer Dispatch is reviewing trip logistics and vehicle preparation.",
         };
       case "dispatched":
+      case "accepted":
+      case "driver_assigned":
         return {
           badge: "CHAUFFEUR ASSIGNED",
           desc: "Your chauffeur is assigned and staging your vehicle.",
         };
       case "in_progress":
+      case "on_my_way":
+      case "at_doorstep":
+      case "at_your_doorstep":
+      case "ride_started":
+      case "ride_ended":
+      case "close_out":
         return {
           badge: "ON THE WAY",
           desc: "Chauffeur is en route to pickup location. Live dispatch active.",

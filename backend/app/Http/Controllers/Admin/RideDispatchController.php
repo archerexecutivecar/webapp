@@ -9,6 +9,8 @@ use App\Models\DriverNotification;
 use App\Models\RideRequest;
 use App\Support\ApiResponse;
 use App\Support\CustomerMailer;
+use App\Support\DriverOfferEligibility;
+use App\Support\RideStateMachine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -58,6 +60,7 @@ class RideDispatchController extends Controller
     public function show(string $id): JsonResponse
     {
         $ride = RideRequest::with('assignedDriver')->findOrFail($id);
+
         return ApiResponse::data(['ride' => $ride]);
     }
 
@@ -102,7 +105,7 @@ class RideDispatchController extends Controller
 
             if (isset($validated['status'])) {
                 try {
-                    $validated['status'] = \App\Support\RideStateMachine::assertTransition(
+                    $validated['status'] = RideStateMachine::assertTransition(
                         $previousStatus,
                         $validated['status']
                     );
@@ -129,8 +132,8 @@ class RideDispatchController extends Controller
 
             if ($isClientCar && $newDriverId && $newDriverId !== $previousDriverId) {
                 $details = $validated['details'] ?? $ride->details ?? [];
-                $isSigned = !empty($details['is_client_car_signed']);
-                if (!$isSigned && !$request->boolean('override_agreement')) {
+                $isSigned = ! empty($details['is_client_car_signed']);
+                if (! $isSigned && ! $request->boolean('override_agreement')) {
                     return ApiResponse::error(
                         'CLIENT_CAR_AGREEMENT_REQUIRED',
                         'Dispatch is blocked: Client Car Service Agreement has not been signed or recorded.',
@@ -150,12 +153,12 @@ class RideDispatchController extends Controller
             }
 
             // Driver assignment notification & audit
-            if (!empty($validated['assigned_driver_id']) && $validated['assigned_driver_id'] !== $previousDriverId) {
+            if (! empty($validated['assigned_driver_id']) && $validated['assigned_driver_id'] !== $previousDriverId) {
                 DriverNotification::create([
                     'driver_id' => $validated['assigned_driver_id'],
                     'ride_request_id' => $ride->id,
-                    'title' => 'New Ride Assigned (' . $ride->reference . ')',
-                    'message' => 'You have been dispatched for a ride on ' . $ride->ride_date . ' at ' . $ride->ride_time . '. Passenger: ' . $ride->first_name . ' ' . $ride->last_name . '.',
+                    'title' => 'New Ride Assigned ('.$ride->reference.')',
+                    'message' => 'You have been dispatched for a ride on '.$ride->ride_date.' at '.$ride->ride_time.'. Passenger: '.$ride->first_name.' '.$ride->last_name.'.',
                     'type' => 'assignment',
                     'is_read' => false,
                 ]);
@@ -193,15 +196,15 @@ class RideDispatchController extends Controller
             'details' => 'nullable|array',
         ]);
 
-        $reference = 'AR-' . strtoupper(Str::random(4));
+        $reference = 'AR-'.strtoupper(Str::random(4));
         while (RideRequest::where('reference', $reference)->exists()) {
-            $reference = 'AR-' . strtoupper(Str::random(4));
+            $reference = 'AR-'.strtoupper(Str::random(4));
         }
 
         $ride = RideRequest::create(array_merge($validated, [
             'reference' => $reference,
             'request_type' => 'phone',
-            'status' => !empty($validated['assigned_driver_id']) ? 'dispatched' : 'pending',
+            'status' => ! empty($validated['assigned_driver_id']) ? 'dispatched' : 'pending',
             'details' => array_merge($validated['details'] ?? [], [
                 'created_via' => 'phone_booking',
                 'status_log' => [
@@ -252,17 +255,7 @@ class RideDispatchController extends Controller
     public function broadcast(Request $request, string $id): JsonResponse
     {
         $ride = RideRequest::findOrFail($id);
-        $tier = (int) ($ride->driver_tier ?? 1);
-        $isClientCar = str_contains(strtolower($ride->service_type), 'client');
-
-        $query = Driver::where('is_active', true)->where('service_tier', '<=', $tier);
-        if ($isClientCar) {
-            $query->where('is_client_car_operator', true);
-        } else {
-            $query->where('is_fleet_operator', true);
-        }
-
-        $drivers = $query->get();
+        $drivers = DriverOfferEligibility::eligibleDrivers($ride);
         foreach ($drivers as $driver) {
             DriverNotification::create([
                 'driver_id' => $driver->id,
@@ -280,7 +273,7 @@ class RideDispatchController extends Controller
             'status' => 'Broadcast',
             'channel' => 'Dispatch',
             'timestamp' => now()->toDayDateTimeString(),
-            'notes' => 'Broadcasted to ' . $drivers->count() . ' qualified operators.',
+            'notes' => 'Broadcasted to '.$drivers->count().' qualified operators.',
         ];
         $details['status_log'] = $statusLog;
         $details['broadcast_at'] = now()->toISOString();
@@ -298,4 +291,3 @@ class RideDispatchController extends Controller
         ]);
     }
 }
-

@@ -25,7 +25,7 @@ This repository contains the production Archer Executive Services platform. Trea
 - Public Website: Next.js (`src/`)
 - Admin/Operations: Next.js (`apps/admin`) — also hosts the chauffeur “My Assigned Rides” portal
 - Client PWA: Next.js (`apps/client`)
-- Driver experience: Admin-hosted portal (`/my-rides`), not a separate `apps/driver` package
+- Driver PWA: Next.js (`apps/driver`) on the live driver APIs. Admin still hosts the staff “My Assigned Rides” view at `/my-rides`.
 - Backend/API/domain core: Laravel (`backend/`)
 - Database: MySQL (ADR-003)
 - Private documents: S3-compatible object storage
@@ -40,6 +40,7 @@ src/                 # Public marketing website (Next.js)
 apps/
   admin/             # Operations portal + driver my-rides
   client/            # Customer PWA
+  driver/            # Driver PWA
 backend/             # Laravel API (authoritative domain)
 docs/
   architecture/

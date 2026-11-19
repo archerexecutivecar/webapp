@@ -16,7 +16,7 @@ class SiteTierController extends Controller
     {
         $rules = [
             'kind' => 'required|in:driver,security',
-            'tier' => 'required|integer|min:1|max:4',
+            'tier' => 'required|integer|min:1|max:255',
             'label' => 'required|string|max:255',
             'title' => 'required|string|max:255',
             'call_only' => 'nullable|boolean',

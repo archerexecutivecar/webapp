@@ -5,7 +5,9 @@ namespace App\Support\Pricing;
 use App\Models\PricingSetting;
 use App\Models\RateCard;
 use App\Models\SiteTier;
-use App\Models\SiteVehicle;
+use App\Models\Vehicle;
+use App\Support\OperationalFleet;
+use App\Support\ServiceAreas;
 
 /**
  * The single price calculator for the website, client app and Admin simulator.
@@ -19,7 +21,10 @@ class QuoteService
 {
     public const RULE_VERSION = 'pricing-2026-11-15';
 
+    /** @deprecated Read ServiceAreas. Kept so older callers still compile. */
     public const NJ_AIRPORTS = ['EWR', 'ACY', 'TEB', 'MMU'];
+
+    /** @deprecated Read ServiceAreas. Kept so older callers still compile. */
     public const NY_PA_AIRPORTS = ['JFK', 'LGA', 'PHL'];
 
     public function quote(array $in): array
@@ -82,16 +87,20 @@ class QuoteService
             $lines[] = $this->line('base', "Chauffeur × {$hours} hrs", $rate * $hours, $rate, 'per hour', $hours, 'hrs');
         } else {
             [$class, $size] = [$in['vehicle_class'] ?? null, $in['vehicle_size'] ?? null];
-            // Several fleet entries may share a class and size: the first in Website Fleet display order is used.
-            $vehicle = SiteVehicle::where('vehicle_class', $class)->where('size', $size)->where('is_active', true)
-                ->orderBy('sort_order')->orderBy('id')->first();
-            if (! $vehicle) {
+            $cars = OperationalFleet::active(is_string($class) ? $class : null, is_string($size) ? $size : null);
+            if ($cars->isEmpty()) {
                 throw new QuoteException('VEHICLE_UNAVAILABLE', 'This vehicle is not currently offered.', 'vehicle_size');
             }
-            $this->assertCapacity($vehicle, (int) ($in['passengers'] ?? 0), (int) ($in['bags'] ?? 0));
+            $passengers = (int) ($in['passengers'] ?? 0);
+            $bags = (int) ($in['bags'] ?? 0);
+            $fitting = $cars->filter(fn (Vehicle $vehicle) => OperationalFleet::fits($vehicle, $passengers, $bags))->values();
+            if ($fitting->isEmpty()) {
+                $this->rejectCapacity($cars, $passengers, $bags);
+            }
+            $vehicle = $fitting->first();
 
             $flat = $service !== 'hourly' && $s->pricing_mode === 'flat';
-            $isNyPaAirport = $isAirport && in_array($airportCode, self::NY_PA_AIRPORTS, true);
+            $isNyPaAirport = $isAirport && ServiceAreas::region((string) $airportCode) === 'ny_pa';
             $vanHourly = ($flat && $size === 'van' && $s->van_hourly) || ($isAirport && $size === 'van');
 
             if ($flat && ! $vanHourly && ! $isNyPaAirport) {
@@ -111,14 +120,14 @@ class QuoteService
                     $miles *= 2;
                 }
                 $rate = $this->rate('per_mile', $class, $size, $tier);
-                $lines[] = $this->line('base', "{$vehicle->model} × {$miles} mi" . ($isRoundTrip ? ' (Round trip)' : ''), $rate * $miles, $rate, 'per mile', $miles, 'mi');
+                $lines[] = $this->line('base', "{$vehicle->name} × {$miles} mi" . ($isRoundTrip ? ' (Round trip)' : ''), $rate * $miles, $rate, 'per mile', $miles, 'mi');
             } else {
                 // Hourly rate: used for Hourly, JFK/LGA/PHL airport runs, and every Sprinter booking.
                 $baseHours = ($isNyPaAirport || $vanHourly) ? max(4, (int) ($in['hours'] ?? 4)) : $this->hours($s, $in);
                 $hours = $isRoundTrip ? ($baseHours * 2) : $baseHours;
                 $rate = $this->rate('hourly', $class, $size, $tier);
                 $note = $vanHourly ? 'Sprinter, hourly only' : ($isNyPaAirport ? "Airport ({$airportCode}), 4-hour minimum" : null);
-                $line = $this->line('base', "{$vehicle->model} × {$hours} hrs" . ($isRoundTrip ? ' (Round trip)' : ''), $rate * $hours, $rate, 'per hour', $hours, 'hrs', null, $note);
+                $line = $this->line('base', "{$vehicle->name} × {$hours} hrs" . ($isRoundTrip ? ' (Round trip)' : ''), $rate * $hours, $rate, 'per hour', $hours, 'hrs', null, $note);
                 $lines[] = $line;
             }
 
@@ -222,14 +231,17 @@ class QuoteService
         }
     }
 
-    private function assertCapacity(SiteVehicle $v, int $passengers, int $bags): void
+    /** @param  \Illuminate\Support\Collection<int, Vehicle>  $cars */
+    private function rejectCapacity($cars, int $passengers, int $bags): void
     {
-        if ($v->passengers !== null && $passengers > $v->passengers) {
-            throw new QuoteException('OVER_CAPACITY', "The {$v->model} seats up to {$v->passengers} passengers.", 'passengers');
+        $withSeats = $cars->filter(fn (Vehicle $vehicle) => $vehicle->passengers === null || $passengers <= (int) $vehicle->passengers);
+        if ($withSeats->isEmpty()) {
+            $max = (int) $cars->max('passengers');
+            throw new QuoteException('OVER_CAPACITY', "Fleet & availability seats up to {$max} passengers in this vehicle.", 'passengers');
         }
-        if ($v->bags !== null && $bags > $v->bags) {
-            throw new QuoteException('OVER_CAPACITY', "The {$v->model} holds up to {$v->bags} bags.", 'bags');
-        }
+
+        $maxBags = (int) $withSeats->max('luggage');
+        throw new QuoteException('OVER_CAPACITY', "Fleet & availability holds up to {$maxBags} bags in this vehicle.", 'bags');
     }
 
     private function charge(array &$lines, string $code, string $label, int $qty, int $unit): void

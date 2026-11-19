@@ -18,17 +18,19 @@ import {
 interface ClassItem {
   id: string;
   name: string;
+  is_active?: boolean;
 }
 
 interface SizeItem {
   id: string;
   name: string;
+  is_active?: boolean;
 }
 
 interface ChauffeurPayItem {
   tier: number;
   name: string;
-  hourly_rate: number;
+  hourly_rate: number | null;
 }
 
 interface FeesAndPayRules {
@@ -47,9 +49,10 @@ interface FeesAndPayRules {
 interface ClientCarAndSecurityItem {
   tier: number;
   tier_label: string;
-  client_rate: number | string;
-  driver_guard_pay: number;
-  archer_keeps: number | null;
+  client_rate: number;
+  client_car_active: boolean;
+  security_rate: number;
+  security_active: boolean;
 }
 
 interface MatrixRow {
@@ -111,6 +114,15 @@ export default function SiteRatesPage() {
   const [editClientCarMin, setEditClientCarMin] = useState<string>('3');
   const [editOwnerFacilitation, setEditOwnerFacilitation] = useState<string>('25');
   const [tier4ArmedEnabled, setTier4ArmedEnabled] = useState<boolean>(false);
+  const [newClass, setNewClass] = useState('');
+  const [newSize, setNewSize] = useState('');
+  const [newTier, setNewTier] = useState('');
+  const [catalogBusy, setCatalogBusy] = useState<string | null>(null);
+  const [editedClient, setEditedClient] = useState<Record<number, number>>({});
+  const [editedSecurity, setEditedSecurity] = useState<Record<number, number>>({});
+  const [editedClientActive, setEditedClientActive] = useState<Record<number, boolean>>({});
+  const [editedSecurityActive, setEditedSecurityActive] = useState<Record<number, boolean>>({});
+  const [editedChauffeur, setEditedChauffeur] = useState<Record<number, number>>({});
 
   const fetchData = async () => {
     try {
@@ -149,6 +161,13 @@ export default function SiteRatesPage() {
       setEditedP2P({});
       setEditedBookable({});
       setEditedCallPricing({});
+      setEditedClient({});
+      setEditedSecurity({});
+      setEditedClientActive({});
+      setEditedSecurityActive({});
+      setEditedChauffeur({});
+      const tierKeys = Object.keys(res.rate_matrix).map(Number).sort((a, b) => a - b);
+      setActiveTab((current) => (tierKeys.includes(current) ? current : tierKeys[0] ?? 1));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load rate matrix.');
     } finally {
@@ -168,7 +187,8 @@ export default function SiteRatesPage() {
       // Build rate card updates
       const rateUpdates: Array<{ card_id: string; amount_cents: number; is_active?: boolean }> = [];
 
-      for (let t = 1; t <= 4; t++) {
+      const tiers = Object.keys(rateMatrix).map(Number);
+      for (const t of tiers) {
         const rows = rateMatrix[t] || [];
         for (const r of rows) {
           const matrixKey = `${t}|${r.key}`;
@@ -202,13 +222,27 @@ export default function SiteRatesPage() {
       await api('/admin/site-rates/matrix', {
         method: 'PUT',
         auth: true,
-        body: JSON.stringify({
+        body: {
           fees_and_pay_rules: {
             booking_fee: parseFloat(editBookingFee) || 5,
             tier_4_armed_enabled: tier4ArmedEnabled,
           },
           rate_updates: rateUpdates,
-        }),
+          client_car_rates: clientCarSecurity.map((item) => ({
+            tier: item.tier,
+            amount_cents: Math.round((editedClient[item.tier] ?? item.client_rate) * 100),
+            is_active: editedClientActive[item.tier] ?? item.client_car_active,
+          })),
+          security_rates: clientCarSecurity.map((item) => ({
+            tier: item.tier,
+            amount_cents: Math.round((editedSecurity[item.tier] ?? item.security_rate) * 100),
+            is_active: editedSecurityActive[item.tier] ?? item.security_active,
+          })),
+          chauffeur_pay: Object.values(chauffeurPay).map((tier) => ({
+            tier: tier.tier,
+            hourly_rate: editedChauffeur[tier.tier] ?? tier.hourly_rate,
+          })),
+        },
       });
 
       setSuccess('Vehicles & rates saved successfully. All quote calculations are updated.');
@@ -220,6 +254,58 @@ export default function SiteRatesPage() {
       setSaving(false);
     }
   };
+
+  const problem = (err: unknown, fallback: string) => {
+    if (err instanceof ApiError) {
+      const detail = Object.values(err.details).flat()[0];
+      return detail || err.message;
+    }
+    return fallback;
+  };
+
+  const addCatalog = async (kind: 'class' | 'size' | 'tier') => {
+    const name = (kind === 'class' ? newClass : kind === 'size' ? newSize : newTier).trim();
+    if (!name) return;
+    setCatalogBusy(kind);
+    setError(null);
+    try {
+      const path = kind === 'class' ? '/admin/site-rates/classes' : kind === 'size' ? '/admin/site-rates/sizes' : '/admin/site-rates/tiers';
+      await api(path, { method: 'POST', auth: true, body: kind === 'tier' ? { label: name } : { name } });
+      if (kind === 'class') setNewClass('');
+      if (kind === 'size') setNewSize('');
+      if (kind === 'tier') setNewTier('');
+      setSuccess(kind === 'tier'
+        ? 'Tier added at $0. Set the client car and security rates, then turn them on.'
+        : 'Added at $0. Enter hourly rates and mark the rows bookable before they are offered.');
+      await fetchData();
+      setTimeout(() => setSuccess(null), 3500);
+    } catch (err) {
+      setError(problem(err, 'Could not add that row.'));
+    } finally {
+      setCatalogBusy(null);
+    }
+  };
+
+  const retireCatalog = async (kind: 'classes' | 'sizes', key: string, name: string) => {
+    if (!window.confirm(`Retire ${name}? Existing bookings stay on file. New quotes will not offer it.`)) return;
+    setCatalogBusy(key);
+    setError(null);
+    try {
+      await api(`/admin/site-rates/${kind}/${key}/retire`, { method: 'POST', auth: true, body: {} });
+      setSuccess(`${name} is retired.`);
+      await fetchData();
+      setTimeout(() => setSuccess(null), 3500);
+    } catch (err) {
+      setError(problem(err, 'Could not retire that row.'));
+    } finally {
+      setCatalogBusy(null);
+    }
+  };
+
+  const tierRows = useMemo(
+    () => Object.values(chauffeurPay).sort((a, b) => a.tier - b.tier),
+    [chauffeurPay],
+  );
 
   const currentTabRows = useMemo(() => {
     return rateMatrix[activeTab] || [];
@@ -287,16 +373,39 @@ export default function SiteRatesPage() {
                   key={c.id}
                   className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs"
                 >
-                  <span className="text-xs font-semibold text-foreground">{c.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => alert(`Class ${c.name} is active in live bookings.`)}
-                    className="text-[11px] text-muted-foreground hover:text-foreground transition"
-                  >
-                    Retire
-                  </button>
+                  <span className={`text-xs font-semibold ${c.is_active === false ? 'text-muted-foreground' : 'text-foreground'}`}>{c.name}</span>
+                  {c.is_active === false ? (
+                    <span className="text-[11px] text-muted-foreground">Retired</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={catalogBusy !== null}
+                      onClick={() => retireCatalog('classes', c.id, c.name)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+                    >
+                      Retire
+                    </button>
+                  )}
                 </div>
               ))}
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void addCatalog('class');
+                }}
+              >
+                <input
+                  value={newClass}
+                  onChange={(e) => setNewClass(e.target.value)}
+                  placeholder="New class name"
+                  maxLength={80}
+                  className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+                <button type="submit" disabled={!newClass.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                  Add class
+                </button>
+              </form>
             </div>
           </div>
 
@@ -311,16 +420,39 @@ export default function SiteRatesPage() {
                   key={s.id}
                   className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs"
                 >
-                  <span className="text-xs font-semibold text-foreground">{s.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => alert(`Size ${s.name} is active in live fleet availability.`)}
-                    className="text-[11px] text-muted-foreground hover:text-foreground transition"
-                  >
-                    Retire
-                  </button>
+                  <span className={`text-xs font-semibold ${s.is_active === false ? 'text-muted-foreground' : 'text-foreground'}`}>{s.name}</span>
+                  {s.is_active === false ? (
+                    <span className="text-[11px] text-muted-foreground">Retired</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={catalogBusy !== null}
+                      onClick={() => retireCatalog('sizes', s.id, s.name)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition disabled:opacity-50"
+                    >
+                      Retire
+                    </button>
+                  )}
                 </div>
               ))}
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void addCatalog('size');
+                }}
+              >
+                <input
+                  value={newSize}
+                  onChange={(e) => setNewSize(e.target.value)}
+                  placeholder="New size name"
+                  maxLength={80}
+                  className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+                <button type="submit" disabled={!newSize.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                  Add size
+                </button>
+              </form>
             </div>
           </div>
 
@@ -330,25 +462,38 @@ export default function SiteRatesPage() {
               Tiers and driver pay per hour
             </span>
             <div className="space-y-2">
-              <div className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs">
-                <span className="text-xs font-semibold text-foreground">T1 Essential</span>
-                <span className="font-mono text-xs font-bold text-foreground">$ 25</span>
-              </div>
-
-              <div className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs">
-                <span className="text-xs font-semibold text-foreground">T2 Executive</span>
-                <span className="font-mono text-xs font-bold text-foreground">$ 30</span>
-              </div>
-
-              <div className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs">
-                <span className="text-xs font-semibold text-foreground">T3 Elite</span>
-                <span className="font-mono text-xs font-bold text-foreground">$ 35</span>
-              </div>
-
-              <div className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs">
-                <span className="text-xs font-semibold text-foreground">T4 Armed</span>
-                <span className="font-mono text-xs font-bold text-foreground">$ 55</span>
-              </div>
+              {tierRows.map((tier) => (
+                <div key={tier.tier} className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs">
+                  <span className="text-xs font-semibold text-foreground">{tier.name}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    aria-label={`${tier.name} hourly pay`}
+                    value={editedChauffeur[tier.tier] ?? tier.hourly_rate ?? ''}
+                    onChange={(e) => setEditedChauffeur({ ...editedChauffeur, [tier.tier]: Number(e.target.value) })}
+                    className="w-20 h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono text-right"
+                  />
+                </div>
+              ))}
+              <form
+                className="flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void addCatalog('tier');
+                }}
+              >
+                <input
+                  value={newTier}
+                  onChange={(e) => setNewTier(e.target.value)}
+                  placeholder="New tier label"
+                  maxLength={80}
+                  className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                />
+                <button type="submit" disabled={!newTier.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                  Add tier
+                </button>
+              </form>
             </div>
 
             {/* Armed Switch Toggle matching Screenshot 10 */}
@@ -501,7 +646,7 @@ export default function SiteRatesPage() {
                 Client car and security rates
               </span>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                One tier table for both Client Car Service and security guards (per guard-hour, including add-on security on rides):
+                Client car and security are priced per hour for each tier. A new tier stays off until you enter a rate and turn it on.
               </p>
             </div>
 
@@ -510,28 +655,60 @@ export default function SiteRatesPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     <th className="py-2 px-3">Tier</th>
-                    <th className="py-2 px-3">Client Rate /hr</th>
-                    <th className="py-2 px-3">Driver or Guard Pay /hr</th>
-                    <th className="py-2 px-3">Archer Keeps /hr</th>
+                    <th className="py-2 px-3">Client car /hr</th>
+                    <th className="py-2 px-3">Offered</th>
+                    <th className="py-2 px-3">Security /hr</th>
+                    <th className="py-2 px-3">Offered</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {clientCarSecurity.map((item) => (
-                    <tr key={item.tier} className="hover:bg-muted/30">
-                      <td className="py-2.5 px-3 font-semibold text-foreground">
-                        {item.tier_label}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-foreground">
-                        {item.client_rate === 'Call' ? 'Call' : `$ ${item.client_rate}`}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-foreground">
-                        $ {item.driver_guard_pay}
-                      </td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-foreground">
-                        {item.archer_keeps !== null ? `$ ${item.archer_keeps}` : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {clientCarSecurity.map((item) => {
+                    const clientRate = editedClient[item.tier] ?? item.client_rate;
+                    const securityRate = editedSecurity[item.tier] ?? item.security_rate;
+                    const clientOn = editedClientActive[item.tier] ?? item.client_car_active;
+                    const securityOn = editedSecurityActive[item.tier] ?? item.security_active;
+                    return (
+                      <tr key={item.tier} className="hover:bg-muted/30">
+                        <td className="py-2.5 px-3 font-semibold text-foreground">{item.tier_label}</td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={clientRate}
+                            onChange={(e) => setEditedClient({ ...editedClient, [item.tier]: Number(e.target.value) })}
+                            className="w-24 h-8 px-2 rounded border border-border bg-background font-mono text-xs"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="checkbox"
+                            checked={clientOn}
+                            onChange={(e) => setEditedClientActive({ ...editedClientActive, [item.tier]: e.target.checked })}
+                            aria-label={`Offer client car ${item.tier_label}`}
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={securityRate}
+                            onChange={(e) => setEditedSecurity({ ...editedSecurity, [item.tier]: Number(e.target.value) })}
+                            className="w-24 h-8 px-2 rounded border border-border bg-background font-mono text-xs"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <input
+                            type="checkbox"
+                            checked={securityOn}
+                            onChange={(e) => setEditedSecurityActive({ ...editedSecurityActive, [item.tier]: e.target.checked })}
+                            aria-label={`Offer security ${item.tier_label}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -547,51 +724,21 @@ export default function SiteRatesPage() {
           </span>
 
           {/* Tier Tabs matching Screenshot 10 */}
-          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded border border-border">
-            <button
-              type="button"
-              onClick={() => setActiveTab(1)}
-              className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                activeTab === 1
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              T1 Essential
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab(2)}
-              className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                activeTab === 2
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              T2 Executive
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab(3)}
-              className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                activeTab === 3
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              T3 Elite
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab(4)}
-              className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                activeTab === 4
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              T4 Armed
-            </button>
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded border border-border flex-wrap">
+            {tierRows.map((tier) => (
+              <button
+                key={tier.tier}
+                type="button"
+                onClick={() => setActiveTab(tier.tier)}
+                className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                  activeTab === tier.tier
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tier.name}
+              </button>
+            ))}
           </div>
         </div>
 

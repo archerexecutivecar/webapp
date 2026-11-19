@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, ApiError, errorText, safeNext, tokenStore, type Session } from "@/lib/api";
-import { Brand } from "@/components/Shell";
+import { usePublicBrand } from "@/lib/brand";
 
 type Mode = "code" | "password" | "register";
 
@@ -22,6 +22,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [notFoundEmail, setNotFoundEmail] = useState<string | null>(null);
 
+  const brand = usePublicBrand();
   const next = () => safeNext(new URLSearchParams(window.location.search).get("next"));
 
   useEffect(() => {
@@ -109,7 +110,15 @@ export default function Login() {
   return (
     <main className="center">
       <div className="auth">
-        <Brand />
+        <div className="signin-brand">
+          {brand.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brand.logo_url} alt="" />
+          ) : (
+            <div className="brand-badge signin-mark" aria-hidden="true">{brand.brand_name.charAt(0) || "A"}</div>
+          )}
+          <div className="signin-name">{brand.brand_name}</div>
+        </div>
         <div>
           <span className="eyebrow">{mode === "register" ? "GET STARTED" : "WELCOME BACK"}</span>
           <h1 className="title">{mode === "register" ? "Create your account" : "Sign in to see your rides"}</h1>

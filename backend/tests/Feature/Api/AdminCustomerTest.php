@@ -9,11 +9,12 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CreatesStaff;
+use Tests\Support\SeedsOperationalFleet;
 use Tests\TestCase;
 
 class AdminCustomerTest extends TestCase
 {
-    use CreatesStaff, RefreshDatabase;
+    use CreatesStaff, RefreshDatabase, SeedsOperationalFleet;
 
     private function book(string $email, string $first = 'Ada'): string
     {
@@ -167,6 +168,7 @@ class AdminCustomerTest extends TestCase
         parent::setUp();
         $this->seed(DatabaseSeeder::class);
         $this->seed(SiteContentSeeder::class);
+        $this->seedOperationalFleet();
     }
 
     public function test_dispatcher_can_reset_customer_credentials_and_it_signs_them_out(): void

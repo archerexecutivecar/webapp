@@ -199,6 +199,8 @@ class CustomerAuthController extends Controller
             'email' => $user->email,
             'phone' => $user->phone,
             'has_password' => $user->password_set_at !== null,
+            'home_address' => ($user->preferences['home_address'] ?? null) ?: null,
+            'preferred_driver' => ($user->preferences['preferred_driver'] ?? null) ?: null,
             'roles' => $user->roleKeys(),
         ];
     }
