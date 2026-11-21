@@ -80,7 +80,7 @@ export default function DashboardPage() {
   const newRequests = m?.new_ride_requests ?? m?.pending_requests ?? 3;
   const waitingDriver = m?.waiting_for_driver ?? 3;
   const inProgress = m?.allocated_or_in_progress ?? 3;
-  const completed = m?.completed_this_week ?? m?.completed_rides ?? 1;
+  const completed = m?.completed_rides ?? m?.completed_this_week ?? 0;
   const totalDrivers = m?.total_drivers ?? 4;
   const collectedWeek = m?.collected_this_week ?? 1211.58;
   const profitWeek = m?.archer_profit_this_week ?? 526.97;

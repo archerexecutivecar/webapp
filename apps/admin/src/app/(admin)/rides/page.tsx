@@ -96,7 +96,9 @@ export interface RideRequest {
       sales_tax_remit: number;
       archer_profit: number;
     };
+    [key: string]: any;
   } | null;
+  closeout?: Record<string, any> | null;
   created_at: string;
   updated_at: string;
 }
@@ -1037,74 +1039,96 @@ export default function RidesPage() {
                 </div>
               </div>
 
-              {/* Section CLOSE-OUT BREAKDOWN (FROM THE DRIVER APP) matching Screenshot 7 */}
-              {selectedRide.status === 'completed' && (
-                <div className="p-4 rounded-lg border border-border bg-card space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between border-b border-border pb-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      Close-Out Breakdown (From the Driver App)
-                    </h3>
-                    <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/15 px-2 py-0.5 rounded">
-                      Completed
-                    </span>
+              {/* Section CLOSE-OUT BREAKDOWN (FROM THE DRIVER APP) */}
+              {selectedRide.status === 'completed' && (() => {
+                const closeout = selectedRide.closeout || selectedRide.details || {};
+                const bookedPrice = Number(closeout.fare ?? closeout.booked_price ?? 0);
+                const extraTime = Number(closeout.extra_time ?? 0);
+                const bookingFee = Number(closeout.booking_fee ?? 5);
+                const tax = Number(closeout.tax ?? 0);
+                const tip = Number(closeout.tip ?? 0);
+                const clientPaid = Number(closeout.client_paid ?? (bookedPrice + extraTime + bookingFee + tax + tip));
+                const driverPay = Number(closeout.driver_pay ?? 0);
+                const securityPay = Number(closeout.security_pay ?? 0);
+                const cardFee = Number(closeout.card_fee ?? (clientPaid > 0 ? ((clientPaid * 0.035) + 0.15) : 0));
+                const profit = Number(closeout.archer_profit ?? (clientPaid - tax - cardFee - driverPay - securityPay - tip));
+                const method = closeout.method || closeout.payment_method || 'Card';
+                const tier = closeout.tier || selectedRide.driver_tier || 1;
+                const hrRate = closeout.driver_hourly_rate ? `$${closeout.driver_hourly_rate}/hr` : '';
+                const hrs = closeout.hours ? `${closeout.hours} hr` : '';
+
+                return (
+                  <div className="p-4 rounded-lg border border-border bg-card space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between border-b border-border pb-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                        Close-Out Breakdown (From the Driver App)
+                      </h3>
+                      <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/15 px-2 py-0.5 rounded">
+                        Completed
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Booked price {securityPay > 0 ? '(Includes add-on security)' : ''}</span>
+                        <span className="font-semibold text-foreground">${bookedPrice.toFixed(2)}</span>
+                      </div>
+                      {extraTime > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Extra time</span>
+                          <span className="font-semibold text-foreground">${extraTime.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Booking fee</span>
+                        <span className="font-semibold text-foreground">${bookingFee.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Sales tax</span>
+                        <span className="font-semibold text-foreground">${tax.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Tip</span>
+                        <span className="font-semibold text-foreground">${tip.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold border-t border-border pt-1.5 text-sm">
+                        <span className="text-foreground">Client paid ({method})</span>
+                        <span className="text-foreground">${clientPaid.toFixed(2)}</span>
+                      </div>
+
+                      <div className="pt-2 border-t border-border space-y-1 text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span>Driver pay T{tier} {hrRate} {hrs ? `× ${hrs}` : ''}</span>
+                          <span className="text-foreground">${driverPay.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Tip to driver (100% pass-through)</span>
+                          <span className="text-foreground">${tip.toFixed(2)}</span>
+                        </div>
+                        {securityPay > 0 && (
+                          <div className="flex justify-between">
+                            <span>Security pay</span>
+                            <span className="text-foreground">${securityPay.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-rose-500">
+                          <span>Card processing fee</span>
+                          <span>-${cardFee.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-rose-500">
+                          <span>Sales tax (Archer remits)</span>
+                          <span>-${tax.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center border-t border-border pt-2 text-sm">
+                        <span className="font-bold text-foreground">Archer profit</span>
+                        <span className="font-extrabold text-emerald-600 text-base">${profit.toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Booked price (Includes add-on security)</span>
-                      <span className="font-semibold text-foreground">$640.00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Extra time (1 hr 15 min)</span>
-                      <span className="font-semibold text-foreground">$200.00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Booking fee</span>
-                      <span className="font-semibold text-foreground">$5.00</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Sales tax</span>
-                      <span className="font-semibold text-foreground">$55.58</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tip</span>
-                      <span className="font-semibold text-foreground">$110.00</span>
-                    </div>
-                    <div className="flex justify-between font-bold border-t border-border pt-1.5 text-sm">
-                      <span className="text-foreground">Client paid (Card)</span>
-                      <span className="text-foreground">$1,010.58</span>
-                    </div>
-
-                    <div className="pt-2 border-t border-border space-y-1 text-muted-foreground">
-                      <div className="flex justify-between">
-                        <span>Driver pay T2 Executive $30/hr × 5 hr 15 min</span>
-                        <span className="text-foreground">$157.50</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Tip to driver (100% pass-through)</span>
-                        <span className="text-foreground">$110.00</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Security pay 1 × T2 Executive $40/hr × 5 hr 15 min</span>
-                        <span className="text-foreground">$210.00</span>
-                      </div>
-                      <div className="flex justify-between text-rose-500">
-                        <span>Card processing fee</span>
-                        <span>-$35.53</span>
-                      </div>
-                      <div className="flex justify-between text-rose-500">
-                        <span>Sales tax (Archer remits)</span>
-                        <span>-$55.58</span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between items-center border-t border-border pt-2 text-sm">
-                      <span className="font-bold text-foreground">Archer profit</span>
-                      <span className="font-extrabold text-emerald-600 text-base">$441.97</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Status Log Timeline */}
               <div className="space-y-2 border-t border-border pt-3">

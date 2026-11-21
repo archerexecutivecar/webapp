@@ -49,6 +49,17 @@ class RideRequest extends Model
         ];
     }
 
+    protected $appends = ['closeout'];
+
+    public function getCloseoutAttribute(): ?array
+    {
+        if ($this->status !== 'completed') {
+            return null;
+        }
+
+        return \App\Support\RideCloseoutMath::ledgerRow($this);
+    }
+
     public function assignedDriver()
     {
         return $this->belongsTo(Driver::class, 'assigned_driver_id');

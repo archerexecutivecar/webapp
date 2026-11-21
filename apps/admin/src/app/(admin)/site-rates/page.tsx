@@ -125,19 +125,29 @@ export default function SiteRatesPage() {
   const [editedClientActive, setEditedClientActive] = useState<Record<number, boolean>>({});
   const [editedSecurityActive, setEditedSecurityActive] = useState<Record<number, boolean>>({});
   const [editedChauffeur, setEditedChauffeur] = useState<Record<number, number>>({});
+  const [pricingSettings, setPricingSettings] = useState<Array<{
+    service: string;
+    is_active: boolean;
+    min_hours: number | null;
+    booking_fee_cents: number;
+    tax_bp: number;
+  }>>([]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await api<{
-        classes: ClassItem[];
-        sizes: SizeItem[];
-        chauffeur_pay: Record<number, ChauffeurPayItem>;
-        fees_and_pay_rules: FeesAndPayRules;
-        client_car_and_security: ClientCarAndSecurityItem[];
-        rate_matrix: Record<number, MatrixRow[]>;
-      }>('/admin/site-rates/matrix', { auth: true });
+      const [res, pricingRes] = await Promise.all([
+        api<{
+          classes: ClassItem[];
+          sizes: SizeItem[];
+          chauffeur_pay: Record<number, ChauffeurPayItem>;
+          fees_and_pay_rules: FeesAndPayRules;
+          client_car_and_security: ClientCarAndSecurityItem[];
+          rate_matrix: Record<number, MatrixRow[]>;
+        }>('/admin/site-rates/matrix', { auth: true }),
+        api<{ settings: any[] }>('/admin/pricing-settings', { auth: true }).catch(() => null),
+      ]);
 
       setClasses(res.classes);
       setSizes(res.sizes);
@@ -145,6 +155,9 @@ export default function SiteRatesPage() {
       setFees(res.fees_and_pay_rules);
       setClientCarSecurity(res.client_car_and_security);
       setRateMatrix(res.rate_matrix);
+      if (pricingRes?.settings) {
+        setPricingSettings(pricingRes.settings);
+      }
 
       // Initialize form fields
       setEditBookingFee(res.fees_and_pay_rules.booking_fee.toString());
@@ -330,6 +343,36 @@ export default function SiteRatesPage() {
   const currentTabRows = useMemo(() => {
     return rateMatrix[activeTab] || [];
   }, [rateMatrix, activeTab]);
+
+  const handleToggleService = async (service: string, is_active: boolean) => {
+    try {
+      const res = await api<{ setting: any }>(`/admin/pricing-settings/${service}`, {
+        method: 'PUT',
+        auth: true,
+        body: { is_active },
+      });
+      setPricingSettings((prev) => prev.map((s) => s.service === service ? res.setting : s));
+      setSuccess(`Updated ${service} availability.`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not update service status.');
+    }
+  };
+
+  const handleUpdateServiceRule = async (service: string, patch: Record<string, any>) => {
+    try {
+      const res = await api<{ setting: any }>(`/admin/pricing-settings/${service}`, {
+        method: 'PUT',
+        auth: true,
+        body: patch,
+      });
+      setPricingSettings((prev) => prev.map((s) => s.service === service ? res.setting : s));
+      setSuccess(`Saved ${service} rules.`);
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not update service rule.');
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-2">
@@ -631,8 +674,99 @@ export default function SiteRatesPage() {
           </div>
         </div>
 
-        {/* Right Column (7 Cols): FEES AND PAY RULES + CLIENT CAR & SECURITY */}
+        {/* Right Column (7 Cols): SERVICES OFFERED + FEES AND PAY RULES + CLIENT CAR & SECURITY */}
         <div className="lg:col-span-7 space-y-6">
+          {/* Section: SERVICES OFFERED */}
+          {pricingSettings.length > 0 && (
+            <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between pb-1 border-b border-border/60">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    Services Offered
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Turning a service off hides it from the customer app and booking forms.
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {pricingSettings.filter((s) => s.is_active).length} / {pricingSettings.length} Active
+                </span>
+              </div>
+
+              <div className="divide-y divide-border/50 text-xs">
+                {pricingSettings.map((s) => {
+                  const serviceNames: Record<string, { title: string; subtitle: string }> = {
+                    hourly: { title: 'Hourly Chauffeur', subtitle: 'Hourly hire by vehicle class & size' },
+                    airport: { title: 'Airport Transfer', subtitle: 'FBO & commercial airport flat rates' },
+                    p2p: { title: 'Point-to-Point', subtitle: 'A-to-B fixed destination pricing' },
+                    client: { title: 'Client Car Service', subtitle: 'Chauffeur drives passenger’s personal car' },
+                    security: { title: 'Executive Protection', subtitle: 'Protection detail & guard staffing' },
+                  };
+                  const info = serviceNames[s.service] || { title: s.service, subtitle: '' };
+                  const isActive = s.is_active;
+
+                  return (
+                    <div key={s.service} className="py-2.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-semibold ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                            {info.title}
+                          </span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                              isActive
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-muted text-muted-foreground border border-border'
+                            }`}
+                          >
+                            {isActive ? 'Offered' : 'Hidden'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">{info.subtitle}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-[10px] text-muted-foreground">Min hr</label>
+                          <input
+                            type="number"
+                            min={0}
+                            defaultValue={s.min_hours ?? 0}
+                            onBlur={(e) => void handleUpdateServiceRule(s.service, { min_hours: Number(e.target.value) })}
+                            className="w-12 h-7 px-1.5 text-center rounded border border-border bg-background text-foreground text-xs font-mono"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-[10px] text-muted-foreground">Fee $</label>
+                          <input
+                            type="number"
+                            min={0}
+                            step="1"
+                            defaultValue={(s.booking_fee_cents / 100).toFixed(0)}
+                            onBlur={(e) => void handleUpdateServiceRule(s.service, { booking_fee_cents: Math.round(Number(e.target.value) * 100) })}
+                            className="w-14 h-7 px-1.5 text-center rounded border border-border bg-background text-foreground text-xs font-mono"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void handleToggleService(s.service, !isActive)}
+                          style={{ minHeight: '26px', height: '26px', padding: '0 12px' }}
+                          className={`text-xs font-semibold rounded border transition ${
+                            isActive
+                              ? 'border-border bg-surface text-muted-foreground hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/10'
+                              : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                          }`}
+                        >
+                          {isActive ? 'Turn Off' : 'Turn On'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* FEES AND PAY RULES Card */}
           <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-1 border-b border-border/60">

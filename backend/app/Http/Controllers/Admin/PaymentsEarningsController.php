@@ -37,6 +37,27 @@ class PaymentsEarningsController extends Controller
                     $q->whereBetween('ride_date', [$start->toDateString(), $end->toDateString()])
                         ->orWhereBetween('updated_at', [$start, $end]);
                 });
+            } elseif ($period === 'last_week') {
+                $start = Carbon::now()->subWeek()->startOfWeek();
+                $end = Carbon::now()->subWeek()->endOfWeek();
+                $ridesQuery->where(function ($q) use ($start, $end) {
+                    $q->whereBetween('ride_date', [$start->toDateString(), $end->toDateString()])
+                        ->orWhereBetween('updated_at', [$start, $end]);
+                });
+            } elseif ($period === 'this_month') {
+                $start = Carbon::now()->startOfMonth();
+                $end = Carbon::now()->endOfMonth();
+                $ridesQuery->where(function ($q) use ($start, $end) {
+                    $q->whereBetween('ride_date', [$start->toDateString(), $end->toDateString()])
+                        ->orWhereBetween('updated_at', [$start, $end]);
+                });
+            } elseif ($period === 'last_month') {
+                $start = Carbon::now()->subMonth()->startOfMonth();
+                $end = Carbon::now()->subMonth()->endOfMonth();
+                $ridesQuery->where(function ($q) use ($start, $end) {
+                    $q->whereBetween('ride_date', [$start->toDateString(), $end->toDateString()])
+                        ->orWhereBetween('updated_at', [$start, $end]);
+                });
             }
 
             foreach ($ridesQuery->get() as $ride) {
