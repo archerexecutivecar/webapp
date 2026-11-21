@@ -2,7 +2,7 @@
 
 import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chip, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, Select, StepLabels, Text, TierPicker, Title, TwoCol, TIER_CHIPS } from "@/components/archer/v2/forms/form-kit";
 import { CLS_NAME, money, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 import { quoteLines, quoteTotal, stopsNote, useQuote } from "@/lib/quote";
@@ -13,9 +13,11 @@ const SERVICES: { id: Svc; label: string }[] = [{ id: "hourly", label: "Hourly" 
 const HOURS = ["3", "4", "5", "6", "8", "10", "12"];
 
 export function BookForm() {
-  const { HR, PP, GUARD, M } = useRates();
+  const { HR, PP, GUARD, M, driverTiers, securityTiers } = useRates();
   const [step, setStep] = useState(1);
   const [service, setService] = useState<Svc>("hourly");
+  const isH = service === "hourly", isC = service === "client", isS = service === "security", isTrip = service === "p2p" || service === "airport";
+  const activeTiers = isS ? securityTiers : driverTiers;
   const [tier, setTier] = useState(1);
   const [cls, setCls] = useState<Cls>("exec");
   const [size, setSize] = useState<Size>("suv");
@@ -27,8 +29,13 @@ export function BookForm() {
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
 
+  useEffect(() => {
+    if (activeTiers.length > 0 && !activeTiers.some((t) => t.id === tier)) {
+      setTier(activeTiers[0].id);
+    }
+  }, [activeTiers, tier]);
+
   const t = tier - 1;
-  const isH = service === "hourly", isC = service === "client", isS = service === "security", isTrip = service === "p2p" || service === "airport";
   const minH = isC || isS ? 3 : 4;
   const hrs = Math.max(hours, minH);
   const gList = isS ? [1, 2, 3, 4] : [0, 1, 2];
@@ -112,7 +119,7 @@ export function BookForm() {
                 <Text label="Terminal or FBO" placeholder="e.g. Terminal C, or Signature FBO" />
               </Grid>
             )}
-            <TierPicker tier={tier} onPick={setTier} />
+            <TierPicker tier={tier} onPick={setTier} items={activeTiers} />
             {!isC && !isS && (
               <FleetPicker cls={cls} size={size} onPick={(c, z) => { setCls(c); setSize(z); }} priceFor={priceFor} note={"Prices shown for the tier you picked." + (isTrip ? " Sprinters are hourly only, 4-hour minimum." : "")} />
             )}

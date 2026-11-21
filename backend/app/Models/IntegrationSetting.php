@@ -9,6 +9,12 @@ class IntegrationSetting extends Model
     protected $fillable = [
         'google_maps_browser_key',
         'google_maps_server_key',
+        'google_maps_country_codes',
+        'google_maps_service_area_label',
+        'google_maps_center_lat',
+        'google_maps_center_lng',
+        'google_maps_radius_km',
+        'google_maps_strict_bounds',
         'stripe_publishable_key',
         'stripe_secret_key',
         'stripe_webhook_secret',
@@ -24,6 +30,10 @@ class IntegrationSetting extends Model
     {
         return [
             'google_maps_server_key' => 'encrypted',
+            'google_maps_center_lat' => 'float',
+            'google_maps_center_lng' => 'float',
+            'google_maps_radius_km' => 'integer',
+            'google_maps_strict_bounds' => 'boolean',
             'stripe_secret_key' => 'encrypted',
             'stripe_webhook_secret' => 'encrypted',
             'sms_api_key' => 'encrypted',

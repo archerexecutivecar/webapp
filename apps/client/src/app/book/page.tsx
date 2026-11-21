@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import { ScreenTitle } from "@/components/ScreenTitle";
 import { ServiceMark } from "@/components/ServiceMark";
 import { Shell, useCustomer } from "@/components/Shell";
+import { LocationAutocompleteInput, type LocationCoordinates } from "@/components/LocationAutocompleteInput";
 import { API_BASE, api, errorText } from "@/lib/api";
 import { useCatalog, type AppService, type Cls, type Size, type Vehicle } from "@/lib/catalog";
 import { loadSecurityRequest, type SecurityTier } from "@/lib/portal";
@@ -82,7 +83,9 @@ function BookWizard() {
   const [tier, setTier] = useState<number | null>(null);
   const [service, setService] = useState<AppService>("hourly");
   const [pickup, setPickup] = useState(me.home_address ?? "");
+  const [pickupCoords, setPickupCoords] = useState<LocationCoordinates | null>(null);
   const [dropoff, setDropoff] = useState("");
+  const [dropoffCoords, setDropoffCoords] = useState<LocationCoordinates | null>(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [hours, setHours] = useState("4");
@@ -135,7 +138,11 @@ function BookWizard() {
   const recommended = useMemo(() => fit(sizes, passengers, bags), [sizes, passengers, bags]);
 
   useEffect(() => {
-    if (tier == null && bookableTiers[0]) setTier(bookableTiers[0].tier);
+    if (bookableTiers.length > 0) {
+      if (tier == null || !bookableTiers.some((t) => t.tier === tier)) {
+        setTier(bookableTiers[0].tier);
+      }
+    }
   }, [tier, bookableTiers]);
 
   useEffect(() => {
@@ -170,7 +177,11 @@ function BookWizard() {
         request_type: "general",
         service: ownCar ? "client" : service,
         pickup_address: pickup.trim(),
+        pickup_lat: pickupCoords?.lat ?? null,
+        pickup_lng: pickupCoords?.lng ?? null,
         dropoff_address: dropoff.trim() || null,
+        dropoff_lat: dropoffCoords?.lat ?? null,
+        dropoff_lng: dropoffCoords?.lng ?? null,
         date,
         time,
         passengers,
@@ -317,12 +328,28 @@ function BookWizard() {
               <input className="input" required value={clientVehicle} onChange={(e) => setClientVehicle(e.target.value)} placeholder="Make, model, color" />
             </label>
           )}
-          <label className="field">Pickup
-            <input className="input" required value={pickup} onChange={(e) => setPickup(e.target.value)} />
-          </label>
-          <label className="field">Drop-off{ownCar || service === "hourly" ? " (optional)" : ""}
-            <input className="input" required={!ownCar && service !== "hourly"} value={dropoff} onChange={(e) => setDropoff(e.target.value)} />
-          </label>
+          <LocationAutocompleteInput
+            id="book-pickup"
+            label="Pickup"
+            required
+            value={pickup}
+            onChange={(val, coords) => {
+              setPickup(val);
+              setPickupCoords(coords ?? null);
+            }}
+            placeholder="Street address, airport, hotel, or venue"
+          />
+          <LocationAutocompleteInput
+            id="book-dropoff"
+            label={`Drop-off${ownCar || service === "hourly" ? " (optional)" : ""}`}
+            required={!ownCar && service !== "hourly"}
+            value={dropoff}
+            onChange={(val, coords) => {
+              setDropoff(val);
+              setDropoffCoords(coords ?? null);
+            }}
+            placeholder="Destination address or airport"
+          />
           {service === "airport" && !ownCar && (
             <>
               <label className="field">Airport

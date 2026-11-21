@@ -246,7 +246,7 @@ class PublicBookingController extends Controller
     {
         $vehicle = fn (?string $c, ?string $s) => $c && $s ? "$c|$s" : null;
 
-        return match ($type) {
+        $base = match ($type) {
             'general' => [
                 'service_type' => $d['service'],
                 'driver_tier' => (string) $d['tier'],
@@ -286,6 +286,17 @@ class PublicBookingController extends Controller
                 'vehicle' => $d['vehicle'],
             ],
         };
+
+        if (isset($d['pickup_lat']) && isset($d['pickup_lng'])) {
+            $base['pickup_lat'] = $d['pickup_lat'];
+            $base['pickup_lng'] = $d['pickup_lng'];
+        }
+        if (isset($d['dropoff_lat']) && isset($d['dropoff_lng'])) {
+            $base['dropoff_lat'] = $d['dropoff_lat'];
+            $base['dropoff_lng'] = $d['dropoff_lng'];
+        }
+
+        return $base;
     }
 
     private function rules(string $type, mixed $service = null): array
@@ -384,6 +395,13 @@ class PublicBookingController extends Controller
             $contact['email'] = ['nullable', 'email', 'max:150'];
         }
 
-        return $contact + $rules;
+        $geo = [
+            'pickup_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'pickup_lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'dropoff_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'dropoff_lng' => ['nullable', 'numeric', 'between:-180,180'],
+        ];
+
+        return $contact + $rules + $geo;
     }
 }

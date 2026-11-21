@@ -2,19 +2,32 @@
 
 import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chip, Crumbs, Done, doneP, EstimateAside, Fieldset, FormShell, Grid, Ref, Select, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
+import { useRates } from "@/components/archer/v2/forms/pricing";
 import { quoteLines, quoteTotal, useQuote } from "@/lib/quote";
 
 const HOURS = ["3", "4", "5", "6", "8", "10", "12"];
 
 export function ClientCarForm() {
+  const { CC, driverTiers } = useRates();
   const [step, setStep] = useState(1);
   const [tier, setTier] = useState(1);
   const [hours, setHours] = useState(3);
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
   const hrs = Math.max(3, hours);
+
+  useEffect(() => {
+    if (driverTiers.length > 0 && !driverTiers.some((t) => t.id === tier)) {
+      setTier(driverTiers[0].id);
+    }
+  }, [driverTiers, tier]);
+
+  const clientTiers = driverTiers.map((t) => ({
+    id: t.id,
+    label: `${t.label} · $${CC[t.id - 1] ?? 45}/hr`,
+  }));
   // Price comes from the Laravel pricing engine; nothing is calculated here.
   const q = useQuote({ service: "client", tier, hours: hrs });
 
@@ -82,7 +95,7 @@ export function ClientCarForm() {
             <div className="border border-white/10 border-t-[3px] border-t-[#E87722] bg-[#1A1A1A] px-[22px] py-5 text-[15px] text-[#C9C3BB]">
               <strong className="text-white">Billed round trip.</strong> Client Car Service is always billed as a round trip: from your starting point to your destination, and back again. Your chauffeur returns your vehicle to your home, so billing runs until your car is back at your starting address.
             </div>
-            <TierPicker tier={tier} onPick={setTier} labels={["Tier 1 · $45/hr", "Tier 2 · $60/hr", "Tier 3 · $75/hr", "Tier 4 · $125/hr"]} />
+            <TierPicker tier={tier} onPick={setTier} items={clientTiers} />
             <div><button type="button" onClick={() => setStep(2)} className={btnPrimary}>Continue to estimate</button></div>
           </>
             </Panel>

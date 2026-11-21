@@ -70,7 +70,10 @@ const FALLBACK: Catalog = {
 
 async function getJson(path: string): Promise<Record<string, unknown> | null> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { headers: { Accept: "application/json" } });
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     return ((await res.json()) as { data?: Record<string, unknown> }).data ?? null;
   } catch {

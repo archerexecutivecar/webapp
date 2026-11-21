@@ -6,6 +6,7 @@ import { api, dispatchDisplay, dispatchTel, errorText } from "@/lib/api";
 import { ScreenTitle } from "@/components/ScreenTitle";
 import { Shell, useCustomer } from "@/components/Shell";
 import { AssistantProfileCard } from "@/components/AssistantProfileCard";
+import { LocationAutocompleteInput } from "@/components/LocationAutocompleteInput";
 
 function Account() {
   const { me, refresh, signOut } = useCustomer();
@@ -61,9 +62,13 @@ function Account() {
           {me.preferred_driver && <><dt>Preferred chauffeur</dt><dd>{me.preferred_driver}</dd></>}
         </dl>
         <form className="stack" onSubmit={(e) => void saveHome(e)}>
-          <label className="field">Home
-            <input className="input" value={home} onChange={(e) => setHome(e.target.value)} placeholder="Street, town, state" />
-          </label>
+          <LocationAutocompleteInput
+            id="account-home"
+            label="Home"
+            value={home}
+            onChange={(val) => setHome(val)}
+            placeholder="Street address, city, state"
+          />
           <button className="btn" disabled={busy} type="submit">{busy ? "Saving…" : "Save home"}</button>
         </form>
       </section>

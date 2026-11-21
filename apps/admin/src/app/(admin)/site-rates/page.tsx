@@ -383,30 +383,38 @@ export default function SiteRatesPage() {
         {/* Left Column (5 Cols) */}
         <div className="lg:col-span-5 space-y-5">
           {/* Section 1: CLASSES */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              Classes
-            </span>
+          <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Vehicle Classes
+              </span>
+              <span className="text-[10px] text-muted-foreground">{classes.filter(c => c.is_active !== false).length} Active</span>
+            </div>
             <div className="space-y-2">
               {classes.map((c) => {
                 const isActive = c.is_active !== false;
                 return (
                   <div
                     key={c.id}
-                    className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs gap-2"
+                    className="p-2.5 rounded border border-border bg-surface flex items-center justify-between shadow-2xs gap-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-xs font-semibold truncate ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{c.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}>
                         {isActive ? 'Active' : 'Disabled'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         disabled={catalogBusy !== null}
                         onClick={() => toggleCatalog('classes', c.id, isActive, c.name)}
-                        className={`text-[11px] font-medium transition disabled:opacity-50 ${isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                        style={{ minHeight: '26px', height: '26px', padding: '0 10px', background: isActive ? 'transparent' : undefined }}
+                        className={`text-[11px] font-medium rounded border transition disabled:opacity-50 ${
+                          isActive
+                            ? 'border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/10'
+                            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
                       >
                         {isActive ? 'Disable' : 'Enable'}
                       </button>
@@ -414,7 +422,8 @@ export default function SiteRatesPage() {
                         type="button"
                         disabled={catalogBusy !== null}
                         onClick={() => deleteCatalog('classes', c.id, c.name)}
-                        className="text-muted-foreground hover:text-rose-600 transition disabled:opacity-50 p-1 rounded"
+                        style={{ minHeight: '26px', height: '26px', width: '26px', padding: 0, background: 'transparent' }}
+                        className="text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 border-0 transition disabled:opacity-50 p-1 rounded inline-flex items-center justify-center"
                         title={`Delete ${c.name}`}
                         aria-label={`Delete ${c.name}`}
                       >
@@ -425,7 +434,7 @@ export default function SiteRatesPage() {
                 );
               })}
               <form
-                className="flex gap-2"
+                className="flex gap-2 pt-1"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void addCatalog('class');
@@ -438,7 +447,7 @@ export default function SiteRatesPage() {
                   maxLength={80}
                   className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
                 />
-                <button type="submit" disabled={!newClass.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                <button type="submit" disabled={!newClass.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition disabled:opacity-50">
                   Add class
                 </button>
               </form>
@@ -446,30 +455,38 @@ export default function SiteRatesPage() {
           </div>
 
           {/* Section 2: SIZES */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              Sizes
-            </span>
+          <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Vehicle Sizes
+              </span>
+              <span className="text-[10px] text-muted-foreground">{sizes.filter(s => s.is_active !== false).length} Active</span>
+            </div>
             <div className="space-y-2">
               {sizes.map((s) => {
                 const isActive = s.is_active !== false;
                 return (
                   <div
                     key={s.id}
-                    className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs gap-2"
+                    className="p-2.5 rounded border border-border bg-surface flex items-center justify-between shadow-2xs gap-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-xs font-semibold truncate ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{s.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}>
                         {isActive ? 'Active' : 'Disabled'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
                         disabled={catalogBusy !== null}
                         onClick={() => toggleCatalog('sizes', s.id, isActive, s.name)}
-                        className={`text-[11px] font-medium transition disabled:opacity-50 ${isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                        style={{ minHeight: '26px', height: '26px', padding: '0 10px', background: isActive ? 'transparent' : undefined }}
+                        className={`text-[11px] font-medium rounded border transition disabled:opacity-50 ${
+                          isActive
+                            ? 'border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/10'
+                            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
                       >
                         {isActive ? 'Disable' : 'Enable'}
                       </button>
@@ -477,7 +494,8 @@ export default function SiteRatesPage() {
                         type="button"
                         disabled={catalogBusy !== null}
                         onClick={() => deleteCatalog('sizes', s.id, s.name)}
-                        className="text-muted-foreground hover:text-rose-600 transition disabled:opacity-50 p-1 rounded"
+                        style={{ minHeight: '26px', height: '26px', width: '26px', padding: 0, background: 'transparent' }}
+                        className="text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 border-0 transition disabled:opacity-50 p-1 rounded inline-flex items-center justify-center"
                         title={`Delete ${s.name}`}
                         aria-label={`Delete ${s.name}`}
                       >
@@ -488,7 +506,7 @@ export default function SiteRatesPage() {
                 );
               })}
               <form
-                className="flex gap-2"
+                className="flex gap-2 pt-1"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void addCatalog('size');
@@ -501,7 +519,7 @@ export default function SiteRatesPage() {
                   maxLength={80}
                   className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
                 />
-                <button type="submit" disabled={!newSize.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                <button type="submit" disabled={!newSize.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition disabled:opacity-50">
                   Add size
                 </button>
               </form>
@@ -509,36 +527,48 @@ export default function SiteRatesPage() {
           </div>
 
           {/* Section 3: TIERS AND DRIVER PAY PER HOUR */}
-          <div className="space-y-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              Tiers and driver pay per hour
-            </span>
+          <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Tiers and driver pay per hour
+              </span>
+              <span className="text-[10px] text-muted-foreground">Sets base chauffeur payout</span>
+            </div>
             <div className="space-y-2">
               {tierRows.map((tier) => {
                 const isActive = tier.is_active !== false;
                 return (
-                  <div key={tier.tier} className="p-2.5 rounded border border-border bg-card flex items-center justify-between shadow-2xs gap-2">
+                  <div key={tier.tier} className="p-2.5 rounded border border-border bg-surface flex items-center justify-between shadow-2xs gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`text-xs font-semibold ${!isActive ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{tier.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-muted text-muted-foreground border border-border'}`}>
                         {isActive ? 'Active' : 'Disabled'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        aria-label={`${tier.name} hourly pay`}
-                        value={editedChauffeur[tier.tier] ?? tier.hourly_rate ?? ''}
-                        onChange={(e) => setEditedChauffeur({ ...editedChauffeur, [tier.tier]: Number(e.target.value) })}
-                        className="w-18 h-8 px-2 rounded border border-border bg-background text-foreground text-xs font-mono text-right"
-                      />
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2 text-xs text-muted-foreground font-mono">$</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          aria-label={`${tier.name} hourly pay`}
+                          value={editedChauffeur[tier.tier] ?? tier.hourly_rate ?? ''}
+                          onChange={(e) => setEditedChauffeur({ ...editedChauffeur, [tier.tier]: Number(e.target.value) })}
+                          className="w-24 h-8 pl-5 pr-7 rounded border border-border bg-background text-foreground text-xs font-mono text-right"
+                        />
+                        <span className="absolute right-2 text-[10px] text-muted-foreground">/hr</span>
+                      </div>
                       <button
                         type="button"
                         disabled={catalogBusy !== null}
                         onClick={() => toggleCatalog('tiers', tier.tier, isActive, tier.name)}
-                        className={`text-[11px] font-medium transition disabled:opacity-50 ${isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}`}
+                        style={{ minHeight: '26px', height: '26px', padding: '0 10px', background: isActive ? 'transparent' : undefined }}
+                        className={`text-[11px] font-medium rounded border transition disabled:opacity-50 ${
+                          isActive
+                            ? 'border-border text-muted-foreground hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/10'
+                            : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
                       >
                         {isActive ? 'Disable' : 'Enable'}
                       </button>
@@ -547,7 +577,8 @@ export default function SiteRatesPage() {
                           type="button"
                           disabled={catalogBusy !== null}
                           onClick={() => deleteCatalog('tiers', tier.tier, tier.name)}
-                          className="text-muted-foreground hover:text-rose-600 transition disabled:opacity-50 p-1 rounded"
+                          style={{ minHeight: '26px', height: '26px', width: '26px', padding: 0, background: 'transparent' }}
+                          className="text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 border-0 transition disabled:opacity-50 p-1 rounded inline-flex items-center justify-center"
                           title={`Delete ${tier.name}`}
                           aria-label={`Delete ${tier.name}`}
                         >
@@ -559,7 +590,7 @@ export default function SiteRatesPage() {
                 );
               })}
               <form
-                className="flex gap-2"
+                className="flex gap-2 pt-1"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void addCatalog('tier');
@@ -572,17 +603,20 @@ export default function SiteRatesPage() {
                   maxLength={80}
                   className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
                 />
-                <button type="submit" disabled={!newTier.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 text-white text-xs font-medium disabled:opacity-50">
+                <button type="submit" disabled={!newTier.trim() || catalogBusy !== null} className="h-8 px-3 rounded bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold transition disabled:opacity-50">
                   Add tier
                 </button>
               </form>
             </div>
 
-            {/* Armed Switch Toggle matching Screenshot 10 */}
-            <div className="p-3 rounded-lg border border-border bg-muted/20 flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-foreground block">Tier 4 · Armed</span>
-                <span className="text-[11px] text-muted-foreground">Turn on once armed-service insurance is in place</span>
+            {/* Armed Switch Toggle */}
+            <div className="p-3 rounded-md border border-border bg-muted/20 flex items-center justify-between mt-3">
+              <div className="flex items-center gap-2.5">
+                <Shield className="w-4 h-4 text-amber-600" />
+                <div>
+                  <span className="text-xs font-bold text-foreground block">Tier 4 · Armed</span>
+                  <span className="text-[11px] text-muted-foreground">Turn on once armed-service insurance is in place</span>
+                </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -600,147 +634,180 @@ export default function SiteRatesPage() {
         {/* Right Column (7 Cols): FEES AND PAY RULES + CLIENT CAR & SECURITY */}
         <div className="lg:col-span-7 space-y-6">
           {/* FEES AND PAY RULES Card */}
-          <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              Fees and pay rules
-            </span>
+          <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Fees and pay rules
+              </span>
+              <span className="text-[10px] text-muted-foreground">Controls client app quotes &amp; dispatch billing</span>
+            </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Booking Fee ($)
+                  Booking Fee
                 </label>
-                <input
-                  type="number"
-                  step="1"
-                  value={editBookingFee}
-                  onChange={(e) => setEditBookingFee(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-xs text-muted-foreground font-mono">$</span>
+                  <input
+                    type="number"
+                    step="1"
+                    value={editBookingFee}
+                    onChange={(e) => setEditBookingFee(e.target.value)}
+                    className="w-full h-8 pl-6 pr-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Sales Tax (%)
+                  Sales Tax
                 </label>
-                <input
-                  type="text"
-                  value={editSalesTax}
-                  onChange={(e) => setEditSalesTax(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={editSalesTax}
+                    onChange={(e) => setEditSalesTax(e.target.value)}
+                    className="w-full h-8 pl-2.5 pr-6 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2.5 text-xs text-muted-foreground font-mono">%</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Card Fee (%)
+                  Card Fee
                 </label>
-                <input
-                  type="text"
-                  value={editCardFee}
-                  onChange={(e) => setEditCardFee(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={editCardFee}
+                    onChange={(e) => setEditCardFee(e.target.value)}
+                    className="w-full h-8 pl-2.5 pr-6 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2.5 text-xs text-muted-foreground font-mono">%</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Card Fee Per Charge ($)
+                  Card Fee Per Charge
                 </label>
-                <input
-                  type="text"
-                  value={editCardPerCharge}
-                  onChange={(e) => setEditCardPerCharge(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-xs text-muted-foreground font-mono">$</span>
+                  <input
+                    type="text"
+                    value={editCardPerCharge}
+                    onChange={(e) => setEditCardPerCharge(e.target.value)}
+                    className="w-full h-8 pl-6 pr-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Suggested Tip (%)
+                  Suggested Tip
                 </label>
-                <input
-                  type="text"
-                  value={editSuggestedTip}
-                  onChange={(e) => setEditSuggestedTip(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={editSuggestedTip}
+                    onChange={(e) => setEditSuggestedTip(e.target.value)}
+                    className="w-full h-8 pl-2.5 pr-6 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2.5 text-xs text-muted-foreground font-mono">%</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Hourly Minimum (hr)
+                  Hourly Minimum
                 </label>
-                <input
-                  type="number"
-                  value={editHourlyMin}
-                  onChange={(e) => setEditHourlyMin(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    value={editHourlyMin}
+                    onChange={(e) => setEditHourlyMin(e.target.value)}
+                    className="w-full h-8 pl-2.5 pr-8 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2 text-[11px] text-muted-foreground font-mono">hr</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Point-to-Point Driver Pay Min (hr)
+                  Point-to-Point Pay Min
                 </label>
-                <input
-                  type="number"
-                  value={editP2PMin}
-                  onChange={(e) => setEditP2PMin(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    value={editP2PMin}
+                    onChange={(e) => setEditP2PMin(e.target.value)}
+                    className="w-full h-8 pl-2.5 pr-8 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2 text-[11px] text-muted-foreground font-mono">hr</span>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                  Client Car Minimum (hr)
+                  Client Car Minimum
                 </label>
-                <input
-                  type="number"
-                  value={editClientCarMin}
-                  onChange={(e) => setEditClientCarMin(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    value={editClientCarMin}
+                    onChange={(e) => setEditClientCarMin(e.target.value)}
+                    className="w-full h-8 pl-2.5 pr-8 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2 text-[11px] text-muted-foreground font-mono">hr</span>
+                </div>
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-2 sm:col-span-4">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                   Owner-Operator Facilitation Fee ($ per billed hr)
                 </label>
-                <input
-                  type="number"
-                  value={editOwnerFacilitation}
-                  onChange={(e) => setEditOwnerFacilitation(e.target.value)}
-                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-mono"
-                />
+                <div className="relative flex items-center max-w-xs">
+                  <span className="absolute left-2.5 text-xs text-muted-foreground font-mono">$</span>
+                  <input
+                    type="number"
+                    value={editOwnerFacilitation}
+                    onChange={(e) => setEditOwnerFacilitation(e.target.value)}
+                    className="w-full h-8 pl-6 pr-14 rounded border border-border bg-background text-foreground text-xs font-mono"
+                  />
+                  <span className="absolute right-2 text-[11px] text-muted-foreground font-mono">/billed hr</span>
+                </div>
               </div>
             </div>
 
-            <p className="text-[10px] text-muted-foreground leading-relaxed pt-1">
-              Check the sales-tax rate and your Square card rate set in your Account tab. These are starting values only.
+            <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-border/50">
+              Check the sales-tax rate and your Stripe processing rate in your settings. These provide the baseline for quotes and calculations.
             </p>
           </div>
 
           {/* CLIENT CAR AND SECURITY RATES Card */}
           <div className="rounded-lg border border-border bg-card p-4 shadow-xs space-y-3">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Client car and security rates
-              </span>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Client car and security are priced per hour for each tier. A new tier stays off until you enter a rate and turn it on.
-              </p>
+            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Client car and security rates
+                </span>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Hourly rate per tier. Uncheck &quot;Offered&quot; to hide from customer booking forms.
+                </p>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="py-2 px-3">Tier</th>
-                    <th className="py-2 px-3">Client car /hr</th>
-                    <th className="py-2 px-3">Offered</th>
-                    <th className="py-2 px-3">Security /hr</th>
-                    <th className="py-2 px-3">Offered</th>
+                    <th className="py-2.5 px-3">Tier</th>
+                    <th className="py-2.5 px-3">Client car /hr</th>
+                    <th className="py-2.5 px-3 text-center">Offered</th>
+                    <th className="py-2.5 px-3">Security /hr</th>
+                    <th className="py-2.5 px-3 text-center">Offered</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -750,43 +817,63 @@ export default function SiteRatesPage() {
                     const clientOn = editedClientActive[item.tier] ?? item.client_car_active;
                     const securityOn = editedSecurityActive[item.tier] ?? item.security_active;
                     return (
-                      <tr key={item.tier} className="hover:bg-muted/30">
-                        <td className="py-2.5 px-3 font-semibold text-foreground">{item.tier_label}</td>
-                        <td className="py-2.5 px-3">
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={clientRate}
-                            onChange={(e) => setEditedClient({ ...editedClient, [item.tier]: Number(e.target.value) })}
-                            className="w-24 h-8 px-2 rounded border border-border bg-background font-mono text-xs"
-                          />
+                      <tr key={item.tier} className="hover:bg-muted/30 transition">
+                        <td className="py-2.5 px-3 font-semibold text-foreground">
+                          {item.tier_label}
                         </td>
                         <td className="py-2.5 px-3">
-                          <input
-                            type="checkbox"
-                            checked={clientOn}
-                            onChange={(e) => setEditedClientActive({ ...editedClientActive, [item.tier]: e.target.checked })}
-                            aria-label={`Offer client car ${item.tier_label}`}
-                          />
+                          <div className="relative flex items-center w-24">
+                            <span className="absolute left-2 text-xs text-muted-foreground font-mono">$</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={clientRate}
+                              onChange={(e) => setEditedClient({ ...editedClient, [item.tier]: Number(e.target.value) })}
+                              className="w-full h-8 pl-5 pr-2 rounded border border-border bg-background font-mono text-xs"
+                            />
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={clientOn}
+                              onChange={(e) => setEditedClientActive({ ...editedClientActive, [item.tier]: e.target.checked })}
+                              className="w-4 h-4 rounded border-border accent-amber-600 cursor-pointer"
+                              aria-label={`Offer client car ${item.tier_label}`}
+                            />
+                            <span className={`text-[10px] font-semibold ${clientOn ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                              {clientOn ? 'ON' : 'OFF'}
+                            </span>
+                          </label>
                         </td>
                         <td className="py-2.5 px-3">
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={securityRate}
-                            onChange={(e) => setEditedSecurity({ ...editedSecurity, [item.tier]: Number(e.target.value) })}
-                            className="w-24 h-8 px-2 rounded border border-border bg-background font-mono text-xs"
-                          />
+                          <div className="relative flex items-center w-24">
+                            <span className="absolute left-2 text-xs text-muted-foreground font-mono">$</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={securityRate}
+                              onChange={(e) => setEditedSecurity({ ...editedSecurity, [item.tier]: Number(e.target.value) })}
+                              className="w-full h-8 pl-5 pr-2 rounded border border-border bg-background font-mono text-xs"
+                            />
+                          </div>
                         </td>
-                        <td className="py-2.5 px-3">
-                          <input
-                            type="checkbox"
-                            checked={securityOn}
-                            onChange={(e) => setEditedSecurityActive({ ...editedSecurityActive, [item.tier]: e.target.checked })}
-                            aria-label={`Offer security ${item.tier_label}`}
-                          />
+                        <td className="py-2.5 px-3 text-center">
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={securityOn}
+                              onChange={(e) => setEditedSecurityActive({ ...editedSecurityActive, [item.tier]: e.target.checked })}
+                              className="w-4 h-4 rounded border-border accent-amber-600 cursor-pointer"
+                              aria-label={`Offer security ${item.tier_label}`}
+                            />
+                            <span className={`text-[10px] font-semibold ${securityOn ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                              {securityOn ? 'ON' : 'OFF'}
+                            </span>
+                          </label>
                         </td>
                       </tr>
                     );
@@ -801,26 +888,42 @@ export default function SiteRatesPage() {
       {/* Bottom Section: CLIENT RATE TABLE · TIER × CLASS × SIZE */}
       <div className="rounded-lg border border-border bg-card p-5 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
-            Client rate table · tier × class × size
-          </span>
+          <div>
+            <span className="text-[12px] font-bold uppercase tracking-wider text-foreground block">
+              Client rate table · tier × class × size
+            </span>
+            <span className="text-[11px] text-muted-foreground">Select a tier tab below to manage its class and vehicle rates</span>
+          </div>
 
-          {/* Tier Tabs matching Screenshot 10 */}
-          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded border border-border flex-wrap">
-            {tierRows.map((tier) => (
-              <button
-                key={tier.tier}
-                type="button"
-                onClick={() => setActiveTab(tier.tier)}
-                className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                  activeTab === tier.tier
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {tier.name}
-              </button>
-            ))}
+          {/* Tier Tabs */}
+          <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-md border border-border flex-wrap">
+            {tierRows.map((tier) => {
+              const isSelected = activeTab === tier.tier;
+              const isTierDisabled = tier.is_active === false;
+              return (
+                <button
+                  key={tier.tier}
+                  type="button"
+                  onClick={() => setActiveTab(tier.tier)}
+                  style={{
+                    minHeight: '28px',
+                    height: '28px',
+                    padding: '0 12px',
+                    background: isSelected ? 'var(--accent)' : 'transparent',
+                    border: '1px solid ' + (isSelected ? 'var(--accent)' : 'transparent'),
+                    color: isSelected ? '#ffffff' : isTierDisabled ? 'var(--muted)' : 'var(--text)',
+                  }}
+                  className={`text-xs font-semibold rounded transition inline-flex items-center gap-1.5 ${
+                    isSelected ? 'shadow-xs' : 'hover:bg-muted/40'
+                  }`}
+                >
+                  <span className={isTierDisabled ? 'line-through' : ''}>{tier.name}</span>
+                  {isTierDisabled && (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-black/20 text-muted-foreground">Off</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -907,32 +1010,38 @@ export default function SiteRatesPage() {
 
                       {/* CALL FOR PRICING */}
                       <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={callPricing}
-                          onChange={(e) =>
-                            setEditedCallPricing({
-                              ...editedCallPricing,
-                              [matrixKey]: e.target.checked,
-                            })
-                          }
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                        />
+                        <label className="inline-flex items-center justify-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={callPricing}
+                            onChange={(e) =>
+                              setEditedCallPricing({
+                                ...editedCallPricing,
+                                [matrixKey]: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 rounded border-border accent-amber-600 cursor-pointer"
+                            aria-label={`Call for pricing on ${row.class_label} ${row.size_vehicle}`}
+                          />
+                        </label>
                       </td>
 
                       {/* BOOKABLE */}
                       <td className="py-3 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={bookable}
-                          onChange={(e) =>
-                            setEditedBookable({
-                              ...editedBookable,
-                              [matrixKey]: e.target.checked,
-                            })
-                          }
-                          className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                        />
+                        <label className="inline-flex items-center justify-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={bookable}
+                            onChange={(e) =>
+                              setEditedBookable({
+                                ...editedBookable,
+                                [matrixKey]: e.target.checked,
+                              })
+                            }
+                            className="w-4 h-4 rounded border-border accent-amber-600 cursor-pointer"
+                            aria-label={`Mark ${row.class_label} ${row.size_vehicle} bookable`}
+                          />
+                        </label>
                       </td>
                     </tr>
                   );

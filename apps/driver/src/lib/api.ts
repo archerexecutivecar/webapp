@@ -86,7 +86,11 @@ export type Offer = {
   ride_date: string | null;
   ride_time: string | null;
   pickup_location: string | null;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
   dropoff_location: string | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
   vehicle: string | null;
   security_addon: string | null;
   dispatch_notes: string | null;
@@ -109,7 +113,11 @@ export type AssignedRide = {
   ride_date: string | null;
   ride_time: string | null;
   pickup_location: string | null;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
   dropoff_location: string | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
   vehicle: string | null;
   security_addon: string | null;
   dispatch_notes: string | null;

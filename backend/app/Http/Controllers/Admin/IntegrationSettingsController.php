@@ -37,6 +37,12 @@ class IntegrationSettingsController extends Controller
         $validated = $request->validate([
             'google_maps_browser_key' => 'nullable|string|max:500',
             'google_maps_server_key' => 'nullable|string|max:2000',
+            'google_maps_country_codes' => 'nullable|string|max:50',
+            'google_maps_service_area_label' => 'nullable|string|max:150',
+            'google_maps_center_lat' => 'nullable|numeric|between:-90,90',
+            'google_maps_center_lng' => 'nullable|numeric|between:-180,180',
+            'google_maps_radius_km' => 'nullable|integer|min:1|max:10000',
+            'google_maps_strict_bounds' => 'nullable|boolean',
             'stripe_publishable_key' => 'nullable|string|max:500',
             'stripe_secret_key' => 'nullable|string|max:500',
             'stripe_webhook_secret' => 'nullable|string|max:500',
@@ -54,6 +60,12 @@ class IntegrationSettingsController extends Controller
 
         $publishable = [
             'google_maps_browser_key',
+            'google_maps_country_codes',
+            'google_maps_service_area_label',
+            'google_maps_center_lat',
+            'google_maps_center_lng',
+            'google_maps_radius_km',
+            'google_maps_strict_bounds',
             'stripe_publishable_key',
             'sms_provider',
             'docusign_integration_key',
@@ -62,9 +74,16 @@ class IntegrationSettingsController extends Controller
         ];
 
         foreach ($publishable as $key) {
-            if (array_key_exists($key, $validated) && $validated[$key] !== null && $validated[$key] !== '') {
-                $persist[$key] = $validated[$key];
-                $auditFields[$key] = $validated[$key];
+            if (array_key_exists($key, $validated)) {
+                $val = $validated[$key];
+                if ($key === 'google_maps_strict_bounds') {
+                    $val = (bool) $val;
+                } elseif (is_string($val)) {
+                    $val = trim($val);
+                    $val = $val !== '' ? $val : null;
+                }
+                $persist[$key] = $val;
+                $auditFields[$key] = $val;
             }
         }
 
@@ -107,6 +126,8 @@ class IntegrationSettingsController extends Controller
         $browserKey = env('GOOGLE_MAPS_BROWSER_KEY');
         $publishable = env('STRIPE_KEY');
         $provider = 'stripe';
+        $countryCodes = ['us'];
+        $serviceArea = null;
 
         if (Schema::hasTable('integration_settings')) {
             try {
@@ -114,13 +135,31 @@ class IntegrationSettingsController extends Controller
                 $browserKey = $row->google_maps_browser_key ?: $browserKey;
                 $publishable = $row->stripe_publishable_key ?: $publishable;
                 $provider = $row->payment_provider ?: 'stripe';
+
+                if ($row->google_maps_country_codes) {
+                    $codes = array_map('strtolower', array_map('trim', explode(',', $row->google_maps_country_codes)));
+                    $codes = array_values(array_filter($codes));
+                    if (! empty($codes)) {
+                        $countryCodes = $codes;
+                    }
+                }
+
+                $serviceArea = [
+                    'label' => $row->google_maps_service_area_label,
+                    'center_lat' => $row->google_maps_center_lat,
+                    'center_lng' => $row->google_maps_center_lng,
+                    'radius_km' => $row->google_maps_radius_km,
+                    'strict_bounds' => (bool) $row->google_maps_strict_bounds,
+                ];
             } catch (\Throwable) {
-                // env fallbacks above
+                // env fallbacks
             }
         }
 
         return ApiResponse::data([
             'google_maps_browser_key' => $browserKey ?: null,
+            'google_maps_country_codes' => $countryCodes,
+            'google_maps_service_area' => $serviceArea,
             'stripe_publishable_key' => $publishable ?: null,
             'payment_provider' => $provider,
         ]);
@@ -135,6 +174,12 @@ class IntegrationSettingsController extends Controller
             'google_maps_browser_key' => $row->google_maps_browser_key,
             'google_maps_server_key' => IntegrationSecretMask::mask($row->google_maps_server_key),
             'google_maps_server_key_configured' => IntegrationSecretMask::isConfigured($row->google_maps_server_key),
+            'google_maps_country_codes' => $row->google_maps_country_codes,
+            'google_maps_service_area_label' => $row->google_maps_service_area_label,
+            'google_maps_center_lat' => $row->google_maps_center_lat,
+            'google_maps_center_lng' => $row->google_maps_center_lng,
+            'google_maps_radius_km' => $row->google_maps_radius_km,
+            'google_maps_strict_bounds' => (bool) $row->google_maps_strict_bounds,
             'stripe_publishable_key' => $row->stripe_publishable_key,
             'stripe_secret_key' => IntegrationSecretMask::mask($row->stripe_secret_key),
             'stripe_secret_key_configured' => IntegrationSecretMask::isConfigured($row->stripe_secret_key),
@@ -160,6 +205,12 @@ class IntegrationSettingsController extends Controller
             'google_maps_browser_key' => null,
             'google_maps_server_key' => null,
             'google_maps_server_key_configured' => false,
+            'google_maps_country_codes' => 'us',
+            'google_maps_service_area_label' => null,
+            'google_maps_center_lat' => null,
+            'google_maps_center_lng' => null,
+            'google_maps_radius_km' => null,
+            'google_maps_strict_bounds' => false,
             'stripe_publishable_key' => null,
             'stripe_secret_key' => null,
             'stripe_secret_key_configured' => false,

@@ -24,13 +24,18 @@ Production Stripe credentials must be provisioned securely (Admin Integrations U
 ### Square (historical)
 Square was the prior documented payment direction. It is superseded by Stripe per ADR-006 (CHG-2026-11-18).
 
-## Google Maps / Places
+## Google Maps / Places & Live Tracking
 Purpose:
-- address autocomplete and map display on public booking flows and admin dispatch where approved
+- Address autocomplete on public booking flows and client booking PWA
+- Admin-configured country code restrictions and service territory bounds
+- Real-time live chauffeur tracking for customers with route directions & dynamic ETA
+- One-tap turn-by-turn navigation redirection (Google Maps, Apple Maps, Waze) for chauffeurs
 
 Configuration:
-- **Browser key** (`google_maps_browser_key`): publishable; exposed via `/api/v1/integrations/public` for client map widgets.
+- **Browser key** (`google_maps_browser_key`): publishable; exposed via `/api/v1/integrations/public` for client map and autocomplete widgets.
 - **Server key** (`google_maps_server_key`): secret; encrypted at rest; server-side geocoding/routing only.
+- **Country codes** (`google_maps_country_codes`): comma-separated ISO country codes (e.g. `us`, `us,ae`) restricting autocomplete suggestions.
+- **Service Area & Geofence** (`google_maps_service_area_label`, `center_lat`, `center_lng`, `radius_km`, `strict_bounds`): defines center coordinates and radius for location biasing or strict boundary enforcement.
 
 ## DocuSign
 Purpose:

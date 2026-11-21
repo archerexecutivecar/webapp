@@ -136,6 +136,75 @@ class CustomerPortalController extends Controller
         return ApiResponse::data(['ride' => $this->payload($ride, true)]);
     }
 
+    /** GET /v1/customer/rides/{id}/tracking */
+    public function tracking(Request $request, string $id): JsonResponse
+    {
+        $ride = RideRequest::with('assignedDriver')
+            ->where('customer_id', $request->user()->getKey())
+            ->findOrFail($id);
+
+        $active = in_array($ride->status, ['on_my_way', 'at_doorstep', 'at_your_doorstep', 'ride_started', 'in_progress'], true);
+        $driver = $ride->assignedDriver;
+
+        $driverTelemetry = null;
+        if ($active && $driver && $driver->current_lat !== null && $driver->current_lng !== null) {
+            $driverTelemetry = [
+                'name' => $driver->name,
+                'avatar_url' => $driver->avatar_url,
+                'lat' => (float) $driver->current_lat,
+                'lng' => (float) $driver->current_lng,
+                'heading' => $driver->heading !== null ? (float) $driver->heading : null,
+                'speed' => $driver->speed !== null ? (float) $driver->speed : null,
+                'last_location_at' => $driver->last_location_at?->toIso8601String(),
+            ];
+        }
+
+        $targetLat = in_array($ride->status, ['ride_started', 'in_progress'], true) ? $ride->dropoff_lat : $ride->pickup_lat;
+        $targetLng = in_array($ride->status, ['ride_started', 'in_progress'], true) ? $ride->dropoff_lng : $ride->pickup_lng;
+        $etaMinutes = null;
+
+        if ($driverTelemetry && $targetLat !== null && $targetLng !== null) {
+            $etaMinutes = $this->calculateEstimatedMinutes(
+                $driverTelemetry['lat'],
+                $driverTelemetry['lng'],
+                $targetLat,
+                $targetLng
+            );
+        }
+
+        return ApiResponse::data([
+            'id' => $ride->id,
+            'reference' => $ride->reference,
+            'status' => $ride->status,
+            'status_label' => $this->label($ride),
+            'is_live' => $active,
+            'driver' => $driverTelemetry,
+            'pickup' => [
+                'address' => $ride->pickup_location,
+                'lat' => $ride->pickup_lat !== null ? (float) $ride->pickup_lat : null,
+                'lng' => $ride->pickup_lng !== null ? (float) $ride->pickup_lng : null,
+            ],
+            'dropoff' => [
+                'address' => $ride->dropoff_location,
+                'lat' => $ride->dropoff_lat !== null ? (float) $ride->dropoff_lat : null,
+                'lng' => $ride->dropoff_lng !== null ? (float) $ride->dropoff_lng : null,
+            ],
+            'eta_minutes' => $etaMinutes,
+        ]);
+    }
+
+    private function calculateEstimatedMinutes(float $lat1, float $lon1, float $lat2, float $lon2): int
+    {
+        $theta = $lon1 - $lon2;
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = acos(max(-1.0, min(1.0, $dist)));
+        $dist = rad2deg($dist);
+        $miles = $dist * 60 * 1.1515;
+
+        $minutes = (int) ceil(($miles / 25) * 60);
+        return max(1, $minutes);
+    }
+
     /** Whitelisted output only: no dispatch notes, no internal ids beyond the ride's own. */
     private function payload(RideRequest $r, bool $full): array
     {
@@ -149,7 +218,11 @@ class CustomerPortalController extends Controller
             'ride_date' => $r->ride_date,
             'ride_time' => $r->ride_time,
             'pickup_location' => $r->pickup_location,
+            'pickup_lat' => $r->pickup_lat !== null ? (float) $r->pickup_lat : null,
+            'pickup_lng' => $r->pickup_lng !== null ? (float) $r->pickup_lng : null,
             'dropoff_location' => $r->dropoff_location,
+            'dropoff_lat' => $r->dropoff_lat !== null ? (float) $r->dropoff_lat : null,
+            'dropoff_lng' => $r->dropoff_lng !== null ? (float) $r->dropoff_lng : null,
             'vehicle' => $r->vehicle,
             'driver_tier' => $r->driver_tier,
             'created_at' => $r->created_at?->toIso8601String(),

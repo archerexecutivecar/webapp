@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { MobileTotal, FormErrors, Panel, Agree, btnGhost, btnPrimary, Chip, Chips, Crumbs, Done, doneP, Fieldset, FormShell, Grid, inputCls, Ref, Select, StepLabels, Text, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
 import { FEE, money, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
@@ -24,7 +24,7 @@ const LAB: Record<RideType, [string, string, string, string, string]> = {
 };
 
 export function AssistantsWeek() {
-  const { HR, PP } = useRates();
+  const { HR, PP, driverTiers } = useRates();
   const [step, setStep] = useState(1);
   const [tier, setTier] = useState(2);
   const [veh, setVeh] = useState("exec|suv");
@@ -34,6 +34,12 @@ export function AssistantsWeek() {
   const [billing, setBilling] = useState("card");
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
+
+  useEffect(() => {
+    if (driverTiers.length > 0 && !driverTiers.some((t) => t.id === tier)) {
+      setTier(driverTiers[0].id);
+    }
+  }, [driverTiers, tier]);
 
   const [cls, size] = veh.split("|") as [Cls, Size];
   const t = tier - 1;
@@ -120,7 +126,7 @@ export function AssistantsWeek() {
               </Grid>
               <div className="flex flex-col gap-2.5">
                 <span className="text-[14px] text-[#C9C3BB]">Tier of service · <Link href="/tiers" className="text-[#E87722]">compare tiers</Link></span>
-                <Grid min={150}>{[1, 2, 3, 4].map((n) => <Chip key={n} on={tier === n} onClick={() => setTier(n)}>Tier {n}</Chip>)}</Grid>
+                <Grid min={150}>{driverTiers.map((t) => <Chip key={t.id} on={tier === t.id} onClick={() => setTier(t.id)}>{t.label}</Chip>)}</Grid>
               </div>
               <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">Preferences (from their profile; changes here update it)
                 <textarea rows={3} placeholder="Temperature, drinks, music or quiet ride, preferred routes, who usually travels with them…" className={`${inputCls} resize-y`} />

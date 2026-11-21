@@ -54,6 +54,7 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/profile', [CustomerPortalController::class, 'updateProfile']);
             Route::get('/rides', [CustomerPortalController::class, 'rides']);
             Route::get('/rides/{id}', [CustomerPortalController::class, 'show']);
+            Route::get('/rides/{id}/tracking', [CustomerPortalController::class, 'tracking']);
             Route::get('/assistant-profiles', [CustomerPortalController::class, 'assistantProfiles']);
             Route::put('/assistant-profiles/{reference}', [CustomerPortalController::class, 'updateAssistantProfile']);
             Route::put('/password', [CustomerAuthController::class, 'setPassword']);
@@ -260,6 +261,7 @@ Route::prefix('v1')->group(function (): void {
     Route::prefix('driver')->middleware(['auth:api', 'permission:driver.portal'])->group(function (): void {
         Route::get('/profile', [DriverPortalController::class, 'profile']);
         Route::put('/presence', [DriverPortalController::class, 'updatePresence']);
+        Route::post('/location', [DriverPortalController::class, 'updateLocation'])->middleware('throttle:60,1');
         Route::get('/offers', [DriverPortalController::class, 'offers']);
         Route::post('/offers/{rideId}/accept', [DriverPortalController::class, 'acceptOffer']);
         Route::get('/rides', [DriverPortalController::class, 'myRides']);

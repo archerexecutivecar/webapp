@@ -2,12 +2,12 @@
 
 import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
 import { CLS_NAME, FEE, money, STOP, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 
 export function P2PForm() {
-  const { HR, PP, M } = useRates();
+  const { HR, PP, M, driverTiers } = useRates();
   const [step, setStep] = useState(1);
   const [way, setWay] = useState("one");
   const [stops, setStops] = useState(0);
@@ -16,6 +16,12 @@ export function P2PForm() {
   const [size, setSize] = useState<Size>("suv");
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
+
+  useEffect(() => {
+    if (driverTiers.length > 0 && !driverTiers.some((t) => t.id === tier)) {
+      setTier(driverTiers[0].id);
+    }
+  }, [driverTiers, tier]);
 
   const t = tier - 1;
   const legs = way === "round" ? 2 : 1;
@@ -86,7 +92,7 @@ export function P2PForm() {
               <Text label="Passengers" type="number" min={1} defaultValue={1} />
               <Text label="Bags" type="number" min={0} defaultValue={0} />
             </Grid>
-            <TierPicker tier={tier} onPick={setTier} />
+            <TierPicker tier={tier} onPick={setTier} items={driverTiers} />
             <FleetPicker cls={cls} size={size} onPick={(c, z) => { setCls(c); setSize(z); }} priceFor={priceFor} note="Prices shown for the tier you picked. Sprinters are hourly only, 4-hour minimum." />
             <div><button type="button" onClick={() => setStep(2)} className={btnPrimary}>Continue to estimate</button></div>
           </>

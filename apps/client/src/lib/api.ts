@@ -51,6 +51,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       headers,
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
       signal: controller.signal,
+      cache: "no-store",
     });
   } catch {
     throw new ApiError(0, "NETWORK_ERROR", "Unable to reach Archer. Check your connection and try again.");

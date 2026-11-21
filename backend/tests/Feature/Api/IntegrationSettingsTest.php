@@ -23,6 +23,7 @@ class IntegrationSettingsTest extends TestCase
         IntegrationSetting::current()->update([
             'google_maps_browser_key' => 'browser-key-public',
             'google_maps_server_key' => 'super-secret-server-key-1234',
+            'google_maps_country_codes' => 'us',
             'stripe_publishable_key' => 'pk_test_abc',
             'stripe_secret_key' => 'sk_test_supersecret5678',
             'stripe_webhook_secret' => 'whsec_testhook9999',
@@ -37,6 +38,7 @@ class IntegrationSettingsTest extends TestCase
         $this->assertSame('browser-key-public', $settings['google_maps_browser_key']);
         $this->assertSame('••••1234', $settings['google_maps_server_key']);
         $this->assertTrue($settings['google_maps_server_key_configured']);
+        $this->assertSame('us', $settings['google_maps_country_codes']);
         $this->assertStringNotContainsString('super-secret-server-key', json_encode($settings));
         $this->assertSame('••••5678', $settings['stripe_secret_key']);
         $this->assertSame('••••9999', $settings['stripe_webhook_secret']);
@@ -47,6 +49,7 @@ class IntegrationSettingsTest extends TestCase
         IntegrationSetting::current()->update([
             'google_maps_browser_key' => 'browser-key-public',
             'google_maps_server_key' => 'server-secret',
+            'google_maps_country_codes' => 'us',
             'stripe_publishable_key' => 'pk_live_123',
             'stripe_secret_key' => 'sk_live_secret',
             'stripe_webhook_secret' => 'whsec_x',
@@ -59,6 +62,14 @@ class IntegrationSettingsTest extends TestCase
         $response->assertExactJson([
             'data' => [
                 'google_maps_browser_key' => 'browser-key-public',
+                'google_maps_country_codes' => ['us'],
+                'google_maps_service_area' => [
+                    'label' => null,
+                    'center_lat' => null,
+                    'center_lng' => null,
+                    'radius_km' => null,
+                    'strict_bounds' => false,
+                ],
                 'stripe_publishable_key' => 'pk_live_123',
                 'payment_provider' => 'stripe',
             ],
@@ -67,6 +78,36 @@ class IntegrationSettingsTest extends TestCase
         $this->assertStringNotContainsString('sk_live', $body);
         $this->assertStringNotContainsString('whsec', $body);
         $this->assertStringNotContainsString('server-secret', $body);
+    }
+
+    public function test_admin_can_configure_google_maps_restrictions(): void
+    {
+        [, $headers] = $this->actingAsRole('super_admin');
+
+        $response = $this->withHeaders($headers)->putJson('/api/v1/admin/integrations', [
+            'google_maps_browser_key' => 'AIzaSyTest123',
+            'google_maps_country_codes' => 'us,ae',
+            'google_maps_service_area_label' => 'Greater Los Angeles',
+            'google_maps_center_lat' => 34.0522,
+            'google_maps_center_lng' => -118.2437,
+            'google_maps_radius_km' => 80,
+            'google_maps_strict_bounds' => true,
+        ]);
+
+        $response->assertOk();
+        $fresh = IntegrationSetting::current()->fresh();
+        $this->assertSame('us,ae', $fresh->google_maps_country_codes);
+        $this->assertSame('Greater Los Angeles', $fresh->google_maps_service_area_label);
+        $this->assertEquals(34.0522, $fresh->google_maps_center_lat);
+        $this->assertEquals(-118.2437, $fresh->google_maps_center_lng);
+        $this->assertSame(80, $fresh->google_maps_radius_km);
+        $this->assertTrue($fresh->google_maps_strict_bounds);
+
+        $public = $this->getJson('/api/v1/integrations/public');
+        $public->assertOk();
+        $this->assertSame(['us', 'ae'], $public->json('data.google_maps_country_codes'));
+        $this->assertSame('Greater Los Angeles', $public->json('data.google_maps_service_area.label'));
+        $this->assertTrue($public->json('data.google_maps_service_area.strict_bounds'));
     }
 
     public function test_update_persists_publishable_fields_and_write_only_secrets(): void

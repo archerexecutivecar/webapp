@@ -49,24 +49,27 @@ const dollars = (r?: SiteRate) => (r ? Math.round(r.amount_cents / 100) : null);
 /**
  * Lowest published amount per tier (1..4) across every class/size of a rate kind.
  * A "starting at" price must never exceed a rate shown elsewhere on the page (QA BUG-008).
+ * Inactive/missing tiers are filled as 0 so active tiers are not discarded.
  */
-export function tierMinimums(rates: SiteRate[], kind: string): number[] | null {
+export function tierMinimums(rates: SiteRate[], kind: string, maxTier = 4): number[] | null {
+  const matching = rates.filter((r) => r.kind === kind);
+  if (matching.length === 0) return null;
   const out: number[] = [];
-  for (let t = 1; t <= 4; t++) {
-    const amounts = rates.filter((r) => r.kind === kind && r.tier === t).map((r) => r.amount_cents);
-    if (amounts.length === 0) return null;
-    out.push(Math.round(Math.min(...amounts) / 100));
+  for (let t = 1; t <= maxTier; t++) {
+    const amounts = matching.filter((r) => r.tier === t).map((r) => r.amount_cents);
+    out.push(amounts.length > 0 ? Math.round(Math.min(...amounts) / 100) : 0);
   }
   return out;
 }
 
-/** tier 1..4 amounts for a rate series, or null if the series is incomplete. */
-export function series(rates: SiteRate[], kind: string, cls: string | null, size: string | null): number[] | null {
+/** tier amounts for a rate series, or null if no rates match. Missing/inactive tiers default to 0. */
+export function series(rates: SiteRate[], kind: string, cls: string | null, size: string | null, maxTier = 4): number[] | null {
+  const matching = rates.filter((r) => r.kind === kind && (cls === null || r.vehicle_class === cls) && (size === null || r.size === size));
+  if (matching.length === 0) return null;
   const out: number[] = [];
-  for (let t = 1; t <= 4; t++) {
-    const v = dollars(rates.find((r) => r.kind === kind && r.vehicle_class === cls && r.size === size && r.tier === t));
-    if (v === null) return null;
-    out.push(v);
+  for (let t = 1; t <= maxTier; t++) {
+    const found = matching.find((r) => r.tier === t);
+    out.push(found ? Math.round(found.amount_cents / 100) : 0);
   }
   return out;
 }

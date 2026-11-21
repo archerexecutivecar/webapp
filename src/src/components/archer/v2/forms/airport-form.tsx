@@ -2,7 +2,7 @@
 
 import { collectForm, clean, str, useSubmit } from "@/lib/booking-api";
 import { FormErrors, Panel } from "@/components/archer/v2/forms/form-kit";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Agree, btnGhost, btnPrimary, Chips, Crumbs, Done, doneP, EstimateAside, FleetPicker, Fieldset, FormShell, Grid, Ref, StepLabels, Text, TierPicker, Title, TwoCol } from "@/components/archer/v2/forms/form-kit";
 import { CLS_NAME, FEE, money, useRates, type Cls, type Size } from "@/components/archer/v2/forms/pricing";
 import { HEAD } from "@/components/archer/v2/tokens";
@@ -15,7 +15,7 @@ const AIRPORTS = [
 ];
 
 export function AirportForm() {
-  const { HR, PP, M } = useRates();
+  const { HR, PP, M, driverTiers } = useRates();
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState("from");
   const [airport, setAirport] = useState("EWR");
@@ -26,6 +26,12 @@ export function AirportForm() {
   const [ret, setRet] = useState(false);
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
+
+  useEffect(() => {
+    if (driverTiers.length > 0 && !driverTiers.some((t) => t.id === tier)) {
+      setTier(driverTiers[0].id);
+    }
+  }, [driverTiers, tier]);
 
   const t = tier - 1;
   const legs = ret ? 2 : 1;
@@ -100,7 +106,7 @@ export function AirportForm() {
             {arrival && (
               <Fieldset legend="How should we meet you?" gap="gap-3"><Chips list={[{ id: "curb", label: "Curbside at arrivals" }, { id: "sign", label: "Inside, with a name sign" }]} value={meet} onPick={setMeet} /></Fieldset>
             )}
-            <TierPicker tier={tier} onPick={setTier} />
+            <TierPicker tier={tier} onPick={setTier} items={driverTiers} />
             <FleetPicker cls={cls} size={size} onPick={(c, z) => { setCls(c); setSize(z); }} priceFor={priceFor} note="Prices shown for the tier and airport you picked. Sprinters are hourly only, 4-hour minimum." />
             <div className="flex flex-col gap-2 border-t-[3px] border-[#E87722] bg-[#1A1A1A] px-[22px] py-5 text-[15px] text-[#C9C3BB]">
               <span className="text-[13px] font-medium tracking-[0.2em] text-[#E87722]">WAITING TIME &amp; DELAYS</span>

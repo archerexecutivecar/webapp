@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import { Shell } from "@/components/Shell";
+import { DriverNavigationPanel } from "@/components/DriverNavigationPanel";
 import { api, errorText, statusLabel, whenText, type AssignedRide } from "@/lib/api";
 
 function RideDetail() {
@@ -70,13 +71,9 @@ function RideDetail() {
               <dt>Vehicle</dt><dd>{ride.vehicle || "Assigned by dispatch"}</dd>
               <dt>Phone</dt><dd>{ride.phone ? <a href={`tel:${ride.phone}`}>{ride.phone}</a> : "Not on file"}</dd>
             </dl>
-            {ride.pickup_location && (
-              <a className="btn ghost" href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(ride.pickup_location)}`} target="_blank" rel="noreferrer">
-                Open pickup in Maps
-              </a>
-            )}
             {ride.dispatch_notes && <p className="note">{ride.dispatch_notes}</p>}
           </section>
+          <DriverNavigationPanel ride={ride} />
           {(ride.allowed_next?.length ?? 0) > 0 && (
             <form className="card" onSubmit={submit}>
               <label className="field">

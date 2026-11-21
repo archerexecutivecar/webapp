@@ -8,6 +8,7 @@ import { ScreenTitle } from "@/components/ScreenTitle";
 import { Shell } from "@/components/Shell";
 import { badgeClass } from "@/components/RideCard";
 import { RideCarProgress } from "@/components/RideCarProgress";
+import { CustomerLiveMap } from "@/components/CustomerLiveMap";
 
 const LABELS: Record<string, string> = {
   way: "Trip", stops: "Stops", passengers: "Passengers", bags: "Bags", return_time: "Return pickup", direction: "Direction", airport: "Airport",
@@ -77,6 +78,10 @@ function Detail() {
             timeline={ride.timeline}
           />
         </section>
+      )}
+
+      {ride.status !== "cancelled" && (
+        <CustomerLiveMap rideId={ride.id} status={ride.status} />
       )}
 
       {ride.chauffeur && (

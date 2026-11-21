@@ -20,7 +20,11 @@ class RideRequest extends Model
         'email',
         'phone',
         'pickup_location',
+        'pickup_lat',
+        'pickup_lng',
         'dropoff_location',
+        'dropoff_lat',
+        'dropoff_lng',
         'service_type',
         'driver_tier',
         'ride_date',
@@ -36,7 +40,13 @@ class RideRequest extends Model
 
     protected function casts(): array
     {
-        return ['details' => 'array'];
+        return [
+            'details' => 'array',
+            'pickup_lat' => 'float',
+            'pickup_lng' => 'float',
+            'dropoff_lat' => 'float',
+            'dropoff_lng' => 'float',
+        ];
     }
 
     public function assignedDriver()

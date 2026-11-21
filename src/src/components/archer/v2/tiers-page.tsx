@@ -41,15 +41,24 @@ function Check({ children }: { children: string }) {
 }
 
 function fromSite(site?: SiteData | null) {
-  if (!site || !site.tiers || site.tier_list.length === 0) return null;
+  if (!site || !site.tiers || !site.tier_list || site.tier_list.length === 0) return null;
   const driverHourly = tierMinimums(site.rates, "hourly");
   const sec = series(site.rates, "security_hourly", null, null);
   const execSuv = series(site.rates, "hourly", "exec", "suv");
   const firstSuv = series(site.rates, "hourly", "first", "suv");
   if (!driverHourly || !sec || !execSuv || !firstSuv) return null;
   const build = (kind: "driver" | "security", prices: number[]): Tier[] =>
-    site.tier_list.filter((t) => t.kind === kind).map((t) => ({ label: t.label, title: t.title, price: "$" + prices[t.tier - 1], call: t.call_only, creds: t.credentials, quals: t.suited_for }));
-  return { SLIDES: site.tiers.slides, DRIVER: build("driver", driverHourly), SECURITY: build("security", sec), RATES: [0, 1, 2, 3].map((i) => [execSuv[i], firstSuv[i]]) };
+    site.tier_list.filter((t) => t.kind === kind).map((t) => ({
+      label: t.label,
+      title: t.title,
+      price: prices[t.tier - 1] ? "$" + prices[t.tier - 1] : "Call for pricing",
+      call: t.call_only,
+      creds: t.credentials,
+      quals: t.suited_for
+    }));
+  const driverTiers = site.tier_list.filter((t) => t.kind === "driver");
+  const ratesTable = driverTiers.map((t) => [execSuv[t.tier - 1] ?? 0, firstSuv[t.tier - 1] ?? 0]);
+  return { SLIDES: site.tiers.slides, DRIVER: build("driver", driverHourly), SECURITY: build("security", sec), RATES: ratesTable };
 }
 
 export function TiersPage({ site }: { site?: SiteData | null } = {}) {

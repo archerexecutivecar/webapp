@@ -145,6 +145,40 @@ class DriverPortalController extends Controller
         return ApiResponse::data(['portal' => $this->portalPayload($driver->fresh('tier'))]);
     }
 
+    public function updateLocation(Request $request): JsonResponse
+    {
+        $driver = $this->getDriver($request);
+        if (! $driver) {
+            return ApiResponse::error('DRIVER_NOT_FOUND', 'Driver profile not found.', 404);
+        }
+
+        $validated = $request->validate([
+            'lat' => 'required|numeric|between:-90,90',
+            'lng' => 'required|numeric|between:-180,180',
+            'heading' => 'nullable|numeric|between:0,360',
+            'speed' => 'nullable|numeric|min:0',
+        ]);
+
+        $driver->update([
+            'current_lat' => $validated['lat'],
+            'current_lng' => $validated['lng'],
+            'heading' => $validated['heading'] ?? null,
+            'speed' => $validated['speed'] ?? null,
+            'last_location_at' => now(),
+        ]);
+
+        return ApiResponse::data([
+            'message' => 'Location updated successfully',
+            'location' => [
+                'lat' => (float) $driver->current_lat,
+                'lng' => (float) $driver->current_lng,
+                'heading' => $driver->heading !== null ? (float) $driver->heading : null,
+                'speed' => $driver->speed !== null ? (float) $driver->speed : null,
+                'updated_at' => $driver->last_location_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
     public function offers(Request $request): JsonResponse
     {
         $driver = $this->resolveDriverOrPreview($request);
@@ -294,7 +328,11 @@ class DriverPortalController extends Controller
             'ride_date' => $ride->ride_date,
             'ride_time' => $ride->ride_time,
             'pickup_location' => $ride->pickup_location,
+            'pickup_lat' => $ride->pickup_lat !== null ? (float) $ride->pickup_lat : null,
+            'pickup_lng' => $ride->pickup_lng !== null ? (float) $ride->pickup_lng : null,
             'dropoff_location' => $ride->dropoff_location,
+            'dropoff_lat' => $ride->dropoff_lat !== null ? (float) $ride->dropoff_lat : null,
+            'dropoff_lng' => $ride->dropoff_lng !== null ? (float) $ride->dropoff_lng : null,
             'vehicle' => OperationalFleet::displayName($ride->vehicle) ?? $ride->vehicle,
             'security_addon' => $ride->security_addon,
             'dispatch_notes' => $ride->dispatch_notes,

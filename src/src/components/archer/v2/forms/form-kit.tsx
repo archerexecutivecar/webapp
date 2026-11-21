@@ -108,12 +108,23 @@ export function Chips<T extends string | number>({ list, value, onPick }: { list
 
 export const TIER_CHIPS = [{ id: 1, label: "Tier 1" }, { id: 2, label: "Tier 2" }, { id: 3, label: "Tier 3" }, { id: 4, label: "Tier 4 · call" }];
 
-export function TierPicker({ tier, onPick, labels }: { tier: number; onPick: (n: number) => void; labels?: string[] }) {
+export function TierPicker({
+  tier,
+  onPick,
+  labels,
+  items,
+}: {
+  tier: number;
+  onPick: (n: number) => void;
+  labels?: string[];
+  items?: { id: number; label: string }[];
+}) {
+  const chips = items && items.length > 0 ? items : TIER_CHIPS;
   return (
     <Fieldset legend="Tier of service" gap="gap-3">
       <Link href="/tiers" className="-mb-1 text-[14px] text-[#E87722]">Not sure? Compare tiers →</Link>
       <Grid min={150}>
-        {TIER_CHIPS.map((t, i) => (<Chip key={t.id} on={tier === t.id} onClick={() => onPick(t.id)}>{labels ? labels[i] : t.label}</Chip>))}
+        {chips.map((t, i) => (<Chip key={t.id} on={tier === t.id} onClick={() => onPick(t.id)}>{labels ? labels[i] : t.label}</Chip>))}
       </Grid>
     </Fieldset>
   );

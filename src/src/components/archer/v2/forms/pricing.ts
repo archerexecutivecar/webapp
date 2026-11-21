@@ -32,6 +32,20 @@ export const SIZES: Size[] = ["sedan", "suv", "van"];
 import { useEffect, useState } from "react";
 import { API_BASE, series, type SiteData } from "@/lib/site-api";
 
+export type TierOption = {
+  id: number;
+  label: string;
+  name: string;
+  callOnly: boolean;
+};
+
+export const DEFAULT_DRIVER_TIERS: TierOption[] = [
+  { id: 1, label: "Tier 1", name: "Tier 1 · Essential", callOnly: false },
+  { id: 2, label: "Tier 2", name: "Tier 2 · Executive", callOnly: false },
+  { id: 3, label: "Tier 3", name: "Tier 3 · Elite", callOnly: false },
+  { id: 4, label: "Tier 4 · call", name: "Tier 4 · Armed", callOnly: true },
+];
+
 export type Rates = {
   HR: Record<Cls, Record<Size, number[]>>;
   PP: Record<Cls, Record<Size, number[] | null>>;
@@ -40,20 +54,56 @@ export type Rates = {
   /** Security guard hourly, per tier. */
   GUARD: number[];
   M: Record<Cls, Record<Size, string>>;
+  driverTiers: TierOption[];
+  securityTiers: TierOption[];
 };
 
-export const STATIC_RATES: Rates = { HR, PP, CC, GUARD: CC, M };
+export const STATIC_RATES: Rates = {
+  HR,
+  PP,
+  CC,
+  GUARD: CC,
+  M,
+  driverTiers: DEFAULT_DRIVER_TIERS,
+  securityTiers: DEFAULT_DRIVER_TIERS,
+};
 
-/** Builds estimate tables from the Admin rate card; any missing series keeps its fallback value. */
-export function ratesFromSite(site: Pick<SiteData, "rates" | "vehicles"> | null): Rates {
+/** Builds estimate tables and active tier list from the Admin rate card; any missing series keeps its fallback value. */
+export function ratesFromSite(site: (Pick<SiteData, "rates" | "vehicles"> & Partial<Pick<SiteData, "tier_list">>) | null): Rates {
   if (!site) return STATIC_RATES;
   const r = site.rates ?? [];
+
+  let driverTiers = DEFAULT_DRIVER_TIERS;
+  let securityTiers = DEFAULT_DRIVER_TIERS;
+  if (site.tier_list && site.tier_list.length > 0) {
+    const activeDriver = site.tier_list.filter((t) => t.kind === "driver");
+    if (activeDriver.length > 0) {
+      driverTiers = activeDriver.map((t) => ({
+        id: t.tier,
+        label: t.call_only ? `Tier ${t.tier} · call` : `Tier ${t.tier}`,
+        name: t.label || `Tier ${t.tier}`,
+        callOnly: !!t.call_only,
+      }));
+    }
+    const activeSecurity = site.tier_list.filter((t) => t.kind === "security");
+    if (activeSecurity.length > 0) {
+      securityTiers = activeSecurity.map((t) => ({
+        id: t.tier,
+        label: t.call_only ? `Tier ${t.tier} · call` : `Tier ${t.tier}`,
+        name: t.label || `Tier ${t.tier}`,
+        callOnly: !!t.call_only,
+      }));
+    }
+  }
+
   const out: Rates = {
     HR: { exec: { ...HR.exec }, first: { ...HR.first } },
     PP: { exec: { ...PP.exec }, first: { ...PP.first } },
     CC: series(r, "client_car_hourly", null, null) ?? series(r, "security_hourly", null, null) ?? CC,
     GUARD: series(r, "security_hourly", null, null) ?? CC,
     M: { exec: { ...M.exec }, first: { ...M.first } },
+    driverTiers,
+    securityTiers,
   };
   for (const c of ["exec", "first"] as Cls[]) {
     for (const z of SIZES) {
@@ -68,7 +118,7 @@ export function ratesFromSite(site: Pick<SiteData, "rates" | "vehicles"> | null)
 
 let cache: Promise<Rates> | null = null;
 function loadRates(): Promise<Rates> {
-  cache ??= fetch(`${API_BASE}/site`, { headers: { Accept: "application/json" } })
+  cache ??= fetch(`${API_BASE}/site`, { headers: { Accept: "application/json" }, cache: "no-store" })
     .then((res) => (res.ok ? res.json() : null))
     .then((j) => ratesFromSite(j?.data ?? null))
     .catch(() => STATIC_RATES);

@@ -187,6 +187,37 @@ button:hover:not(:disabled) {
 }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
+button.ghost, .btn-ghost {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+}
+button.ghost:hover:not(:disabled), .btn-ghost:hover:not(:disabled) {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+}
+button.outline, .btn-outline {
+  background: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+button.outline:hover:not(:disabled), .btn-outline:hover:not(:disabled) {
+  background: var(--surface-2) !important;
+  border-color: var(--muted) !important;
+}
+button.danger-ghost, .btn-danger-ghost {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--muted) !important;
+  box-shadow: none !important;
+}
+button.danger-ghost:hover:not(:disabled), .btn-danger-ghost:hover:not(:disabled) {
+  background: var(--danger-light) !important;
+  color: var(--danger) !important;
+}
+
 button.secondary {
   background: var(--surface);
   color: var(--text);
