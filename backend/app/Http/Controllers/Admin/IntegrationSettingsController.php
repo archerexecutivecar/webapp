@@ -21,11 +21,21 @@ class IntegrationSettingsController extends Controller
             ]);
         }
 
-        $row = IntegrationSetting::current();
+        try {
+            $row = IntegrationSetting::current();
 
-        return ApiResponse::data([
-            'settings' => $this->maskedPayload($row),
-        ]);
+            return ApiResponse::data([
+                'settings' => $this->maskedPayload($row),
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('IntegrationSettingsController@show error: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+
+            return ApiResponse::data([
+                'settings' => $this->emptyMaskedPayload(),
+            ]);
+        }
     }
 
     public function update(Request $request): JsonResponse
@@ -54,71 +64,89 @@ class IntegrationSettingsController extends Controller
             'payment_provider' => 'nullable|string|in:stripe,square',
         ]);
 
-        $settings = IntegrationSetting::current();
-        $persist = [];
-        $auditFields = [];
+        try {
+            $settings = IntegrationSetting::current();
+            $persist = [];
+            $auditFields = [];
 
-        $publishable = [
-            'google_maps_browser_key',
-            'google_maps_country_codes',
-            'google_maps_service_area_label',
-            'google_maps_center_lat',
-            'google_maps_center_lng',
-            'google_maps_radius_km',
-            'google_maps_strict_bounds',
-            'stripe_publishable_key',
-            'sms_provider',
-            'docusign_integration_key',
-            'docusign_account_id',
-            'payment_provider',
-        ];
+            $publishable = [
+                'google_maps_browser_key',
+                'google_maps_country_codes',
+                'google_maps_service_area_label',
+                'google_maps_center_lat',
+                'google_maps_center_lng',
+                'google_maps_radius_km',
+                'google_maps_strict_bounds',
+                'stripe_publishable_key',
+                'sms_provider',
+                'docusign_integration_key',
+                'docusign_account_id',
+                'payment_provider',
+            ];
 
-        foreach ($publishable as $key) {
-            if (array_key_exists($key, $validated)) {
-                $val = $validated[$key];
-                if ($key === 'google_maps_strict_bounds') {
-                    $val = (bool) $val;
-                } elseif (is_string($val)) {
-                    $val = trim($val);
-                    $val = $val !== '' ? $val : null;
+            foreach ($publishable as $key) {
+                if (array_key_exists($key, $validated)) {
+                    $val = $validated[$key];
+                    if ($key === 'google_maps_strict_bounds') {
+                        $val = (bool) $val;
+                    } elseif (is_string($val)) {
+                        $val = trim($val);
+                        $val = $val !== '' ? $val : null;
+                    }
+                    $persist[$key] = $val;
+                    $auditFields[$key] = $val;
                 }
-                $persist[$key] = $val;
-                $auditFields[$key] = $val;
             }
-        }
 
-        $secrets = [
-            'google_maps_server_key',
-            'stripe_secret_key',
-            'stripe_webhook_secret',
-            'sms_api_key',
-            'docusign_secret',
-        ];
+            $secrets = [
+                'google_maps_server_key',
+                'stripe_secret_key',
+                'stripe_webhook_secret',
+                'sms_api_key',
+                'docusign_secret',
+            ];
 
-        foreach ($secrets as $key) {
-            if (! array_key_exists($key, $validated)) {
-                continue;
+            foreach ($secrets as $key) {
+                if (! array_key_exists($key, $validated)) {
+                    continue;
+                }
+                if (IntegrationSecretMask::shouldPersistIncoming($validated[$key])) {
+                    $persist[$key] = $validated[$key];
+                    $auditFields[$key] = ['updated' => true];
+                }
             }
-            if (IntegrationSecretMask::shouldPersistIncoming($validated[$key])) {
-                $persist[$key] = $validated[$key];
-                $auditFields[$key] = ['updated' => true];
+
+            if ($persist !== []) {
+                $existingColumns = Schema::getColumnListing('integration_settings');
+                $safePersist = array_intersect_key($persist, array_flip($existingColumns));
+
+                if ($safePersist !== []) {
+                    $settings->update($safePersist);
+                }
+
+                try {
+                    AuditLog::record(
+                        'integration_settings.updated',
+                        $request->user()?->id,
+                        $auditFields,
+                        $settings
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('AuditLog recording failed for integration_settings: ' . $e->getMessage());
+                }
             }
-        }
 
-        if ($persist !== []) {
-            $settings->update($persist);
-            AuditLog::record(
-                'integration_settings.updated',
-                $request->user()?->id,
-                $auditFields,
-                $settings
-            );
-        }
+            return ApiResponse::data([
+                'message' => 'Integration settings updated successfully.',
+                'settings' => $this->maskedPayload($settings->fresh()),
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('IntegrationSettingsController@update error: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
 
-        return ApiResponse::data([
-            'message' => 'Integration settings updated successfully.',
-            'settings' => $this->maskedPayload($settings->fresh()),
-        ]);
+            return ApiResponse::error('UPDATE_FAILED', 'Failed to update integration settings: ' . $e->getMessage(), 500);
+        }
     }
 
     public function publicConfig(): JsonResponse
@@ -172,28 +200,37 @@ class IntegrationSettingsController extends Controller
     {
         return [
             'google_maps_browser_key' => $row->google_maps_browser_key,
-            'google_maps_server_key' => IntegrationSecretMask::mask($row->google_maps_server_key),
-            'google_maps_server_key_configured' => IntegrationSecretMask::isConfigured($row->google_maps_server_key),
-            'google_maps_country_codes' => $row->google_maps_country_codes,
+            'google_maps_server_key' => IntegrationSecretMask::mask($this->safeSecret($row, 'google_maps_server_key')),
+            'google_maps_server_key_configured' => IntegrationSecretMask::isConfigured($this->safeSecret($row, 'google_maps_server_key')),
+            'google_maps_country_codes' => $row->google_maps_country_codes ?? 'us',
             'google_maps_service_area_label' => $row->google_maps_service_area_label,
             'google_maps_center_lat' => $row->google_maps_center_lat,
             'google_maps_center_lng' => $row->google_maps_center_lng,
             'google_maps_radius_km' => $row->google_maps_radius_km,
             'google_maps_strict_bounds' => (bool) $row->google_maps_strict_bounds,
             'stripe_publishable_key' => $row->stripe_publishable_key,
-            'stripe_secret_key' => IntegrationSecretMask::mask($row->stripe_secret_key),
-            'stripe_secret_key_configured' => IntegrationSecretMask::isConfigured($row->stripe_secret_key),
-            'stripe_webhook_secret' => IntegrationSecretMask::mask($row->stripe_webhook_secret),
-            'stripe_webhook_secret_configured' => IntegrationSecretMask::isConfigured($row->stripe_webhook_secret),
+            'stripe_secret_key' => IntegrationSecretMask::mask($this->safeSecret($row, 'stripe_secret_key')),
+            'stripe_secret_key_configured' => IntegrationSecretMask::isConfigured($this->safeSecret($row, 'stripe_secret_key')),
+            'stripe_webhook_secret' => IntegrationSecretMask::mask($this->safeSecret($row, 'stripe_webhook_secret')),
+            'stripe_webhook_secret_configured' => IntegrationSecretMask::isConfigured($this->safeSecret($row, 'stripe_webhook_secret')),
             'sms_provider' => $row->sms_provider,
-            'sms_api_key' => IntegrationSecretMask::mask($row->sms_api_key),
-            'sms_api_key_configured' => IntegrationSecretMask::isConfigured($row->sms_api_key),
+            'sms_api_key' => IntegrationSecretMask::mask($this->safeSecret($row, 'sms_api_key')),
+            'sms_api_key_configured' => IntegrationSecretMask::isConfigured($this->safeSecret($row, 'sms_api_key')),
             'docusign_integration_key' => $row->docusign_integration_key,
-            'docusign_secret' => IntegrationSecretMask::mask($row->docusign_secret),
-            'docusign_secret_configured' => IntegrationSecretMask::isConfigured($row->docusign_secret),
+            'docusign_secret' => IntegrationSecretMask::mask($this->safeSecret($row, 'docusign_secret')),
+            'docusign_secret_configured' => IntegrationSecretMask::isConfigured($this->safeSecret($row, 'docusign_secret')),
             'docusign_account_id' => $row->docusign_account_id,
             'payment_provider' => $row->payment_provider ?: 'stripe',
         ];
+    }
+
+    private function safeSecret(IntegrationSetting $row, string $key): ?string
+    {
+        try {
+            return $row->{$key};
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

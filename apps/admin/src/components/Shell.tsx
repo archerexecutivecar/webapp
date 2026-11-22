@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  ArrowLeftRight, BadgeCheck, Bell, Calculator, CalendarCheck, Car,
+  ArrowLeftRight, ArrowRight, BadgeCheck, Bell, Calculator, CalendarCheck, Car,
   ChevronsLeft, ChevronsRight, CreditCard, ExternalLink, FileText,
   LayoutDashboard, LogOut, type LucideIcon, Megaphone, Menu, MessageSquare,
   Monitor, Moon, Route, Settings, ShieldAlert, ShieldCheck, Sun, Tag,
@@ -138,7 +138,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <span className="wm-sub">Executive</span>
             </div>
           </Link>
-          <button className="icon-btn sb-close" onClick={() => setDrawer(false)} aria-label="Close menu">
+          <button className="icon-btn sb-close md:hidden" onClick={() => setDrawer(false)} aria-label="Close menu">
             <X size={18} />
           </button>
         </div>
@@ -375,10 +375,40 @@ function NotificationsMenu() {
       </div>
 
       {latestToast && (
-        <button className="notif-toast" onClick={() => handleNotificationClick(latestToast)}>
-          <strong>{latestToast.title}</strong>
-          <span>{latestToast.message}</span>
-        </button>
+        <div className="admin-floating-toast" role="status" aria-live="polite">
+          <div className="toast-content">
+            <div className="toast-header">
+              <div className="toast-title-row">
+                <span className="toast-icon-badge">
+                  <Bell size={14} />
+                </span>
+                <strong className="toast-title">{latestToast.title}</strong>
+              </div>
+              <button
+                type="button"
+                className="toast-close-btn"
+                aria-label="Dismiss notification"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLatestToast(null);
+                }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <p className="toast-body">{latestToast.message}</p>
+            <div className="toast-footer">
+              <button
+                type="button"
+                className="toast-action-btn"
+                onClick={() => handleNotificationClick(latestToast)}
+              >
+                <span>View Details</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

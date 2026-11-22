@@ -420,50 +420,74 @@ export default function RidesPage() {
     switch (status) {
       case 'new':
       case 'pending':
-        return <span className="text-[11px] font-bold px-2.5 py-1 rounded bg-[#E48243]/15 text-[#E48243] border border-[#E48243]/30">New request</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 9999, background: 'rgba(232, 119, 34, 0.12)', color: '#e87722', border: '1px solid rgba(232, 119, 34, 0.3)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e87722' }} />
+            New Request
+          </span>
+        );
       case 'broadcast':
       case 'offered':
-        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">Offered to preferred driver</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, padding: '3px 10px', borderRadius: 9999, background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3b82f6' }} />
+            Offered to Driver
+          </span>
+        );
       case 'dispatched':
       case 'driver_assigned':
-        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30">Driver assigned</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, padding: '3px 10px', borderRadius: 9999, background: 'rgba(59, 130, 246, 0.15)', color: '#2563eb', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563eb' }} />
+            Driver Assigned
+          </span>
+        );
       case 'in_progress':
-        return <span className="text-[11px] font-bold px-2.5 py-1 rounded bg-blue-600 text-white shadow-sm">Ride in progress</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 700, padding: '3px 10px', borderRadius: 9999, background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#8b5cf6' }} />
+            Ride In Progress
+          </span>
+        );
       case 'completed':
-        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">Completed</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, padding: '3px 10px', borderRadius: 9999, background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+            Completed
+          </span>
+        );
       case 'cancelled':
-        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-rose-500/15 text-rose-600 border border-rose-500/30">Cancelled</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, padding: '3px 10px', borderRadius: 9999, background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
+            Cancelled
+          </span>
+        );
       default:
-        return <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-muted text-muted-foreground">{status}</span>;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 600, padding: '3px 10px', borderRadius: 9999, background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+            {status}
+          </span>
+        );
     }
   };
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', paddingBottom: 60 }}>
-      {/* Page Header matching Prototype */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                background: 'rgba(217, 119, 6, 0.12)',
-                color: '#d97706',
-                padding: '3px 8px',
-                borderRadius: 4,
-              }}
-            >
-              P1
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 9999, background: 'rgba(232, 119, 34, 0.12)', border: '1px solid rgba(232, 119, 34, 0.25)', marginBottom: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e87722', display: 'inline-block' }} />
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#e87722' }}>
+              Dispatch & Allocation Queue
             </span>
           </div>
-          <h1 style={{ fontFamily: 'Georgia, serif', fontSize: '1.9rem', fontWeight: 600, margin: '0 0 6px 0', color: 'var(--text)' }}>
-            Ride requests
+          <h1 style={{ fontFamily: 'var(--font-zoho-heading), "Playfair Display", Georgia, serif', fontSize: '1.85rem', fontWeight: 700, margin: '0 0 6px 0', color: 'var(--text)', letterSpacing: '-0.02em' }}>
+            Ride Requests
           </h1>
-          <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--muted)' }}>
-            Requests from the website, the client app and phone bookings all land here. Website requests come in without addresses, so add those before you allocate.
+          <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+            Centralized dispatch for incoming website bookings, VIP client mobile requests, and phone reservations.
           </p>
         </div>
 
@@ -471,20 +495,25 @@ export default function RidesPage() {
           type="button"
           onClick={() => setPhoneBookingOpen(true)}
           style={{
-            padding: '8px 18px',
+            padding: '0 16px',
+            height: '38px',
+            minHeight: '38px',
             fontSize: '0.82rem',
             fontWeight: 600,
-            background: '#d97706',
+            background: 'linear-gradient(135deg, #e87722 0%, #c86314 100%)',
             color: '#fff',
-            border: 'none',
-            borderRadius: 6,
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: 8,
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
+            gap: 8,
+            boxShadow: '0 2px 10px rgba(232, 119, 34, 0.3)',
+            transition: 'transform 0.15s, box-shadow 0.15s',
           }}
         >
-          <Plus size={14} /> + Phone booking
+          <Plus size={15} />
+          <span>Phone booking</span>
         </button>
       </div>
 
@@ -500,22 +529,22 @@ export default function RidesPage() {
         </div>
       )}
 
-      {/* Filter Row matching Screenshot 2 */}
+      {/* Filter Row */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 14,
+          gap: 16,
           background: 'var(--surface)',
-          padding: '14px 18px',
-          borderRadius: 8,
+          padding: '16px 20px',
+          borderRadius: 12,
           border: '1px solid var(--border)',
           marginBottom: 20,
-          boxShadow: 'var(--shadow-sm)',
+          boxShadow: '0 2px 8px -2px rgba(0, 0, 0, 0.05)',
         }}
       >
         <div>
-          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 6 }}>
             Status
           </label>
           <select
@@ -523,14 +552,15 @@ export default function RidesPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{
               width: '100%',
-              background: 'var(--surface)',
+              background: 'var(--surface-2)',
               border: '1px solid var(--border)',
-              borderRadius: 4,
+              borderRadius: 6,
               color: 'var(--text)',
               fontSize: '0.82rem',
-              padding: '6px 10px',
-              minHeight: 34,
-              height: 34,
+              padding: '0 12px',
+              minHeight: 38,
+              height: 38,
+              outline: 'none',
             }}
           >
             <option value="all">All</option>
@@ -543,7 +573,7 @@ export default function RidesPage() {
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 6 }}>
             Search Name, Phone or Ref
           </label>
           <input
@@ -553,20 +583,21 @@ export default function RidesPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{
               width: '100%',
-              background: 'var(--surface)',
+              background: 'var(--surface-2)',
               border: '1px solid var(--border)',
-              borderRadius: 4,
+              borderRadius: 6,
               color: 'var(--text)',
               fontSize: '0.82rem',
-              padding: '6px 10px',
-              minHeight: 34,
-              height: 34,
+              padding: '0 12px',
+              minHeight: 38,
+              height: 38,
+              outline: 'none',
             }}
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 6 }}>
             From
           </label>
           <input
@@ -575,20 +606,21 @@ export default function RidesPage() {
             onChange={(e) => setFromDate(e.target.value)}
             style={{
               width: '100%',
-              background: 'var(--surface)',
+              background: 'var(--surface-2)',
               border: '1px solid var(--border)',
-              borderRadius: 4,
+              borderRadius: 6,
               color: 'var(--text)',
               fontSize: '0.82rem',
-              padding: '6px 10px',
-              minHeight: 34,
-              height: 34,
+              padding: '0 12px',
+              minHeight: 38,
+              height: 38,
+              outline: 'none',
             }}
           />
         </div>
 
         <div>
-          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 6 }}>
+          <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: 6 }}>
             To
           </label>
           <input
@@ -597,40 +629,41 @@ export default function RidesPage() {
             onChange={(e) => setToDate(e.target.value)}
             style={{
               width: '100%',
-              background: 'var(--surface)',
+              background: 'var(--surface-2)',
               border: '1px solid var(--border)',
-              borderRadius: 4,
+              borderRadius: 6,
               color: 'var(--text)',
               fontSize: '0.82rem',
-              padding: '6px 10px',
-              minHeight: 34,
-              height: 34,
+              padding: '0 12px',
+              minHeight: 38,
+              height: 38,
+              outline: 'none',
             }}
           />
         </div>
       </div>
 
       {/* Main Table Layout */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 10px -2px rgba(0, 0, 0, 0.05)' }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
             <thead>
-              <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={{ padding: '12px 16px' }}>Request</th>
-                <th style={{ padding: '12px 16px' }}>Ride Schedule & Service</th>
-                <th style={{ padding: '12px 16px' }}>Status</th>
+              <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                <th style={{ padding: '14px 20px' }}>Request & Passenger</th>
+                <th style={{ padding: '14px 20px' }}>Ride Schedule & Service</th>
+                <th style={{ padding: '14px 20px' }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
+                  <td colSpan={3} style={{ padding: 48, textAlign: 'center', color: 'var(--muted)' }}>
                     Loading ride requests...
                   </td>
                 </tr>
               ) : filteredRides.length === 0 ? (
                 <tr>
-                  <td colSpan={3} style={{ padding: 30, textAlign: 'center', color: 'var(--muted)' }}>
+                  <td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>
                     No ride requests found matching current filter.
                   </td>
                 </tr>
@@ -646,37 +679,38 @@ export default function RidesPage() {
                       style={{
                         borderBottom: '1px solid var(--border)',
                         cursor: 'pointer',
-                        background: isSelected ? 'rgba(228, 130, 67, 0.08)' : 'transparent',
-                        borderLeft: isSelected ? '4px solid #E48243' : '4px solid transparent',
+                        background: isSelected ? 'rgba(232, 119, 34, 0.08)' : 'transparent',
+                        borderLeft: isSelected ? '4px solid #e87722' : '4px solid transparent',
+                        transition: 'background 0.15s ease',
                       }}
                     >
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.84rem' }}>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.88rem' }}>
                           {ride.first_name} {ride.last_name || ''}
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span>{ride.phone}</span>
                           <span>·</span>
-                          <span style={{ fontFamily: 'monospace', color: '#d97706' }}>{ride.reference}</span>
+                          <span style={{ fontFamily: 'monospace', color: '#e87722', fontWeight: 600 }}>{ride.reference}</span>
                           <span>·</span>
-                          <span style={{ textTransform: 'capitalize', background: 'var(--surface-2)', padding: '1px 6px', borderRadius: 3, border: '1px solid var(--border)' }}>{source}</span>
+                          <span style={{ textTransform: 'capitalize', background: 'var(--surface-2)', padding: '1px 7px', borderRadius: 4, border: '1px solid var(--border)', fontSize: '0.7rem' }}>{source}</span>
                         </div>
                       </td>
 
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ color: 'var(--text)', fontSize: '0.84rem' }}>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ color: 'var(--text)', fontSize: '0.86rem' }}>
                           <span style={{ fontWeight: 600 }}>{ride.ride_date}</span> at <span style={{ fontWeight: 600 }}>{ride.ride_time}</span>
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--muted)', marginTop: 2 }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>
                           <span style={{ textTransform: 'capitalize' }}>{ride.service_type.replace('_', ' ')}</span>
                           {' · '}
                           <span>{ride.vehicle}</span>
                           {' · '}
-                          <span style={{ fontWeight: 600, color: '#d97706' }}>T{ride.driver_tier}</span>
+                          <span style={{ fontWeight: 700, color: '#e87722' }}>T{ride.driver_tier}</span>
                         </div>
                       </td>
 
-                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
                         {renderStatusBadge(ride.status)}
                       </td>
                     </tr>

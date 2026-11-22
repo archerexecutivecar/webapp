@@ -123,10 +123,6 @@ export default function CustomersPage() {
       const list = (res as any)?.customers ?? (res as any)?.data?.customers ?? (Array.isArray(res) ? res : []);
       setCustomers(list);
       setError(null);
-
-      if (res.customers.length > 0 && selectedCustomerId === null && !searchParams.get('id')) {
-        openCustomer(res.customers[0].id);
-      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load clients directory.');
     } finally {
@@ -345,26 +341,25 @@ export default function CustomersPage() {
   return (
     <div className="space-y-4 max-w-[1600px] mx-auto p-2">
       {/* Page Title & Context */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-border">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-              P1 · Operations
-            </span>
-            <h1 className="text-xl font-bold tracking-tight text-foreground font-serif">Clients</h1>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 mb-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            <span>Client Directory & VIP Profiles</span>
           </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-serif">Clients</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Client directory, VIP preferences, client-car registry, and payment approval.
+            Client directory, VIP chauffeur preferences, client-car registry, and payment authorization.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="h-8 px-3 rounded text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700"
+            className="h-9 px-4 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-sm hover:from-amber-500 hover:to-amber-600 transition flex items-center gap-1.5"
           >
-            + Create client
+            <span>+ Create client</span>
           </button>
         </div>
 
