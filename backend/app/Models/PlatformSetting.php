@@ -10,6 +10,7 @@ class PlatformSetting extends Model
     use HasFactory;
 
     protected $fillable = [
+        'careers_enabled',
         'min_booking_notice_hours',
         'unaccepted_alert_hours',
         'cancellation_window_hours',
@@ -20,9 +21,14 @@ class PlatformSetting extends Model
         'driver_btn_step4',
     ];
 
+    protected $casts = [
+        'careers_enabled' => 'boolean',
+    ];
+
     public static function current(): self
     {
         return self::first() ?? self::create([
+            'careers_enabled' => true,
             'min_booking_notice_hours' => 48,
             'unaccepted_alert_hours' => 24,
             'cancellation_window_hours' => 24,

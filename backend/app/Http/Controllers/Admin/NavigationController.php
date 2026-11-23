@@ -34,6 +34,13 @@ class NavigationController extends Controller
             $badges['drivers'] = $pendingDrivers;
         }
 
+        if (Schema::hasTable('career_applications')) {
+            $newApplications = (int) \DB::table('career_applications')->where('status', 'new')->count();
+            if ($newApplications > 0) {
+                $badges['careers'] = $newApplications;
+            }
+        }
+
         if (Schema::hasTable('security_leads')) {
             $openLeads = (int) \DB::table('security_leads')->whereIn('status', ['new', 'open', 'pending'])->count();
             if ($openLeads > 0) {

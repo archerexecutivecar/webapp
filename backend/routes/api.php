@@ -43,6 +43,13 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/brand', [PublicBrandController::class, 'show']);
     Route::get('/faqs', [PublicContentController::class, 'faqs']);
 
+    // Public Careers Endpoints
+    Route::get('/careers/status', [\App\Http\Controllers\PublicCareerController::class, 'status']);
+    Route::get('/careers/tiers', [\App\Http\Controllers\PublicCareerController::class, 'tiers']);
+    Route::get('/careers/jobs', [\App\Http\Controllers\PublicCareerController::class, 'index']);
+    Route::get('/careers/jobs/{slug}', [\App\Http\Controllers\PublicCareerController::class, 'show']);
+    Route::post('/careers/jobs/{id}/apply', [\App\Http\Controllers\PublicCareerController::class, 'apply'])->middleware('throttle:public-submissions');
+
     // Customer account: register directly, sign in with an emailed code (no password), or with email + password via /auth/login.
     Route::prefix('customer')->group(function (): void {
         Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:customer-code');
@@ -187,6 +194,26 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/integrations', [\App\Http\Controllers\Admin\IntegrationSettingsController::class, 'update']);
             Route::get('/brand-settings', [\App\Http\Controllers\Admin\BrandSettingsController::class, 'show']);
             Route::put('/brand-settings', [\App\Http\Controllers\Admin\BrandSettingsController::class, 'update']);
+
+            // Dedicated Single-Touchpoint Careers Toggle Endpoint: /settings/careers
+            Route::get('/careers/toggle', [\App\Http\Controllers\Admin\AdminCareerToggleController::class, 'show']);
+            Route::put('/careers/toggle', [\App\Http\Controllers\Admin\AdminCareerToggleController::class, 'update']);
+        });
+
+        // Careers Jobs & Applications Management
+        Route::middleware('permission:careers.manage,settings.manage')->group(function (): void {
+            Route::get('/careers/jobs', [\App\Http\Controllers\Admin\AdminCareerJobController::class, 'index']);
+            Route::post('/careers/jobs', [\App\Http\Controllers\Admin\AdminCareerJobController::class, 'store']);
+            Route::get('/careers/jobs/{id}', [\App\Http\Controllers\Admin\AdminCareerJobController::class, 'show']);
+            Route::put('/careers/jobs/{id}', [\App\Http\Controllers\Admin\AdminCareerJobController::class, 'update']);
+            Route::patch('/careers/jobs/{id}/status', [\App\Http\Controllers\Admin\AdminCareerJobController::class, 'updateStatus']);
+            Route::delete('/careers/jobs/{id}', [\App\Http\Controllers\Admin\AdminCareerJobController::class, 'destroy']);
+
+            Route::get('/careers/applications', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'index']);
+            Route::get('/careers/applications/{id}', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'show']);
+            Route::patch('/careers/applications/{id}/status', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'updateStatus']);
+            Route::patch('/careers/applications/{id}/notes', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'updateNotes']);
+            Route::post('/careers/applications/{id}/convert-to-driver', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'convertToDriver']);
         });
 
         Route::get('/drivers', [DriverController::class, 'index'])->middleware('permission:drivers.view');

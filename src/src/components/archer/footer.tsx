@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   DISPATCH_EMAIL,
   DISPATCH_PHONE_DISPLAY,
@@ -24,12 +25,13 @@ const SERVICE_LINKS = [
   { label: "Special Events", target: "services" },
 ];
 
-const EXPLORE_LINKS = [
+const EXPLORE_LINKS: { label: string; target?: string; href?: string }[] = [
   { label: "Tiers of Service", target: "tiers" },
   { label: "Fleet", target: "fleet" },
   { label: "Security", target: "security" },
   { label: "The Archer Standard", target: "about" },
   { label: "Chauffeur Experience", target: "experience" },
+  { label: "Careers", href: "/careers" },
   { label: "FAQs", target: "faq" },
 ];
 
@@ -85,12 +87,21 @@ export function Footer() {
             <ul className="mt-5 space-y-3">
               {EXPLORE_LINKS.map((l) => (
                 <li key={l.label}>
-                  <button
-                    onClick={() => scrollToId(l.target)}
-                    className="text-[13px] text-archer-gray transition-colors hover:text-archer-orange"
-                  >
-                    {l.label}
-                  </button>
+                  {l.href ? (
+                    <Link
+                      href={l.href}
+                      className="text-[13px] text-archer-gray transition-colors hover:text-archer-orange"
+                    >
+                      {l.label}
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() => l.target && scrollToId(l.target)}
+                      className="text-[13px] text-archer-gray transition-colors hover:text-archer-orange"
+                    >
+                      {l.label}
+                    </button>
+                  )}
                 </li>
               ))}
               <li>

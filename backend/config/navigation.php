@@ -14,6 +14,7 @@ return [
             ['key' => 'rides', 'label' => 'Ride requests', 'href' => '/rides', 'icon' => 'route', 'permissions' => ['rides.view', 'dispatch.manage'], 'available' => true],
             ['key' => 'customers', 'label' => 'Clients', 'href' => '/customers', 'icon' => 'users', 'permissions' => ['rides.view'], 'available' => true],
             ['key' => 'drivers', 'label' => 'Drivers', 'href' => '/drivers', 'icon' => 'user-check', 'permissions' => ['drivers.view', 'drivers.manage'], 'available' => true],
+            ['key' => 'careers', 'label' => 'Careers & Applicants', 'href' => '/careers', 'icon' => 'user-check', 'permissions' => ['careers.manage', 'settings.manage'], 'available' => true],
             ['key' => 'notices', 'label' => 'Customer notices', 'href' => '/notices', 'icon' => 'bell', 'permissions' => ['rides.view'], 'available' => true],
         ]],
         ['key' => 'money', 'label' => 'MONEY', 'items' => [

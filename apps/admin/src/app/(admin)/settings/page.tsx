@@ -136,6 +136,7 @@ export default function SettingsPage() {
         {[
           { href: '/settings', label: 'Platform rules', desc: 'Booking notice & dispatch buttons' },
           { href: '/settings/brand', label: 'Brand', desc: 'Name, logo, phone, and email' },
+          { href: '/settings/careers', label: 'Careers switch', desc: 'Enable / disable public careers page' },
           { href: '/settings/integrations', label: 'Integrations', desc: 'Maps, Stripe, SMS, DocuSign' },
           { href: '/site-content', label: 'Page content', desc: 'Homepage & marketing copy' },
           { href: '/site-tiers', label: 'Tiers', desc: 'Public tier table' },

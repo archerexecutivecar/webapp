@@ -11,7 +11,7 @@ export { D, EYEBROW, ghost, HEAD, PHONE, primary, WRAP };
 const MENU = [
   ["HOME", "/"], ["SERVICES", "/#services"], ["TIERS OF SERVICE", "/tiers"], ["FLEET", "/fleet"],
   ["CLIENT CAR", "/services/client-car"], ["CONCIERGE", "/services/concierge"], ["SECURITY", "/#security"],
-  ["FOR EA'S & PA'S", "/services/assistants"], ["ABOUT", "/#about"], ["CONTACT", "/#contact"],
+  ["CAREERS", "/careers"], ["FOR EA'S & PA'S", "/services/assistants"], ["ABOUT", "/#about"], ["CONTACT", "/#contact"],
 ];
 
 export function PhoneIcon() {
