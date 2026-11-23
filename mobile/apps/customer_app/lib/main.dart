@@ -905,6 +905,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     final upcomingCount = _rides.where((r) => r.status != 'completed' && r.status != 'cancelled').length;
 
+    final upcomingRides = _rides.where((r) => r.status != 'completed' && r.status != 'cancelled').toList();
+    final activeMission = upcomingRides.isNotEmpty ? upcomingRides.first : null;
+
     return Scaffold(
       backgroundColor: const Color(0xFF07080B),
       extendBody: true,
@@ -923,7 +926,33 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildModernLuxuryNavbar(upcomingCount),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (activeMission != null)
+            ArcherTelemetryIsland(
+              statusText: activeMission.status == 'on_my_way'
+                  ? 'Specialist En Route'
+                  : (activeMission.status == 'at_doorstep'
+                      ? 'Chauffeur At Doorstep'
+                      : (activeMission.status == 'in_progress'
+                          ? 'Mission In Progress'
+                          : 'Mission Confirmed')),
+              detailText: '${activeMission.pickupAddress.split(',').first} → ${activeMission.dropoffAddress.split(',').first}',
+              driverName: activeMission.driverName,
+              vehicleInfo: activeMission.vehicleClass,
+              onTap: () => _showRideDetailSheet(activeMission),
+              onCall: () {
+                ArcherToast.show(
+                  context,
+                  message: 'Connecting to assigned chauffeur (+1 848-231-9997)...',
+                  icon: Icons.phone_forwarded_rounded,
+                );
+              },
+            ),
+          _buildModernLuxuryNavbar(upcomingCount),
+        ],
+      ),
     );
   }
 
@@ -1067,6 +1096,74 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 );
               }),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickDestinationPill({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String destination,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          setState(() {
+            _dropoffController.text = destination;
+            _tabIndex = 1;
+          });
+          _calculateQuote();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF101420),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0x33C8A96A), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF192030),
+                  border: Border.all(color: const Color(0x44C8A96A)),
+                ),
+                child: Icon(icon, size: 16, color: const Color(0xFFDFBE82)),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -1296,46 +1393,55 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             const SizedBox(height: 22),
           ],
 
-          // Minimalist "Where to?" Search Bar
-          GestureDetector(
-            onTap: () => setState(() => _tabIndex = 1),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F121A),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0x33C8A96A)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.search_rounded, color: Color(0xFFC8A96A), size: 20),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      'Destination, Private FBO, or As-Directed...',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF9CA3AF),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(Icons.calendar_month_outlined, color: Color(0xFFC8A96A), size: 16),
-                  SizedBox(width: 6),
-                  Text(
-                    'Schedule',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFC8A96A),
-                    ),
-                  ),
-                ],
-              ),
+          // Bespoke Luxury Reservation Bar
+          ArcherReservationCapsule(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _tabIndex = 1);
+            },
+            onScheduleTap: () {
+              HapticFeedback.lightImpact();
+              setState(() => _tabIndex = 1);
+            },
+          ),
+          const SizedBox(height: 18),
+
+          // Quick Executive Destinations
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildQuickDestinationPill(
+                  icon: Icons.flight_takeoff_rounded,
+                  title: 'Teterboro FBO',
+                  subtitle: 'Signature Aviation',
+                  destination: 'Teterboro Airport (TEB), NJ',
+                ),
+                const SizedBox(width: 10),
+                _buildQuickDestinationPill(
+                  icon: Icons.location_city_rounded,
+                  title: 'Manhattan HQ',
+                  subtitle: 'Hudson Yards, NYC',
+                  destination: 'Hudson Yards, New York, NY',
+                ),
+                const SizedBox(width: 10),
+                _buildQuickDestinationPill(
+                  icon: Icons.flight_rounded,
+                  title: 'EWR Terminal A',
+                  subtitle: 'Newark Liberty',
+                  destination: 'Newark Liberty International Airport (EWR)',
+                ),
+                const SizedBox(width: 10),
+                _buildQuickDestinationPill(
+                  icon: Icons.home_rounded,
+                  title: 'Primary Residence',
+                  subtitle: _user?.homeAddress ?? 'Oceanport, NJ',
+                  destination: _user?.homeAddress ?? 'Oceanport, NJ',
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 28),
 
           // Executive Services Section
           Row(
@@ -2192,6 +2298,48 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         itemCount: filtered.length,
         itemBuilder: (context, idx) {
           final ride = filtered[idx];
+
+          if (upcoming && idx == 0) {
+            return Column(
+              children: [
+                ArcherMissionProgressCard(
+                  reference: ride.reference,
+                  status: ride.status,
+                  pickup: ride.pickupAddress,
+                  dropoff: ride.dropoffAddress,
+                  vehicle: ride.vehicleClass,
+                  driverName: ride.driverName,
+                  onTap: () => _showRideDetailSheet(ride),
+                  onCall: () {
+                    ArcherToast.show(
+                      context,
+                      message: 'Calling assigned chauffeur specialist (+1 848-231-9997)...',
+                      icon: Icons.phone_forwarded_rounded,
+                    );
+                  },
+                ),
+                if (filtered.length > 1) ...[
+                  Row(
+                    children: [
+                      const Text(
+                        'SUBSEQUENT MISSIONS',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.6,
+                          color: Color(0xFFC8A96A),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Container(height: 1, color: const Color(0x18C8A96A))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            );
+          }
+
           return Container(
             margin: const EdgeInsets.only(bottom: 14),
             decoration: BoxDecoration(
@@ -2271,6 +2419,53 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ),
                       ],
                     ),
+                    if (!upcoming) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0x33C8A96A)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              minimumSize: Size.zero,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            icon: const Icon(Icons.receipt_long_rounded, size: 13, color: Color(0xFFDFBE82)),
+                            label: const Text('INVOICE', style: TextStyle(fontSize: 10, color: Color(0xFFDFBE82), fontWeight: FontWeight.bold)),
+                            onPressed: () {
+                              ArcherToast.show(
+                                context,
+                                message: 'Corporate Expense PDF for Mission #${ride.reference} sent to your email.',
+                                icon: Icons.mark_email_read_rounded,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0x22C8A96A),
+                              foregroundColor: const Color(0xFFDFBE82),
+                              side: const BorderSide(color: Color(0x44C8A96A)),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              minimumSize: Size.zero,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.replay_rounded, size: 13),
+                            label: const Text('REBOOK', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                            onPressed: () {
+                              setState(() {
+                                _pickupController.text = ride.pickupAddress;
+                                _dropoffController.text = ride.dropoffAddress;
+                                _tabIndex = 1;
+                              });
+                              _calculateQuote();
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2284,83 +2479,269 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void _showRideDetailSheet(Ride ride) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF0F121A),
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0C1018),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        side: BorderSide(color: Color(0x33C8A96A)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: Color(0x44C8A96A), width: 1.2),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Mission #${ride.reference}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.72,
+          maxChildSize: 0.92,
+          minChildSize: 0.5,
+          expand: false,
+          builder: (context, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
+              children: [
+                // Drag handle
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
                     decoration: BoxDecoration(
-                      color: const Color(0x22C8A96A),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      ride.formattedStatus.toUpperCase(),
-                      style: const TextStyle(color: Color(0xFFDFBE82), fontWeight: FontWeight.w600, fontSize: 11),
+                      color: const Color(0x44C8A96A),
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              const Text('ITINERARY', style: TextStyle(fontSize: 10, letterSpacing: 1.8, color: Color(0xFFC8A96A), fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text('Departure: ${ride.pickupAddress}', style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
-              const SizedBox(height: 4),
-              Text('Arrival: ${ride.dropoffAddress}', style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
-              const SizedBox(height: 16),
-              const Text('ASSIGNED CHAUFFEUR SPECIALIST', style: TextStyle(fontSize: 10, letterSpacing: 1.8, color: Color(0xFFC8A96A), fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(
-                ride.driverName ?? 'Assigned prior to departure by Archer Dispatch',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
-              ),
-              const SizedBox(height: 22),
-              Container(
-                height: 46,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFDFBE82), Color(0xFFC8A96A), Color(0xFF9E7D3B)],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.phone_rounded, color: Colors.black, size: 16),
-                  label: const Text(
-                    'CALL DISPATCH FOR LIVE TELEMETRY',
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 11, letterSpacing: 1.0),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ArcherToast.show(
-                      context,
-                      message: 'Contacting Archer Dispatch for live telemetry: (848) 231-9997',
-                      icon: Icons.phone_in_talk_rounded,
-                    );
-                  },
+                const SizedBox(height: 18),
+
+                // Top Header Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'MISSION DOSSIER #${ride.reference}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.8,
+                            color: Color(0xFFDFBE82),
+                            fontFamily: 'serif',
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Executive Chauffeur Detail • Telemetry Monitored',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF9CA3AF)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(height: 18),
+
+                // Route Vector Visualizer Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131826),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0x33C8A96A)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Column(
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFFC8A96A), width: 2.5),
+                                ),
+                              ),
+                              Container(width: 1.5, height: 36, color: const Color(0x33C8A96A)),
+                              const Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 16),
+                            ],
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'PICKUP EMBARKATION',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  ride.pickupAddress,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'DESTINATION ARRIVAL',
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Color(0xFFEF4444)),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  ride.dropoffAddress,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F1420),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0x22C8A96A)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.flight_land_rounded, size: 16, color: Color(0xFF10B981)),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Flight Telemetry Sync Active',
+                                  style: TextStyle(fontSize: 11, color: Color(0xFFD1D5DB)),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0x2210B981),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'ON TIME',
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Assigned Chauffeur & Vehicle Dossier Card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131826),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0x33C8A96A)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1A2234),
+                          border: Border.all(color: const Color(0xFFC8A96A), width: 1.5),
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.security_rounded, color: Color(0xFFDFBE82), size: 24),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  ride.driverName ?? 'Chauffeur Specialist',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF10B981)),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            const Text(
+                              'Tier-1 Armed Specialist • Defensive Handling',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFDFBE82)),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              ride.vehicleClass ?? 'Cadillac Escalade ESV',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0x55C8A96A)),
+                          backgroundColor: const Color(0xFF131826),
+                          foregroundColor: const Color(0xFFDFBE82),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                        label: const Text('PDF INVOICE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          ArcherToast.show(
+                            context,
+                            message: 'Corporate Expense PDF for Mission #${ride.reference} sent to your primary email.',
+                            icon: Icons.mark_email_read_rounded,
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFC8A96A),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+                        label: const Text('DISPATCH LINE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.0)),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          ArcherToast.show(
+                            context,
+                            message: 'Connecting to Archer Priority Dispatch (+1 848-231-9997)...',
+                            icon: Icons.phone_forwarded_rounded,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         );
       },
     );

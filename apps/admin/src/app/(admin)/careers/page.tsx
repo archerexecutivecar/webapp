@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
+import { RightDrawer } from '@/components/RightDrawer';
 
 interface CareerDocument {
   id: number;
@@ -721,48 +722,20 @@ export default function AdminCareersPage() {
         </div>
       )}
 
-      {/* APPLICANT DETAIL REVIEW MODAL / DRAWER */}
-      {selectedApp && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            zIndex: 1000,
-          }}
-          onClick={() => setSelectedApp(null)}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 620,
-              height: '100%',
-              background: 'var(--surface-1)',
-              borderLeft: '1px solid var(--border)',
-              padding: 28,
-              overflowY: 'auto',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--muted)', textTransform: 'uppercase' }}>
-                  {selectedApp.job?.title || 'Role Application'} · {selectedApp.reference_code}
-                </span>
-                <h2 style={{ margin: '4px 0 0', fontSize: '1.4rem', fontWeight: 700, color: 'var(--text)' }}>
-                  {selectedApp.full_name}
-                </h2>
-              </div>
-              <button
-                onClick={() => setSelectedApp(null)}
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: 'var(--muted)', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
-            </div>
-
+      {/* APPLICANT DETAIL REVIEW DRAWER */}
+      <RightDrawer
+        open={!!selectedApp}
+        onClose={() => setSelectedApp(null)}
+        title={selectedApp?.full_name ?? 'Candidate Application'}
+        subtitle={
+          selectedApp
+            ? `${selectedApp.job?.title || 'Role Application'} · ${selectedApp.reference_code}`
+            : undefined
+        }
+        width={620}
+      >
+        {selectedApp && (
+          <div>
             {/* Pipeline Stage Selector */}
             <div style={{ background: 'var(--surface-2)', padding: 14, borderRadius: 8, marginBottom: 20 }}>
               <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -952,243 +925,221 @@ export default function AdminCareersPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </RightDrawer>
 
-      {/* CREATE / EDIT JOB OPENING MODAL */}
-      {showJobModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 680,
-              maxHeight: '90vh',
-              background: 'var(--surface-1)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: 24,
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 700, color: 'var(--text)' }}>
-                {editingJob ? 'Edit Job Opening' : 'Create New Job Opening'}
-              </h2>
-              <button
-                onClick={() => setShowJobModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: 'var(--muted)', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
+      {/* CREATE / EDIT JOB OPENING RIGHT DRAWER */}
+      <RightDrawer
+        open={showJobModal}
+        onClose={() => setShowJobModal(false)}
+        title={editingJob ? 'Edit Job Opening' : 'Create Job Opening'}
+        subtitle={
+          editingJob
+            ? `Editing ${editingJob.title} (${editingJob.department})`
+            : 'Post a new career opportunity for candidate applications'
+        }
+        width={620}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, width: '100%' }}>
+            <button
+              type="button"
+              onClick={() => setShowJobModal(false)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 6,
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                fontSize: '0.84rem',
+                fontWeight: 500,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="career-job-form"
+              disabled={loading}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 6,
+                background: '#c59b27',
+                border: 'none',
+                color: '#000',
+                fontWeight: 700,
+                fontSize: '0.84rem',
+                cursor: 'pointer',
+              }}
+            >
+              {loading ? 'Saving...' : editingJob ? 'Save Changes' : 'Publish Job'}
+            </button>
+          </div>
+        }
+      >
+        <form id="career-job-form" onSubmit={saveJob} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Job Title *
+              </label>
+              <input
+                type="text"
+                required
+                value={jobForm.title}
+                onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+              />
             </div>
 
-            <form onSubmit={saveJob}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Job Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={jobForm.title}
-                    onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Department *
-                  </label>
-                  <select
-                    value={jobForm.department}
-                    onChange={(e) => setJobForm({ ...jobForm, department: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  >
-                    <option value="Chauffeur Operations">Chauffeur Operations</option>
-                    <option value="Security Detail">Security Detail</option>
-                    <option value="Dispatch & Logistics">Dispatch & Logistics</option>
-                    <option value="Fleet Operations">Fleet Operations</option>
-                    <option value="Corporate / Executive">Corporate / Executive</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Location *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={jobForm.location}
-                    onChange={(e) => setJobForm({ ...jobForm, location: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Employment Type *
-                  </label>
-                  <select
-                    value={jobForm.employment_type}
-                    onChange={(e) => setJobForm({ ...jobForm, employment_type: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  >
-                    <option value="Full-Time">Full-Time</option>
-                    <option value="Part-Time">Part-Time</option>
-                    <option value="Contract / 1099">Contract / 1099</option>
-                    <option value="Flexible Shifts">Flexible Shifts</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Compensation Range
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. $35 - $48 / hr + Gratuities"
-                    value={jobForm.salary_range}
-                    onChange={(e) => setJobForm({ ...jobForm, salary_range: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Tier Recommendation
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Tier 2 · Executive"
-                    value={jobForm.tier_recommendation}
-                    onChange={(e) => setJobForm({ ...jobForm, tier_recommendation: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Summary / Short Hook
-                </label>
-                <input
-                  type="text"
-                  placeholder="One sentence description for job cards"
-                  value={jobForm.summary}
-                  onChange={(e) => setJobForm({ ...jobForm, summary: e.target.value })}
-                  style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Full Description *
-                </label>
-                <textarea
-                  rows={4}
-                  required
-                  value={jobForm.description}
-                  onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
-                  style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Requirements (one per line)
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder="Valid TLC license&#10;3+ years experience&#10;Clean DMV record"
-                    value={jobForm.requirements}
-                    onChange={(e) => setJobForm({ ...jobForm, requirements: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Benefits (one per line)
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder="Luxury vehicles provided&#10;Flexible schedule&#10;Full gratuities"
-                    value={jobForm.benefits}
-                    onChange={(e) => setJobForm({ ...jobForm, benefits: e.target.value })}
-                    style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Job Status
-                </label>
-                <select
-                  value={jobForm.status}
-                  onChange={(e) => setJobForm({ ...jobForm, status: e.target.value as any })}
-                  style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: '0.84rem' }}
-                >
-                  <option value="published">Published (Live & accepting applications)</option>
-                  <option value="draft">Draft (Hidden from public)</option>
-                  <option value="paused">Paused (Visible, submissions held)</option>
-                  <option value="closed">Closed (Expired/Filled)</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowJobModal(false)}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: 6,
-                    background: 'var(--surface-2)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    padding: '8px 20px',
-                    borderRadius: 6,
-                    background: '#c59b27',
-                    border: 'none',
-                    color: '#000',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {editingJob ? 'Save Changes' : 'Publish Job'}
-                </button>
-              </div>
-            </form>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Department *
+              </label>
+              <select
+                value={jobForm.department}
+                onChange={(e) => setJobForm({ ...jobForm, department: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+              >
+                <option value="Chauffeur Operations">Chauffeur Operations</option>
+                <option value="Security Detail">Security Detail</option>
+                <option value="Dispatch & Logistics">Dispatch & Logistics</option>
+                <option value="Fleet Operations">Fleet Operations</option>
+                <option value="Corporate / Executive">Corporate / Executive</option>
+              </select>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Location *
+              </label>
+              <input
+                type="text"
+                required
+                value={jobForm.location}
+                onChange={(e) => setJobForm({ ...jobForm, location: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Employment Type *
+              </label>
+              <select
+                value={jobForm.employment_type}
+                onChange={(e) => setJobForm({ ...jobForm, employment_type: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+              >
+                <option value="Full-Time">Full-Time</option>
+                <option value="Part-Time">Part-Time</option>
+                <option value="Contract / 1099">Contract / 1099</option>
+                <option value="Flexible Shifts">Flexible Shifts</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Compensation Range
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. $35 - $48 / hr + Gratuities"
+                value={jobForm.salary_range}
+                onChange={(e) => setJobForm({ ...jobForm, salary_range: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Tier Recommendation
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Tier 2 · Executive"
+                value={jobForm.tier_recommendation}
+                onChange={(e) => setJobForm({ ...jobForm, tier_recommendation: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+              Summary / Short Hook
+            </label>
+            <input
+              type="text"
+              placeholder="One sentence description for job cards"
+              value={jobForm.summary}
+              onChange={(e) => setJobForm({ ...jobForm, summary: e.target.value })}
+              style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+              Full Description *
+            </label>
+            <textarea
+              rows={5}
+              required
+              value={jobForm.description}
+              onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
+              style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem', lineHeight: 1.5 }}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Requirements (one per line)
+              </label>
+              <textarea
+                rows={4}
+                placeholder="Valid TLC license&#10;3+ years experience&#10;Clean DMV record"
+                value={jobForm.requirements}
+                onChange={(e) => setJobForm({ ...jobForm, requirements: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.84rem', lineHeight: 1.4 }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+                Benefits (one per line)
+              </label>
+              <textarea
+                rows={4}
+                placeholder="Luxury vehicles provided&#10;Flexible schedule&#10;Full gratuities"
+                value={jobForm.benefits}
+                onChange={(e) => setJobForm({ ...jobForm, benefits: e.target.value })}
+                style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.84rem', lineHeight: 1.4 }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary, var(--text))', textTransform: 'uppercase', marginBottom: 6, fontWeight: 600 }}>
+              Job Status
+            </label>
+            <select
+              value={jobForm.status}
+              onChange={(e) => setJobForm({ ...jobForm, status: e.target.value as any })}
+              style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
+            >
+              <option value="published">Published (Live & accepting applications)</option>
+              <option value="draft">Draft (Hidden from public)</option>
+              <option value="paused">Paused (Visible, submissions held)</option>
+              <option value="closed">Closed (Expired/Filled)</option>
+            </select>
+          </div>
+        </form>
+      </RightDrawer>
     </div>
   );
 }
