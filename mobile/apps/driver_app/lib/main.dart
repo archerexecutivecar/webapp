@@ -259,13 +259,6 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.info_outline, size: 16, color: ArcherColors.gold),
-            label: const Text('Tutorial', style: TextStyle(color: ArcherColors.gold, fontSize: 13)),
-            onPressed: widget.onReplayTutorial,
-          ),
-        ],
       ),
       body: SafeArea(
         child: Center(

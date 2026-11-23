@@ -354,6 +354,8 @@ class ArcherTelemetryIsland extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onCall;
   final bool isLive;
+  final bool isCollapsed;
+  final VoidCallback? onToggleCollapse;
 
   const ArcherTelemetryIsland({
     super.key,
@@ -364,10 +366,94 @@ class ArcherTelemetryIsland extends StatelessWidget {
     required this.onTap,
     this.onCall,
     this.isLive = true,
+    this.isCollapsed = false,
+    this.onToggleCollapse,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (isCollapsed) {
+      return SafeArea(
+        top: false,
+        bottom: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  if (onToggleCollapse != null) {
+                    onToggleCollapse!();
+                  } else {
+                    onTap();
+                  }
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xEE0B0E16),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0x44C8A96A), width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF10B981),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xFF10B981),
+                              blurRadius: 4,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${statusText.toUpperCase()} • $detailText',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: Color(0xFFDFBE82),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.keyboard_arrow_up_rounded,
+                        size: 16,
+                        color: const Color(0xFFC8A96A).withOpacity(0.8),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       bottom: false,
@@ -529,22 +615,46 @@ class ArcherTelemetryIsland extends StatelessWidget {
                     ],
 
                     const SizedBox(width: 8),
-                    // Expand Chevron
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0x22C8A96A),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 11,
-                          color: Color(0xFFC8A96A),
+                    // Collapse or Expand Chevron
+                    if (onToggleCollapse != null)
+                      InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          onToggleCollapse!();
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: 26,
+                          height: 26,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0x22C8A96A),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: Color(0xFFC8A96A),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0x22C8A96A),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: Color(0xFFC8A96A),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:archer_core/archer_core.dart';
 
@@ -325,22 +326,6 @@ class _CustomerLoginScreenState extends State<CustomerLoginScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.info_outline, size: 15, color: Color(0xFFC8A96A)),
-            label: const Text(
-              'Tutorial',
-              style: TextStyle(
-                color: Color(0xFFC8A96A),
-                fontSize: 12,
-                letterSpacing: 1.0,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            onPressed: widget.onReplayTutorial,
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SafeArea(
         child: Center(
@@ -561,20 +546,37 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   List<dynamic> _assistantProfiles = [];
   Ride? _nextRide;
 
-  // Booking form state
-  String _selectedService = 'airport';
-  String _selectedVehicleClass = 'suv';
+  // Booking form state matching https://staging.archerexecutivecar.com/book
+  String _selectedService = 'hourly'; // 'hourly', 'airport', 'p2p', 'client', 'security'
+  int _selectedTier = 1; // 1 (Tier 1) or 2 (Tier 2)
+  String _selectedClass = 'exec'; // 'exec' or 'first'
+  String _selectedSize = 'suv'; // 'sedan', 'suv', 'van'
+  int _selectedHours = 4;
+  int _passengers = 1;
+  int _bags = 0;
+  final List<TextEditingController> _stopControllers = [];
   final _pickupController = TextEditingController();
   final _dropoffController = TextEditingController();
+  final _flightController = TextEditingController();
+  final _terminalController = TextEditingController();
+  final _clientVehicleController = TextEditingController();
+  final _specialRequestsController = TextEditingController();
   DateTime _pickupDateTime = DateTime.now().add(const Duration(hours: 4));
+  int _selectedGuards = 0; // 0, 1, 2 (or 1..4 if security)
   bool _armedChauffeur = false;
   bool _convoyEscort = false;
+
+  Map<String, dynamic>? _serverQuote;
   double? _estimatedPrice;
   bool _calculatingQuote = false;
   bool _bookingConfirmed = false;
   bool _submittingBooking = false;
   String? _bookingReference;
   String? _bookingMessage;
+
+  // Active Mission Island UX State (Auto-hide on scroll & Expand/Collapse)
+  bool _isTelemetryVisible = true;
+  bool _isTelemetryCollapsed = false;
 
   // Account form state
   final _homeAddressController = TextEditingController();
@@ -628,33 +630,66 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _pickupController.dispose();
+    _dropoffController.dispose();
+    _flightController.dispose();
+    _terminalController.dispose();
+    _clientVehicleController.dispose();
+    _specialRequestsController.dispose();
+    for (final c in _stopControllers) {
+      c.dispose();
+    }
+    _homeAddressController.dispose();
+    super.dispose();
+  }
+
   Future<void> _calculateQuote() async {
     final pickup = _pickupController.text.trim();
     final dropoff = _dropoffController.text.trim();
 
-    if (pickup.isEmpty || dropoff.isEmpty) {
+    if (pickup.isEmpty) {
       ArcherToast.show(
         context,
-        message: 'Please specify both pickup and destination locations.',
+        message: 'Please specify your departure pickup location.',
         icon: Icons.edit_location_alt_rounded,
         isError: true,
       );
       return;
     }
 
+    final isHourly = _selectedService == 'hourly';
+    final isClient = _selectedService == 'client' || _selectedService == 'client_car';
+    final isSecurity = _selectedService == 'security';
+    final minH = (isClient || isSecurity) ? 3 : 4;
+    final hrs = (isHourly || isClient || isSecurity) ? (_selectedHours < minH ? minH : _selectedHours) : null;
+
     setState(() => _calculatingQuote = true);
     try {
-      final quote = await widget.api.post<Map<String, dynamic>>(
-        '/quotes',
-        data: {
-          'pickup_address': pickup,
-          'dropoff_address': dropoff,
-          'service_type': _selectedService,
-          'vehicle_class': _selectedVehicleClass,
-          'armed_chauffeur': _armedChauffeur,
-          'convoy_escort': _convoyEscort,
-        },
-      );
+      final payload = <String, dynamic>{
+        'service': _selectedService == 'point_to_point' ? 'p2p' : (_selectedService == 'client_car' ? 'client' : _selectedService),
+        'tier': _selectedTier,
+        'passengers': _passengers,
+        'bags': _bags,
+        'stops': _stopControllers.where((c) => c.text.trim().isNotEmpty).length,
+      };
+
+      if (!isClient && !isSecurity) {
+        payload['vehicle_class'] = _selectedClass;
+        payload['vehicle_size'] = _selectedSize;
+      }
+
+      if (hrs != null) {
+        payload['hours'] = hrs;
+      }
+
+      if (_selectedGuards > 0) {
+        payload['guards'] = _selectedGuards;
+      }
+
+      final res = await widget.api.post<Map<String, dynamic>>('/quotes', data: payload);
+      final quote = (res['quote'] as Map<String, dynamic>?) ?? res;
 
       final totalCents = (quote['total_cents'] as num?)?.toDouble();
       final total = totalCents != null
@@ -669,7 +704,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         );
       }
 
-      if (mounted) setState(() => _estimatedPrice = total);
+      if (mounted) {
+        setState(() {
+          _serverQuote = quote;
+          _estimatedPrice = total;
+        });
+        ArcherToast.show(
+          context,
+          message: 'Authoritative fare calculated: \$${total.toStringAsFixed(2)}',
+          icon: Icons.price_check_rounded,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ArcherToast.show(
@@ -695,46 +740,79 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       );
       return;
     }
-    if (dropoff.isEmpty) {
-      ArcherToast.show(
-        context,
-        message: 'Please specify your destination arrival address.',
-        icon: Icons.location_on_rounded,
-        isError: true,
-      );
-      return;
-    }
+
+    final isHourly = _selectedService == 'hourly';
+    final isClient = _selectedService == 'client' || _selectedService == 'client_car';
+    final isSecurity = _selectedService == 'security';
+    final minH = (isClient || isSecurity) ? 3 : 4;
+    final hrs = (isHourly || isClient || isSecurity) ? (_selectedHours < minH ? minH : _selectedHours) : null;
+    final stopsList = _stopControllers.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
 
     setState(() => _submittingBooking = true);
     try {
-      final parts = (_user?.name ?? 'Executive Client').trim().split(' ');
+      final parts = (_user?.name ?? 'Demo Customer').trim().split(' ');
       final firstName = parts.first;
-      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : 'Client';
+      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : 'Customer';
 
-      final res = await widget.api.post<Map<String, dynamic>>(
-        '/booking-requests',
-        data: {
-          'request_type': _selectedService == 'airport'
-              ? 'airport'
-              : (_selectedService == 'point_to_point' ? 'point_to_point' : 'general'),
-          'service': _selectedService == 'point_to_point' ? 'p2p' : _selectedService,
-          'first_name': firstName,
-          'last_name': lastName,
-          'email': _user?.email ?? 'client@example.com',
-          'phone': _user?.phone ?? '+18482319997',
-          'pickup_address': pickup,
-          'dropoff_address': dropoff,
-          'date': _pickupDateTime.toIso8601String().split('T').first,
-          'time': '${_pickupDateTime.hour.toString().padLeft(2, '0')}:${_pickupDateTime.minute.toString().padLeft(2, '0')}',
-          'tier': 1,
-          'vehicle_class': _selectedVehicleClass,
-          'guards': _armedChauffeur ? 1 : 0,
-          'terms_accepted': true,
-        },
-      );
+      final serviceKey = _selectedService == 'point_to_point'
+          ? 'p2p'
+          : (_selectedService == 'client_car' ? 'client' : _selectedService);
 
-      final ref = res['reference']?.toString() ?? 'CONFIRMED';
-      final msg = res['message']?.toString() ?? 'Your executive reservation has been received by Archer Dispatch.';
+      final dateStr = '${_pickupDateTime.year}-${_pickupDateTime.month.toString().padLeft(2, '0')}-${_pickupDateTime.day.toString().padLeft(2, '0')}';
+      final timeStr = '${_pickupDateTime.hour.toString().padLeft(2, '0')}:${_pickupDateTime.minute.toString().padLeft(2, '0')}';
+
+      final payload = <String, dynamic>{
+        'request_type': 'general',
+        'service': serviceKey,
+        'first_name': firstName,
+        'last_name': lastName,
+        'email': _user?.email ?? 'demo.customer@example.com',
+        'phone': _user?.phone ?? '+18482319997',
+        'pickup_address': pickup,
+        'dropoff_address': dropoff.isNotEmpty ? dropoff : pickup,
+        'date': dateStr,
+        'time': timeStr,
+        'passengers': _passengers,
+        'bags': _bags,
+        'stops': stopsList,
+        'tier': _selectedTier,
+        'terms_accepted': true,
+      };
+
+      if (!isClient && !isSecurity) {
+        payload['vehicle_class'] = _selectedClass;
+        payload['vehicle_size'] = _selectedSize;
+      }
+
+      if (hrs != null) {
+        payload['hours'] = hrs;
+      }
+
+      if (serviceKey == 'airport') {
+        if (_flightController.text.trim().isNotEmpty) {
+          payload['airline_flight'] = _flightController.text.trim();
+        }
+        if (_terminalController.text.trim().isNotEmpty) {
+          payload['terminal'] = _terminalController.text.trim();
+        }
+      }
+
+      if (isClient && _clientVehicleController.text.trim().isNotEmpty) {
+        payload['client_vehicle'] = _clientVehicleController.text.trim();
+      }
+
+      if (_selectedGuards > 0) {
+        payload['guards'] = _selectedGuards;
+      }
+
+      if (_specialRequestsController.text.trim().isNotEmpty) {
+        payload['special_requests'] = _specialRequestsController.text.trim();
+      }
+
+      final res = await widget.api.post<Map<String, dynamic>>('/booking-requests', data: payload);
+      final data = (res['data'] as Map<String, dynamic>?) ?? res;
+      final ref = data['reference']?.toString() ?? 'ARC-CONFIRMED';
+      final msg = data['message']?.toString() ?? 'Request received. Dispatch will confirm the details and final price.';
 
       if (mounted) {
         setState(() {
@@ -742,6 +820,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           _bookingMessage = msg;
           _bookingConfirmed = true;
         });
+        ArcherToast.show(
+          context,
+          message: 'Reservation [$ref] dispatched to Archer Ops!',
+          icon: Icons.check_circle_rounded,
+        );
         await _loadAllData();
       }
     } catch (e) {
@@ -919,43 +1002,73 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       backgroundColor: const Color(0xFF07080B),
       extendBody: true,
       appBar: _buildTopNav(upcomingCount),
-      body: GestureDetector(
-        onTap: () => FocusScope.of(context).unfocus(),
-        behavior: HitTestBehavior.opaque,
-        child: IndexedStack(
-          index: _tabIndex,
-          children: [
-            _buildHomeDashboardTab(),
-            _buildBookTab(),
-            _buildSecurityTab(),
-            _buildMyTripsTab(),
-            _buildAccountTab(),
-          ],
+      body: NotificationListener<UserScrollNotification>(
+        onNotification: (notification) {
+          if (notification.direction == ScrollDirection.reverse) {
+            // User scrolling down -> smoothly auto-hide telemetry island so nothing is blocked
+            if (_isTelemetryVisible) {
+              setState(() => _isTelemetryVisible = false);
+            }
+          } else if (notification.direction == ScrollDirection.forward) {
+            // User scrolling up -> smoothly reveal telemetry island
+            if (!_isTelemetryVisible) {
+              setState(() => _isTelemetryVisible = true);
+            }
+          }
+          return false;
+        },
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          behavior: HitTestBehavior.opaque,
+          child: IndexedStack(
+            index: _tabIndex,
+            children: [
+              _buildHomeDashboardTab(),
+              _buildBookTab(),
+              _buildSecurityTab(),
+              _buildMyTripsTab(),
+              _buildAccountTab(),
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (activeMission != null)
-            ArcherTelemetryIsland(
-              statusText: activeMission.status == 'on_my_way'
-                  ? 'Specialist En Route'
-                  : (activeMission.status == 'at_doorstep'
-                      ? 'Chauffeur At Doorstep'
-                      : (activeMission.status == 'in_progress'
-                          ? 'Mission In Progress'
-                          : 'Mission Confirmed')),
-              detailText: '${activeMission.pickupAddress.split(',').first} → ${activeMission.dropoffAddress.split(',').first}',
-              driverName: activeMission.driverName,
-              vehicleInfo: activeMission.vehicleClass,
-              onTap: () => _showRideDetailSheet(activeMission),
-              onCall: () {
-                ArcherToast.show(
-                  context,
-                  message: 'Connecting to assigned chauffeur (+1 848-231-9997)...',
-                  icon: Icons.phone_forwarded_rounded,
-                );
-              },
+            AnimatedSlide(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeInOutCubic,
+              offset: _isTelemetryVisible ? Offset.zero : const Offset(0, 1.4),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 180),
+                opacity: _isTelemetryVisible ? 1.0 : 0.0,
+                child: ArcherTelemetryIsland(
+                  statusText: activeMission.status == 'on_my_way'
+                      ? 'Specialist En Route'
+                      : (activeMission.status == 'at_doorstep'
+                          ? 'Chauffeur At Doorstep'
+                          : (activeMission.status == 'in_progress'
+                              ? 'Mission In Progress'
+                              : 'Mission Confirmed')),
+                  detailText: '${activeMission.pickupAddress.split(',').first} → ${activeMission.dropoffAddress.split(',').first}',
+                  driverName: activeMission.driverName,
+                  vehicleInfo: activeMission.vehicleClass,
+                  isCollapsed: _isTelemetryCollapsed,
+                  onToggleCollapse: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _isTelemetryCollapsed = !_isTelemetryCollapsed);
+                  },
+                  onTap: () => _showRideDetailSheet(activeMission),
+                  onCall: () {
+                    ArcherToast.show(
+                      context,
+                      message: 'Connecting to assigned chauffeur (+1 848-231-9997)...',
+                      icon: Icons.phone_forwarded_rounded,
+                    );
+                  },
+                ),
+              ),
             ),
           _buildModernLuxuryNavbar(upcomingCount),
         ],
@@ -1185,7 +1298,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       onRefresh: _loadAllData,
       color: const Color(0xFFC8A96A),
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 180),
         children: [
           // Hero Principal Greeting
           Column(
@@ -1645,10 +1758,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   // ----------------------------------------------------------------------
   // 2. BOOK TAB (BESPOKE RESERVATIONS, QUOTES & REAL DISPATCH)
+  // Matching https://staging.archerexecutivecar.com/book
   // ----------------------------------------------------------------------
   Widget _buildBookTab() {
+    final isHourly = _selectedService == 'hourly';
+    final isClient = _selectedService == 'client' || _selectedService == 'client_car';
+    final isSecurity = _selectedService == 'security';
+    final isAirport = _selectedService == 'airport';
+    final isTrip = _selectedService == 'p2p' || _selectedService == 'point_to_point' || isAirport;
+    final minH = (isClient || isSecurity) ? 3 : 4;
+    final activeHours = _selectedHours < minH ? minH : _selectedHours;
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 180),
       children: [
         const Text(
           'BESPOKE RESERVATION',
@@ -1661,25 +1783,36 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Select your itinerary, luxury vehicle class, and security enhancements.',
+          'Configure your trip itinerary, vehicle fleet class, and executive security enhancements.',
           style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
         ),
         const SizedBox(height: 22),
 
-        // Service Type Selector Chips
-        const Text('Service Type', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+        // Section 1: Service Type
+        const Text(
+          'SERVICE TYPE',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+        ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            _buildLuxuryServiceChip('airport', 'Airport Transfer'),
-            _buildLuxuryServiceChip('point_to_point', 'Point to Point'),
-            _buildLuxuryServiceChip('hourly', 'Hourly As-Directed'),
-            _buildLuxuryServiceChip('client_car', 'Client Vehicle Chauffeur'),
+            _buildLuxuryServiceChip('hourly', 'Hourly Service (4-hr min)'),
+            _buildLuxuryServiceChip('airport', 'Airport Transportation'),
+            _buildLuxuryServiceChip('p2p', 'Point to Point'),
+            _buildLuxuryServiceChip('client', 'Client Car Service'),
+            _buildLuxuryServiceChip('security', 'Protection / Security'),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
+
+        // Section 2: Route & Stops
+        const Text(
+          'TRIP ITINERARY & ROUTE',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+        ),
+        const SizedBox(height: 10),
 
         // Pickup Location Input
         Container(
@@ -1692,9 +1825,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             controller: _pickupController,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: const InputDecoration(
-              labelText: 'Departure Location',
+              labelText: 'Pickup Address',
               labelStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-              hintText: 'Private FBO, hotel, or residence',
+              hintText: 'Street, city or airport',
               hintStyle: TextStyle(color: Color(0xFF4B5563), fontSize: 12),
               prefixIcon: Icon(Icons.trip_origin_rounded, color: Color(0xFFC8A96A), size: 20),
               border: InputBorder.none,
@@ -1704,7 +1837,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ),
         const SizedBox(height: 12),
 
-        // Destination Location Input
+        // Drop-off Location Input
         Container(
           decoration: BoxDecoration(
             color: const Color(0xFF0F121A),
@@ -1715,9 +1848,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             controller: _dropoffController,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: const InputDecoration(
-              labelText: 'Destination Location',
+              labelText: 'Drop-off Address',
               labelStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
-              hintText: 'Destination address or as directed',
+              hintText: 'Street, city or airport',
               hintStyle: TextStyle(color: Color(0xFF4B5563), fontSize: 12),
               prefixIcon: Icon(Icons.location_on_rounded, color: Color(0xFFEF4444), size: 20),
               border: InputBorder.none,
@@ -1725,102 +1858,650 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
           ),
         ),
+
+        // Intermediate Stops
+        if (_stopControllers.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ...List.generate(_stopControllers.length, (idx) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F121A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x33DFBE82)),
+                ),
+                child: TextField(
+                  controller: _stopControllers[idx],
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    labelText: 'Stop ${idx + 1}',
+                    labelStyle: const TextStyle(color: Color(0xFFDFBE82), fontSize: 13),
+                    hintText: 'Street, city or venue',
+                    hintStyle: const TextStyle(color: Color(0xFF4B5563), fontSize: 12),
+                    prefixIcon: const Icon(Icons.add_location_alt_rounded, color: Color(0xFFDFBE82), size: 18),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Color(0xFF9CA3AF), size: 18),
+                      tooltip: 'Remove Stop',
+                      onPressed: () {
+                        setState(() {
+                          _stopControllers[idx].dispose();
+                          _stopControllers.removeAt(idx);
+                        });
+                      },
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0x44C8A96A), style: BorderStyle.solid),
+              foregroundColor: const Color(0xFFE87722),
+              backgroundColor: const Color(0x0DE87722),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 16, color: Color(0xFFE87722)),
+            label: const Text('+ Add a stop', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            onPressed: () {
+              if (_stopControllers.length < (isTrip ? 3 : 5)) {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _stopControllers.add(TextEditingController());
+                });
+              } else {
+                ArcherToast.show(
+                  context,
+                  message: 'Maximum ${isTrip ? 3 : 5} stops permitted for this itinerary.',
+                  isError: true,
+                );
+              }
+            },
+          ),
+        ),
         const SizedBox(height: 24),
 
-        // Vehicle Class Selection
-        const Text('Executive Vehicle Class', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildLuxuryVehicleCard(
-                keyName: 'suv',
-                title: 'Cadillac Escalade ESV',
-                specs: 'Up to 6 guests • 6 bags • Wi-Fi',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildLuxuryVehicleCard(
-                keyName: 'sedan',
-                title: 'Mercedes S-Class',
-                specs: 'Up to 3 guests • Executive seating',
-              ),
-            ),
-          ],
+        // Section 3: Date, Time & Hours
+        const Text(
+          'DATE & SCHEDULE',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
         ),
         const SizedBox(height: 10),
         Row(
           children: [
+            // Date Picker Button
             Expanded(
-              child: _buildLuxuryVehicleCard(
-                keyName: 'sprinter',
-                title: 'Executive Sprinter Jet',
-                specs: 'Up to 12 guests • Boardroom layout',
+              child: GestureDetector(
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _pickupDateTime,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 180)),
+                    builder: (ctx, child) {
+                      return Theme(
+                        data: ThemeData.dark().copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: Color(0xFFC8A96A),
+                            onPrimary: Colors.black,
+                            surface: Color(0xFF141824),
+                            onSurface: Colors.white,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _pickupDateTime = DateTime(
+                        picked.year,
+                        picked.month,
+                        picked.day,
+                        _pickupDateTime.hour,
+                        _pickupDateTime.minute,
+                      );
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F121A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0x22C8A96A)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFFC8A96A)),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Date', style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_pickupDateTime.day.toString().padLeft(2, '0')}-${_pickupDateTime.month.toString().padLeft(2, '0')}-${_pickupDateTime.year}',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildLuxuryVehicleCard(
-                keyName: 'armored',
-                title: 'B6 Armored Suburban',
-                specs: 'Ballistic armoring • Run-flat tires',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 22),
+            const SizedBox(width: 12),
 
-        // Security Add-ons
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F121A),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0x22C8A96A)),
+            // Time Picker Button
+            Expanded(
+              child: GestureDetector(
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.fromDateTime(_pickupDateTime),
+                    builder: (ctx, child) {
+                      return Theme(
+                        data: ThemeData.dark().copyWith(
+                          colorScheme: const ColorScheme.dark(
+                            primary: Color(0xFFC8A96A),
+                            onPrimary: Colors.black,
+                            surface: Color(0xFF141824),
+                            onSurface: Colors.white,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _pickupDateTime = DateTime(
+                        _pickupDateTime.year,
+                        _pickupDateTime.month,
+                        _pickupDateTime.day,
+                        picked.hour,
+                        picked.minute,
+                      );
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F121A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0x22C8A96A)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFFC8A96A)),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Pickup Time', style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${_pickupDateTime.hour.toString().padLeft(2, '0')}:${_pickupDateTime.minute.toString().padLeft(2, '0')}',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // Hours selector for hourly, client car, or security
+        if (isHourly || isClient || isSecurity) ...[
+          const SizedBox(height: 16),
+          Text(
+            'Hours ($minH minimum)',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF9CA3AF)),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.shield_rounded, color: Color(0xFFC8A96A), size: 16),
-                  SizedBox(width: 8),
-                  Text(
-                    'SECURITY PROTOCOL ENHANCEMENTS',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                      color: Color(0xFFC8A96A),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [3, 4, 5, 6, 8, 10, 12].where((h) => h >= minH).map((h) {
+              final sel = activeHours == h;
+              return ChoiceChip(
+                label: Text('$h hrs', style: TextStyle(fontSize: 12, fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
+                selected: sel,
+                selectedColor: const Color(0x33C8A96A),
+                backgroundColor: const Color(0xFF0F121A),
+                side: BorderSide(color: sel ? const Color(0xFFC8A96A) : const Color(0x22C8A96A)),
+                labelStyle: TextStyle(color: sel ? const Color(0xFFDFBE82) : const Color(0xFF9CA3AF)),
+                onSelected: (val) {
+                  if (val) setState(() => _selectedHours = h);
+                },
+              );
+            }).toList(),
+          ),
+        ],
+        const SizedBox(height: 24),
+
+        // Section 4: Passengers & Bags Counters
+        const Text(
+          'PASSENGERS & LUGGAGE',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            // Passengers Counter
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F121A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x22C8A96A)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Passengers', style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: Color(0xFFC8A96A)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                          onPressed: _passengers > 1 ? () => setState(() => _passengers--) : null,
+                        ),
+                        Text(
+                          '$_passengers',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFFC8A96A)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                          onPressed: _passengers < 60 ? () => setState(() => _passengers++) : null,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Bags Counter
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F121A),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x22C8A96A)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Bags', style: TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline_rounded, size: 20, color: Color(0xFFC8A96A)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                          onPressed: _bags > 0 ? () => setState(() => _bags--) : null,
+                        ),
+                        Text(
+                          '$_bags',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline_rounded, size: 20, color: Color(0xFFC8A96A)),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          padding: EdgeInsets.zero,
+                          onPressed: _bags < 60 ? () => setState(() => _bags++) : null,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        // Section 5: Airport / Client Car contextual inputs
+        if (isAirport) ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F121A),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0x22C8A96A)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.flight_takeoff_rounded, color: Color(0xFFC8A96A), size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'FLIGHT TELEMETRY TRACKING',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Color(0xFFC8A96A)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _flightController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: const InputDecoration(
+                    labelText: 'Airline & Flight Number (we track it)',
+                    labelStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                    hintText: 'e.g. UA 1234, DL 402',
+                    hintStyle: TextStyle(color: Color(0xFF4B5563), fontSize: 11),
+                    border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0x33C8A96A))),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _terminalController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: const InputDecoration(
+                    labelText: 'Terminal or FBO',
+                    labelStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                    hintText: 'e.g. Terminal C, Signature FBO',
+                    hintStyle: TextStyle(color: Color(0xFF4B5563), fontSize: 11),
+                    border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0x33C8A96A))),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        if (isClient) ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F121A),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0x22C8A96A)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.directions_car_rounded, color: Color(0xFFC8A96A), size: 16),
+                    SizedBox(width: 8),
+                    Text(
+                      'CLIENT VEHICLE DETAILS',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Color(0xFFC8A96A)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _clientVehicleController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: const InputDecoration(
+                    labelText: 'Your vehicle (make, model, year)',
+                    labelStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                    hintText: 'e.g. 2025 Cadillac Escalade ESV',
+                    hintStyle: TextStyle(color: Color(0xFF4B5563), fontSize: 11),
+                    border: UnderlineInputBorder(borderSide: BorderSide(color: Color(0x33C8A96A))),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Client Car is billed round trip: your chauffeur safely returns your car to your departure address.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.3),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 24),
+
+        // Section 6: Tier of Service
+        const Text(
+          'TIER OF SERVICE',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedTier = 1);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedTier == 1 ? const Color(0xFFE87722) : const Color(0xFF0F121A),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _selectedTier == 1 ? const Color(0xFFE87722) : const Color(0x33C8A96A),
                     ),
                   ),
-                ],
+                  child: Text(
+                    'Tier 1 (Executive)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _selectedTier == 1 ? Colors.white : const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                activeColor: const Color(0xFFC8A96A),
-                title: const Text('Armed Protection Specialist Chauffeur', style: TextStyle(fontSize: 13, color: Colors.white)),
-                subtitle: const Text('Tier-1 licensed close protection specialist driver', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                value: _armedChauffeur,
-                onChanged: (v) => setState(() => _armedChauffeur = v),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedTier = 2);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: _selectedTier == 2 ? const Color(0xFFE87722) : const Color(0xFF0F121A),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _selectedTier == 2 ? const Color(0xFFE87722) : const Color(0x33C8A96A),
+                    ),
+                  ),
+                  child: Text(
+                    'Tier 2 (1st Class)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _selectedTier == 2 ? Colors.white : const Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ),
               ),
-              const Divider(color: Color(0x18C8A96A), height: 16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                activeColor: const Color(0xFFC8A96A),
-                title: const Text('Convoy Chase / Escort Vehicle', style: TextStyle(fontSize: 13, color: Colors.white)),
-                subtitle: const Text('Secondary escort vehicle with 2 tactical protection specialists', style: TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
-                value: _convoyEscort,
-                onChanged: (v) => setState(() => _convoyEscort = v),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Section 7: Fleet & Vehicle Class Picker (if not client vehicle and not standalone security)
+        if (!isClient && !isSecurity) ...[
+          const Text(
+            'VEHICLE FLEET',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Prices shown for the tier you picked. Sprinters are hourly only, 4-hour minimum.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 12),
+
+          // Executive Class group
+          const Text(
+            'EXECUTIVE CLASS',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Color(0xFFDFBE82)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildVehicleTile(
+                  clsKey: 'exec',
+                  sizeKey: 'sedan',
+                  model: 'Chevrolet Traverse',
+                  category: 'Mid-size SUV',
+                  rate: _selectedTier == 1 ? r'$70/hr' : r'$80/hr',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildVehicleTile(
+                  clsKey: 'exec',
+                  sizeKey: 'suv',
+                  model: 'Chevrolet Suburban',
+                  category: 'Full-size SUV',
+                  rate: _selectedTier == 1 ? r'$80/hr' : r'$100/hr',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildVehicleTile(
+                  clsKey: 'exec',
+                  sizeKey: 'van',
+                  model: 'Mercedes-Benz Sprinter',
+                  category: 'Sprinter',
+                  rate: _selectedTier == 1 ? r'$175/hr' : r'$225/hr',
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+
+          // 1st Class group
+          const Text(
+            '1ST CLASS',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: Color(0xFFDFBE82)),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildVehicleTile(
+                  clsKey: 'first',
+                  sizeKey: 'sedan',
+                  model: 'Lincoln Aviator',
+                  category: 'Mid-size SUV',
+                  rate: _selectedTier == 1 ? r'$80/hr' : r'$90/hr',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildVehicleTile(
+                  clsKey: 'first',
+                  sizeKey: 'suv',
+                  model: 'Cadillac Escalade #2',
+                  category: 'Full-size SUV',
+                  rate: _selectedTier == 1 ? r'$100/hr' : r'$125/hr',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildVehicleTile(
+                  clsKey: 'first',
+                  sizeKey: 'van',
+                  model: 'Executive Sprinter',
+                  category: 'Sprinter',
+                  rate: _selectedTier == 1 ? r'$225/hr' : r'$265/hr',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+
+        // Section 8: Add-on Security Protocol
+        Text(
+          isSecurity ? 'NUMBER OF GUARDS' : 'ADD-ON SECURITY',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: (isSecurity ? [1, 2, 3, 4] : [0, 1, 2]).map((g) {
+            final sel = _selectedGuards == g;
+            final label = g == 0
+                ? 'None'
+                : '$g guard${g > 1 ? "s" : ""} · \$45/hr each';
+            return ChoiceChip(
+              label: Text(label, style: TextStyle(fontSize: 11, fontWeight: sel ? FontWeight.bold : FontWeight.normal)),
+              selected: sel,
+              selectedColor: const Color(0xFFE87722),
+              backgroundColor: const Color(0xFF0F121A),
+              side: BorderSide(color: sel ? const Color(0xFFE87722) : const Color(0x33C8A96A)),
+              labelStyle: TextStyle(color: sel ? Colors.white : const Color(0xFF9CA3AF)),
+              onSelected: (val) {
+                if (val) setState(() => _selectedGuards = g);
+              },
+            );
+          }).toList(),
         ),
         const SizedBox(height: 24),
 
-        // Calculate Guaranteed Fare Button
+        // Section 9: Special Requests (Optional)
+        const Text(
+          'SPECIAL REQUESTS (OPTIONAL)',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Color(0xFFC8A96A)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F121A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0x22C8A96A)),
+          ),
+          child: TextField(
+            controller: _specialRequestsController,
+            maxLines: 2,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: const InputDecoration(
+              hintText: 'Car seat, extra stops, meet-and-greet sign, chilled refreshments…',
+              hintStyle: TextStyle(color: Color(0xFF4B5563), fontSize: 12),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.all(14),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Section 10: Calculate Guaranteed Fare Button
         Container(
           height: 50,
           decoration: BoxDecoration(
@@ -1861,7 +2542,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           ),
         ),
 
-        // Dynamic Quote Result Card
+        // Section 11: Dynamic Quote Result Card & Submission
         if (_estimatedPrice != null) ...[
           const SizedBox(height: 24),
           Container(
@@ -1878,7 +2559,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'GUARANTEED EXECUTIVE FARE',
+                      'ESTIMATED EXECUTIVE FARE',
                       style: TextStyle(
                         fontSize: 10,
                         letterSpacing: 1.8,
@@ -1886,12 +2567,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         color: Color(0xFFC8A96A),
                       ),
                     ),
-                    Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 18),
+                    Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 18),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '£${_estimatedPrice!.toStringAsFixed(2)}',
+                  '\$${_estimatedPrice!.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 34,
                     fontWeight: FontWeight.w800,
@@ -1900,12 +2581,42 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     fontFamily: 'serif',
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
+
+                // Breakdown lines from server quote
+                if (_serverQuote != null && _serverQuote!['lines'] is List) ...[
+                  ...((_serverQuote!['lines'] as List).map((l) {
+                    final line = l as Map<String, dynamic>;
+                    final label = line['label']?.toString() ?? '';
+                    final amtCents = (line['amount_cents'] as num?)?.toDouble() ?? 0.0;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+                            ),
+                          ),
+                          Text(
+                            '\$${(amtCents / 100).toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    );
+                  })),
+                  const Divider(color: Color(0x18C8A96A), height: 16),
+                ],
+
                 const Text(
-                  'All-inclusive: Chauffeur meet & greet, vehicle telemetry tracking, fuel, toll surcharges, and gratuity.',
-                  style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF9CA3AF)),
+                  'Estimate only. Dispatch confirms the final price. All-inclusive: Chauffeur meet & greet, telemetry tracking, fuel, toll surcharges, and gratuity.',
+                  style: TextStyle(fontSize: 11, height: 1.4, color: Color(0xFF6B7280)),
                 ),
                 const SizedBox(height: 20),
+
                 if (_bookingConfirmed) ...[
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -1914,17 +2625,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF10B981)),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _bookingMessage != null
-                                ? '${_bookingReference != null ? "[${_bookingReference}] " : ""}${_bookingMessage!}'
-                                : 'Reservation confirmed. Archer Dispatch has assigned this itinerary.',
-                            style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4),
+                        Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              'REFERENCE: ${_bookingReference ?? "ARC-CONFIRMED"}',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _bookingMessage ?? 'Your executive booking request has been received by Archer Dispatch.',
+                          style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF10B981)),
+                            foregroundColor: const Color(0xFF10B981),
                           ),
+                          onPressed: () {
+                            setState(() => _tabIndex = 3); // Go to Itinerary
+                          },
+                          child: const Text('VIEW IN ITINERARY'),
                         ),
                       ],
                     ),
@@ -1948,8 +2676,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
                           : const Icon(Icons.lock_outline_rounded, color: Colors.black, size: 16),
                       label: Text(
-                        _submittingBooking ? 'DISPATCHING MISSION...' : 'CONFIRM EXECUTIVE RESERVATION',
-                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1.0),
+                        _submittingBooking ? 'DISPATCHING MISSION...' : 'REQUEST MY RIDE / CONFIRM CHAUFFEUR',
+                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 0.8),
                       ),
                       onPressed: _submittingBooking ? null : _submitBooking,
                     ),
@@ -1966,14 +2694,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget _buildLuxuryServiceChip(String key, String label) {
     final selected = _selectedService == key;
     return GestureDetector(
-      onTap: () => setState(() => _selectedService = key),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedService = key);
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x22C8A96A) : const Color(0xFF0F121A),
+          color: selected ? const Color(0xFFE87722) : const Color(0xFF0F121A),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? const Color(0xFFC8A96A) : const Color(0x22C8A96A),
+            color: selected ? const Color(0xFFE87722) : const Color(0x33C8A96A),
             width: selected ? 1.4 : 1.0,
           ),
         ),
@@ -1982,46 +2713,68 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-            color: selected ? const Color(0xFFDFBE82) : const Color(0xFF9CA3AF),
+            color: selected ? Colors.white : const Color(0xFF9CA3AF),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildLuxuryVehicleCard({
-    required String keyName,
-    required String title,
-    required String specs,
+  Widget _buildVehicleTile({
+    required String clsKey,
+    required String sizeKey,
+    required String model,
+    required String category,
+    required String rate,
   }) {
-    final selected = _selectedVehicleClass == keyName;
+    final isSelected = _selectedClass == clsKey && _selectedSize == sizeKey;
     return GestureDetector(
-      onTap: () => setState(() => _selectedVehicleClass = keyName),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() {
+          _selectedClass = clsKey;
+          _selectedSize = sizeKey;
+        });
+      },
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x18C8A96A) : const Color(0xFF0F121A),
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? const Color(0xFFE87722) : const Color(0xFF0F121A),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFFC8A96A) : const Color(0x22C8A96A),
-            width: selected ? 1.5 : 1,
+            color: isSelected ? const Color(0xFFE87722) : const Color(0x22C8A96A),
+            width: isSelected ? 1.5 : 1,
           ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
+              model,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
-                color: selected ? const Color(0xFFDFBE82) : Colors.white,
+                color: isSelected ? Colors.white : const Color(0xFFDFBE82),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
-              specs,
-              style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280), height: 1.3),
+              category,
+              style: TextStyle(
+                fontSize: 9.5,
+                color: isSelected ? Colors.white70 : const Color(0xFF6B7280),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              rate,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? Colors.white : Colors.white,
+              ),
             ),
           ],
         ),
@@ -2034,7 +2787,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   // ----------------------------------------------------------------------
   Widget _buildSecurityTab() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 180),
       children: [
         const Text(
           'EXECUTIVE SECURITY COMMAND',
@@ -2299,7 +3052,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       onRefresh: _loadAllData,
       color: const Color(0xFFC8A96A),
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 110),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 180),
         itemCount: filtered.length,
         itemBuilder: (context, idx) {
           final ride = filtered[idx];
@@ -2757,7 +3510,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   // ----------------------------------------------------------------------
   Widget _buildAccountTab() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 110),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 180),
       children: [
         const Text(
           'EXECUTIVE PROFILE',

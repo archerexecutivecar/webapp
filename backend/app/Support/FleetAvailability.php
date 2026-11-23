@@ -80,10 +80,16 @@ class FleetAvailability
             return false;
         }
 
-        $from = $start->copy()->setTimeFromTimeString($vehicle->available_from ?: '00:00');
-        $until = $start->copy()->setTimeFromTimeString($vehicle->available_until ?: '23:59');
-        if ($start->lt($from) || $end->gt($until)) {
-            return false;
+        $fromStr = $vehicle->available_from ?: '00:00';
+        $untilStr = $vehicle->available_until ?: '23:59';
+        $isAllDay = ($fromStr === '00:00' || $fromStr === '0:00') && ($untilStr === '23:59' || $untilStr === '24:00');
+
+        if (! $isAllDay) {
+            $from = $start->copy()->setTimeFromTimeString($fromStr);
+            $until = $start->copy()->setTimeFromTimeString($untilStr);
+            if ($start->lt($from) || $end->gt($until)) {
+                return false;
+            }
         }
 
         return ! $vehicle->blockouts->contains(
