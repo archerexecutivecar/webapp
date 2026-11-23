@@ -7,8 +7,10 @@ import {
   getCareersStatus,
   getCareersTiers,
   submitCareerApplication,
+  trackCareerApplication,
   type CareerTierOption,
   type PublicCareerJob,
+  type TrackApplicationResult,
 } from "@/lib/careers-api";
 import { DISPATCH_EMAIL, DISPATCH_PHONE_DISPLAY } from "@/lib/archer-data";
 
@@ -19,11 +21,21 @@ export function CareersClient() {
   const [loading, setLoading] = useState(true);
   const [selectedDept, setSelectedDept] = useState<string>("All");
 
+  // Job Details Modal state
+  const [viewingJob, setViewingJob] = useState<PublicCareerJob | null>(null);
+
   // Application Modal state
   const [activeJob, setActiveJob] = useState<PublicCareerJob | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<{ reference_code: string; message: string } | null>(null);
+
+  // Application Tracking state
+  const [trackCode, setTrackCode] = useState("");
+  const [trackEmail, setTrackEmail] = useState("");
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackResult, setTrackResult] = useState<TrackApplicationResult | null>(null);
+  const [trackError, setTrackError] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -69,6 +81,7 @@ export function CareersClient() {
   }, []);
 
   const openApplication = (job: PublicCareerJob) => {
+    setViewingJob(null);
     setActiveJob(job);
     setSubmitError(null);
     setConfirmation(null);
@@ -112,6 +125,24 @@ export function CareersClient() {
     }
   };
 
+  const handleTrackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackCode.trim()) return;
+
+    try {
+      setTrackingLoading(true);
+      setTrackError(null);
+      setTrackResult(null);
+
+      const res = await trackCareerApplication(trackCode.trim(), trackEmail.trim() || undefined);
+      setTrackResult(res);
+    } catch (err: any) {
+      setTrackError(err?.message || "No application found matching this reference code.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
   const departments = ["All", ...Array.from(new Set(jobs.map((j) => j.department)))];
   const filteredJobs = selectedDept === "All" ? jobs : jobs.filter((j) => j.department === selectedDept);
 
@@ -125,15 +156,37 @@ export function CareersClient() {
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-6">
           Join The Archer Standard.
         </h1>
-        <p className="max-w-2xl mx-auto text-[#B3ADA5] text-base sm:text-lg leading-relaxed">
+        <p className="max-w-2xl mx-auto text-[#B3ADA5] text-base sm:text-lg leading-relaxed mb-8">
           Archer Executive Services recruits elite chauffeurs, tactical protection specialists, and logistics
           dispatchers to deliver distinguished mobility for VIPs, executives, and family offices.
         </p>
+
+        {/* Quick Jump Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="#openings"
+            className="px-5 py-2.5 rounded-lg bg-[#c59b27] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#d6aa32] transition-colors"
+          >
+            View Open Positions ↓
+          </a>
+          <a
+            href="#culture"
+            className="px-5 py-2.5 rounded-lg bg-[#181818] border border-white/10 text-white font-semibold text-xs uppercase tracking-wider hover:border-[#c59b27] transition-colors"
+          >
+            Archer Culture & Values
+          </a>
+          <a
+            href="#tracking"
+            className="px-5 py-2.5 rounded-lg bg-[#181818] border border-white/10 text-white font-semibold text-xs uppercase tracking-wider hover:border-[#c59b27] transition-colors"
+          >
+            Track Application 🔍
+          </a>
+        </div>
       </section>
 
       {/* Feature Closed Banner (when turned off from Admin) */}
       {enabled === false && !loading && (
-        <div className="archer-container max-w-3xl mx-auto px-4">
+        <div className="archer-container max-w-3xl mx-auto px-4 mb-20">
           <div className="rounded-xl border border-white/10 bg-[#141414] p-8 sm:p-12 text-center shadow-2xl">
             <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center text-[#B3ADA5]">
               🔒
@@ -152,9 +205,103 @@ export function CareersClient() {
         </div>
       )}
 
-      {/* Live Job Board (when enabled) */}
+      {/* ARCHER CULTURE & VALUES SECTION */}
+      <section id="culture" className="archer-container max-w-6xl mx-auto px-4 sm:px-6 mb-24">
+        <div className="text-center mb-14">
+          <span className="text-[#c59b27] font-semibold text-xs tracking-[0.24em] uppercase block mb-2">
+            THE ARCHER CREED
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+            Culture & The Standard We Uphold
+          </h2>
+          <p className="max-w-2xl mx-auto text-[#B3ADA5] text-sm sm:text-base mt-3">
+            At Archer, precision isn't an ambition—it is our absolute baseline. Our chauffeurs and security officers
+            are respected professionals entrusted with our clients' safety, schedule, and privacy.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
+            <div>
+              <div className="text-3xl mb-4">🛡️</div>
+              <h3 className="text-lg font-bold text-white mb-2">Executive Decorum & Respect</h3>
+              <p className="text-xs text-[#B3ADA5] leading-relaxed">
+                You are treated as an elite mobility practitioner, never a commodity. We value discretion, punctuality,
+                and impeccable white-glove client presentation.
+              </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
+              Zero-tolerance compromise
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
+            <div>
+              <div className="text-3xl mb-4">🚗</div>
+              <h3 className="text-lg font-bold text-white mb-2">Pristine Black Car Fleet</h3>
+              <p className="text-xs text-[#B3ADA5] leading-relaxed">
+                Operate exclusively late-model Cadillac Escalades, Lincoln Aviators, Chevrolet Suburbans, and Mercedes Sprinters,
+                fully maintained, detailed, and insured by Archer.
+              </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
+              Premium vehicles only
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
+            <div>
+              <div className="text-3xl mb-4">📈</div>
+              <h3 className="text-lg font-bold text-white mb-2">Tier Career Advancement</h3>
+              <p className="text-xs text-[#B3ADA5] leading-relaxed">
+                Clear promotion milestones from Tier 1 Professional Chauffeur up to Tier 4 Armed Close Protection Specialist,
+                with sponsored certifications and defensive training.
+              </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
+              Tier 1 through Tier 4
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
+            <div>
+              <div className="text-3xl mb-4">💎</div>
+              <h3 className="text-lg font-bold text-white mb-2">Premium Pay & Gratuities</h3>
+              <p className="text-xs text-[#B3ADA5] leading-relaxed">
+                Industry-leading hourly wages, guaranteed minimum shift earnings, and 100% transparent gratuity pass-through
+                deposited reliably each week.
+              </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
+              Weekly verified payroll
+            </div>
+          </div>
+        </div>
+
+        {/* Culture Quote Card */}
+        <div className="mt-8 rounded-xl bg-gradient-to-r from-[#181818] via-[#141414] to-[#181818] border border-white/10 p-8 text-center max-w-3xl mx-auto">
+          <p className="text-sm sm:text-base italic text-[#F4F1EC] leading-relaxed mb-4">
+            "On time ~ In style ~ Every time is not a slogan. It is the operating principle behind every chauffeur we hire,
+            every route we coordinate, and every passenger we protect."
+          </p>
+          <span className="text-xs font-bold uppercase tracking-widest text-[#c59b27]">
+            — Archer Executive Operations
+          </span>
+        </div>
+      </section>
+
+      {/* JOB OPENINGS SECTION */}
       {enabled !== false && (
-        <div className="archer-container max-w-6xl mx-auto px-4 sm:px-6">
+        <section id="openings" className="archer-container max-w-6xl mx-auto px-4 sm:px-6 mb-24 scroll-mt-24">
+          <div className="text-center mb-10">
+            <span className="text-[#c59b27] font-semibold text-xs tracking-[0.24em] uppercase block mb-2">
+              CURRENT OPPORTUNITIES
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              Open Positions Across All Divisions
+            </h2>
+          </div>
+
           {/* Department Filter Bar */}
           <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
             {departments.map((dept) => (
@@ -201,9 +348,9 @@ export function CareersClient() {
                       </span>
                     </div>
 
-                    <h2 className="text-xl font-bold text-white mb-2 group-hover:text-[#c59b27] transition-colors">
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#c59b27] transition-colors">
                       {job.title}
-                    </h2>
+                    </h3>
 
                     <div className="text-xs text-[#B3ADA5] mb-3 flex flex-wrap gap-x-3 gap-y-1">
                       <span>📍 {job.location}</span>
@@ -245,23 +392,255 @@ export function CareersClient() {
                     )}
                   </div>
 
-                  <button
-                    onClick={() => openApplication(job)}
-                    className="w-full py-3 px-4 rounded-lg bg-[#1F1F1F] hover:bg-[#c59b27] hover:text-black border border-white/10 hover:border-[#c59b27] text-white font-bold text-xs uppercase tracking-wider transition-all duration-200"
-                  >
-                    Apply for Position →
-                  </button>
+                  {/* USER REQUIREMENT: View Full Description & Apply Buttons */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
+                    <button
+                      onClick={() => setViewingJob(job)}
+                      className="w-full py-2.5 px-3 rounded-lg bg-transparent hover:bg-white/5 border border-white/15 text-xs text-[#E6E1DA] font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <span>View Full Description</span>
+                      <span>📖</span>
+                    </button>
+                    <button
+                      onClick={() => openApplication(job)}
+                      className="w-full py-3 px-4 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider shadow-lg transition-all"
+                    >
+                      Apply for Position →
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {/* USER REQUIREMENT: APPLICATION TRACKING SECTION */}
+      <section id="tracking" className="archer-container max-w-4xl mx-auto px-4 sm:px-6 mb-24 scroll-mt-24">
+        <div className="rounded-2xl border border-white/10 bg-[#121212] p-8 sm:p-10 shadow-2xl">
+          <div className="text-center max-w-xl mx-auto mb-8">
+            <span className="text-[#c59b27] font-semibold text-xs tracking-[0.24em] uppercase block mb-1">
+              STATUS VERIFICATION
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+              Track Your Application
+            </h2>
+            <p className="text-xs sm:text-sm text-[#B3ADA5]">
+              Enter your Application Reference Code (e.g. <code>APP-XXXXXXXX</code>) and email address to view live review progress.
+            </p>
+          </div>
+
+          <form onSubmit={handleTrackSubmit} className="max-w-xl mx-auto space-y-4 mb-8">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1">
+                  Reference Code *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="APP-XXXXXXXX"
+                  value={trackCode}
+                  onChange={(e) => setTrackCode(e.target.value.toUpperCase())}
+                  className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-[#c59b27]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1">
+                  Email Address (Optional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={trackEmail}
+                  onChange={(e) => setTrackEmail(e.target.value)}
+                  className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
+                />
+              </div>
+            </div>
+
+            {trackError && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                {trackError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={trackingLoading}
+              className="w-full py-3 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider transition-all"
+            >
+              {trackingLoading ? "Checking Status..." : "Track Application Progress →"}
+            </button>
+          </form>
+
+          {/* Live Tracking Result Display */}
+          {trackResult && (
+            <div className="max-w-2xl mx-auto rounded-xl bg-[#1A1A1A] border border-[#c59b27]/30 p-6 sm:p-7">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4 mb-6">
+                <div>
+                  <span className="text-[11px] font-bold uppercase text-[#c59b27] block">
+                    {trackResult.department} · {trackResult.location}
+                  </span>
+                  <h3 className="text-xl font-bold text-white">{trackResult.job_title}</h3>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-[#B3ADA5] uppercase block font-mono">Reference</span>
+                  <span className="text-sm font-bold text-white font-mono">{trackResult.reference_code}</span>
+                </div>
+              </div>
+
+              {/* Progress Stage Tracker */}
+              {trackResult.stage > 0 ? (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between text-xs text-[#B3ADA5] mb-2">
+                    <span>Hiring Stage: <strong className="text-white">{trackResult.stage} of {trackResult.total_stages}</strong></span>
+                    <span className="text-emerald-400 font-semibold">{trackResult.status_title}</span>
+                  </div>
+                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-[#c59b27] h-full rounded-full transition-all duration-500"
+                      style={{ width: `${(trackResult.stage / trackResult.total_stages) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-6 p-3 rounded-lg bg-white/5 text-xs text-[#B3ADA5]">
+                  Status: <strong className="text-white">{trackResult.status_title}</strong>
+                </div>
+              )}
+
+              <div className="bg-[#141414] rounded-lg p-4 mb-4 border border-white/5">
+                <span className="text-[10px] uppercase font-bold text-[#c59b27] block mb-1">Current Progress</span>
+                <p className="text-xs sm:text-sm text-[#F4F1EC] leading-relaxed">
+                  {trackResult.status_description}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-[#B3ADA5] pt-2 border-t border-white/5">
+                <div>
+                  <span className="block text-[10px] uppercase text-white/50">Applicant</span>
+                  <span className="text-white font-medium">{trackResult.full_name}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase text-white/50">Selected Tier</span>
+                  <span className="text-[#c59b27] font-semibold">{trackResult.selected_tier || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase text-white/50">Submitted On</span>
+                  <span className="text-white font-medium">
+                    {new Date(trackResult.applied_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* FULL JOB DESCRIPTION MODAL */}
+      {viewingJob && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setViewingJob(null)}
+        >
+          <div
+            className="w-full max-w-3xl bg-[#141414] border border-white/15 rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto text-left shadow-2xl my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-white/10 pb-5 mb-6">
+              <div>
+                <span className="text-xs font-bold text-[#c59b27] uppercase tracking-wider">
+                  {viewingJob.department} · {viewingJob.location}
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">{viewingJob.title}</h2>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-[#B3ADA5] mt-2">
+                  <span>💼 {viewingJob.employment_type}</span>
+                  {viewingJob.salary_range && <span>· 💰 {viewingJob.salary_range}</span>}
+                  {viewingJob.tier_recommendation && <span>· 🎖️ {viewingJob.tier_recommendation}</span>}
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingJob(null)}
+                className="text-[#B3ADA5] hover:text-white text-xl p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Description Body */}
+            <div className="space-y-6 text-sm text-[#E6E1DA] leading-relaxed">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-2">
+                  Role Overview
+                </h4>
+                <p className="whitespace-pre-line text-xs sm:text-sm text-[#C9C3BB]">
+                  {viewingJob.description}
+                </p>
+              </div>
+
+              {/* Requirements */}
+              {Array.isArray(viewingJob.requirements) && viewingJob.requirements.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-3">
+                    Prerequisites & Licensing Qualifications
+                  </h4>
+                  <ul className="space-y-2 text-xs sm:text-sm text-[#C9C3BB]">
+                    {viewingJob.requirements.map((req, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <span className="text-[#c59b27] font-bold">✓</span>
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Benefits */}
+              {Array.isArray(viewingJob.benefits) && viewingJob.benefits.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-3">
+                    Compensation, Benefits & Fleet Support
+                  </h4>
+                  <ul className="space-y-2 text-xs sm:text-sm text-[#C9C3BB]">
+                    {viewingJob.benefits.map((b, i) => (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <span className="text-[#c59b27] font-bold">★</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Action Bar */}
+            <div className="pt-6 mt-8 flex items-center justify-end gap-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setViewingJob(null)}
+                className="px-5 py-2.5 rounded-lg border border-white/10 text-xs font-semibold text-[#B3ADA5] hover:text-white"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => openApplication(viewingJob)}
+                className="px-7 py-2.5 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider shadow-lg transition-all"
+              >
+                Proceed to Application Form →
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* APPLICATION MODAL */}
+      {/* APPLICATION SUBMISSION MODAL */}
       {activeJob && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
           onClick={() => {
             if (!submitting) setActiveJob(null);
           }}
@@ -298,7 +677,7 @@ export function CareersClient() {
                 </div>
                 <h4 className="text-2xl font-bold text-white mb-2">Application Received</h4>
                 <p className="text-[#B3ADA5] text-sm max-w-md mx-auto mb-6">
-                  {confirmation.message}
+                  {confirmation.message} A confirmation email has been sent to your address with reference details.
                 </p>
                 <div className="inline-block bg-[#1C1C1C] border border-white/10 px-5 py-3 rounded-lg text-xs font-mono mb-8">
                   <span className="text-[#B3ADA5] block text-[10px] uppercase font-sans mb-1">Your Application Code</span>
@@ -339,7 +718,7 @@ export function CareersClient() {
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Email Address *
+                      Email Address (Confirmation will be sent) *
                     </label>
                     <input
                       type="email"
@@ -443,7 +822,7 @@ export function CareersClient() {
                   </div>
                 </div>
 
-                {/* USER REQUIREMENT: Document Uploads */}
+                {/* Document Uploads */}
                 <div className="border-t border-white/10 pt-4">
                   <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1">
                     Upload Documents & Credentials

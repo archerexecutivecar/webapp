@@ -134,7 +134,7 @@ class PublicCareerController extends Controller
             'additional_doc' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:15360',
         ]);
 
-        return DB::transaction(function () use ($validated, $job, $request) {
+        $response = DB::transaction(function () use ($validated, $job, $request) {
             $application = CareerApplication::create([
                 'career_job_id' => $job->id,
                 'full_name' => $validated['full_name'],
@@ -180,5 +180,113 @@ class PublicCareerController extends Controller
                 'message' => 'Your application has been received successfully by Archer Executive Services.',
             ]);
         });
+
+        // Send email confirmation
+        try {
+            $latestApp = CareerApplication::where('career_job_id', $job->id)
+                ->where('email', strtolower(trim($validated['email'])))
+                ->latest('id')
+                ->first();
+            if ($latestApp) {
+                \App\Support\CareerMailer::sendApplicationConfirmation($latestApp, $job);
+            }
+        } catch (\Throwable) {
+            // Logged inside CareerMailer
+        }
+
+        return $response;
+    }
+
+    public function track(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'reference_code' => 'required|string|max:40',
+            'email' => 'nullable|email|max:150',
+        ]);
+
+        $code = strtoupper(trim($validated['reference_code']));
+        $query = CareerApplication::with('job')->where('reference_code', $code);
+
+        if (!empty($validated['email'])) {
+            $email = strtolower(trim($validated['email']));
+            $query->where('email', $email);
+        }
+
+        $app = $query->first();
+
+        if (!$app) {
+            return ApiResponse::error(
+                'application_not_found',
+                'No application found matching this reference code and email. Please check your reference code and try again.',
+                404
+            );
+        }
+
+        $statusInfo = match ($app->status) {
+            'new' => [
+                'stage' => 1,
+                'total_stages' => 5,
+                'title' => 'Application Received',
+                'description' => 'Your application and credentials have been received and are queued for initial review by our recruiting department.',
+            ],
+            'screening' => [
+                'stage' => 2,
+                'total_stages' => 5,
+                'title' => 'Credentials Under Review',
+                'description' => 'Our recruitment specialists are verifying your driving record, TLC/security credentials, and qualifications.',
+            ],
+            'interview' => [
+                'stage' => 3,
+                'total_stages' => 5,
+                'title' => 'Interview & Driving Assessment',
+                'description' => 'You have progressed to the interview and practical road evaluation stage. Please check your email for scheduling details.',
+            ],
+            'offer' => [
+                'stage' => 4,
+                'total_stages' => 5,
+                'title' => 'Offer Extended',
+                'description' => 'Congratulations! An employment offer has been extended. Our talent team will contact you directly to finalize paperwork.',
+            ],
+            'hired' => [
+                'stage' => 5,
+                'total_stages' => 5,
+                'title' => 'Hired & Onboarding Initiated',
+                'description' => 'Welcome to Archer Executive Services! Your driver profile has been created and onboarding sequence is underway.',
+            ],
+            'rejected' => [
+                'stage' => 0,
+                'total_stages' => 5,
+                'title' => 'Application Concluded',
+                'description' => 'Thank you for your interest. While this role has been filled or closed, we will keep your credentials on file for future opportunities.',
+            ],
+            'withdrawn' => [
+                'stage' => 0,
+                'total_stages' => 5,
+                'title' => 'Application Withdrawn',
+                'description' => 'This application has been marked as withdrawn.',
+            ],
+            default => [
+                'stage' => 1,
+                'total_stages' => 5,
+                'title' => ucfirst($app->status),
+                'description' => 'Your application is currently being processed.',
+            ],
+        };
+
+        return ApiResponse::data([
+            'reference_code' => $app->reference_code,
+            'full_name' => $app->full_name,
+            'job_title' => $app->job?->title ?? 'General Application',
+            'department' => $app->job?->department ?? 'Operations',
+            'location' => $app->job?->location ?? 'New York, NY',
+            'selected_tier' => $app->selected_tier,
+            'status' => $app->status,
+            'status_title' => $statusInfo['title'],
+            'status_description' => $statusInfo['description'],
+            'stage' => $statusInfo['stage'],
+            'total_stages' => $statusInfo['total_stages'],
+            'applied_at' => $app->created_at->toIso8601String(),
+            'updated_at' => $app->updated_at->toIso8601String(),
+        ]);
     }
 }

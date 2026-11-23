@@ -163,7 +163,7 @@ export function Segmented({ options, value, onChange, label, pad = "px-8" }: { o
   );
 }
 
-export const LEGAL_LINKS: [string, string][] = [["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Cancellation Policy", "/cancellation"], ["Cookie Policy", "/cookies"], ["Accessibility", "/accessibility"]];
+export const LEGAL_LINKS: [string, string][] = [["Careers", "/careers"], ["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"], ["Cancellation Policy", "/cancellation"], ["Cookie Policy", "/cookies"], ["Accessibility", "/accessibility"]];
 
 export function LegalLinks() {
   return (

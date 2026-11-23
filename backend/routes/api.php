@@ -49,6 +49,7 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/careers/jobs', [\App\Http\Controllers\PublicCareerController::class, 'index']);
     Route::get('/careers/jobs/{slug}', [\App\Http\Controllers\PublicCareerController::class, 'show']);
     Route::post('/careers/jobs/{id}/apply', [\App\Http\Controllers\PublicCareerController::class, 'apply'])->middleware('throttle:public-submissions');
+    Route::post('/careers/track', [\App\Http\Controllers\PublicCareerController::class, 'track'])->middleware('throttle:60,1');
 
     // Customer account: register directly, sign in with an emailed code (no password), or with email + password via /auth/login.
     Route::prefix('customer')->group(function (): void {

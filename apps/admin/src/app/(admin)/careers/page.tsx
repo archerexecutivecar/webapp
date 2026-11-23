@@ -112,9 +112,9 @@ export default function AdminCareersPage() {
       setError(null);
 
       const [toggleRes, jobsRes, appsRes] = await Promise.all([
-        api<{ enabled: boolean }>('/admin/careers/toggle', { auth: true }),
-        api<{ data: CareerJob[] }>('/admin/careers/jobs', { auth: true }),
-        api<{ data: { data: CareerApplication[] } }>(
+        api<any>('/admin/careers/toggle', { auth: true }),
+        api<any>('/admin/careers/jobs', { auth: true }),
+        api<any>(
           `/admin/careers/applications?${new URLSearchParams({
             ...(filterStatus ? { status: filterStatus } : {}),
             ...(filterJobId ? { job_id: filterJobId } : {}),
@@ -124,9 +124,28 @@ export default function AdminCareersPage() {
         ),
       ]);
 
-      setFeatureEnabled(Boolean(toggleRes?.enabled));
-      setJobs(jobsRes?.data || []);
-      setApplications(appsRes?.data?.data || []);
+      const isEnabled = typeof toggleRes?.enabled === 'boolean'
+        ? toggleRes.enabled
+        : Boolean(toggleRes?.data?.enabled ?? true);
+      setFeatureEnabled(isEnabled);
+
+      const rawJobs: any = jobsRes;
+      const jobList: CareerJob[] = Array.isArray(rawJobs)
+        ? rawJobs
+        : Array.isArray(rawJobs?.data)
+        ? rawJobs.data
+        : [];
+      setJobs(jobList);
+
+      const rawApps: any = appsRes;
+      const appList: CareerApplication[] = Array.isArray(rawApps)
+        ? rawApps
+        : Array.isArray(rawApps?.data)
+        ? rawApps.data
+        : Array.isArray(rawApps?.data?.data)
+        ? rawApps.data.data
+        : [];
+      setApplications(appList);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load career data.');
     } finally {
@@ -142,7 +161,7 @@ export default function AdminCareersPage() {
     try {
       setStatusUpdating(true);
       setError(null);
-      const res = await api<{ data: { application: CareerApplication } }>(
+      const res = await api<any>(
         `/admin/careers/applications/${appId}/status`,
         {
           method: 'PATCH',
@@ -150,10 +169,11 @@ export default function AdminCareersPage() {
           body: { status: nextStatus },
         }
       );
-      if (res?.data?.application) {
-        setSelectedApp(res.data.application);
+      const updatedApp = res?.application ?? res?.data?.application ?? res;
+      if (updatedApp?.id) {
+        setSelectedApp(updatedApp);
         setApplications((prev) =>
-          prev.map((a) => (a.id === appId ? { ...a, status: res.data.application.status } : a))
+          prev.map((a) => (a.id === appId ? { ...a, status: updatedApp.status } : a))
         );
         setSuccess(`Applicant moved to ${nextStatus.toUpperCase()}`);
         setTimeout(() => setSuccess(null), 3000);

@@ -141,6 +141,16 @@ class CareersFeatureTest extends TestCase
             'document_type' => 'resume',
             'file_name' => 'john_doe_resume.pdf',
         ]);
+
+        // Candidate can track their application
+        $trackRes = $this->postJson('/api/v1/careers/track', [
+            'reference_code' => $app->reference_code,
+            'email' => 'john.doe@example.com',
+        ]);
+        $trackRes->assertOk();
+        $this->assertEquals('new', $trackRes->json('data.status'));
+        $this->assertEquals('Application Received', $trackRes->json('data.status_title'));
+        $this->assertEquals(1, $trackRes->json('data.stage'));
     }
 
     public function test_admin_can_advance_applicant_pipeline_and_convert_to_driver(): void
