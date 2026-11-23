@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:archer_core/archer_core.dart';
 
 void main() {
@@ -631,8 +632,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final dropoff = _dropoffController.text.trim();
 
     if (pickup.isEmpty || dropoff.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please specify both pickup and destination locations.')),
+      ArcherToast.show(
+        context,
+        message: 'Please specify both pickup and destination locations.',
+        icon: Icons.edit_location_alt_rounded,
+        isError: true,
       );
       return;
     }
@@ -667,8 +671,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       if (mounted) setState(() => _estimatedPrice = total);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Quote error: $e')),
+        ArcherToast.show(
+          context,
+          message: 'Quote calculation error: $e',
+          isError: true,
         );
       }
     } finally {
@@ -679,7 +685,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Future<void> _submitBooking() async {
     final pickup = _pickupController.text.trim();
     final dropoff = _dropoffController.text.trim();
-    if (pickup.isEmpty || dropoff.isEmpty) return;
+    if (pickup.isEmpty) {
+      ArcherToast.show(
+        context,
+        message: 'Please specify your departure pickup address.',
+        icon: Icons.trip_origin_rounded,
+        isError: true,
+      );
+      return;
+    }
+    if (dropoff.isEmpty) {
+      ArcherToast.show(
+        context,
+        message: 'Please specify your destination arrival address.',
+        icon: Icons.location_on_rounded,
+        isError: true,
+      );
+      return;
+    }
 
     setState(() => _submittingBooking = true);
     try {
@@ -722,8 +745,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Booking request error: $e')),
+        ArcherToast.show(
+          context,
+          message: 'Booking request error: $e',
+          isError: true,
         );
       }
     } finally {
@@ -755,6 +780,123 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return 'Good evening';
   }
 
+  String _getProfileInitials(String? name) {
+    if (name == null || name.trim().isEmpty) return 'VIP';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+  }
+
+  Future<void> _handleLogoutConfirmation() async {
+    final confirmed = await ArcherConfirmationDialog.show(
+      context: context,
+      title: 'Sign Out of Archer',
+      message: 'Are you sure you want to end your active session? You will need your executive credentials to access your priority reservations again.',
+      confirmLabel: 'SIGN OUT',
+      cancelLabel: 'STAY SIGNED IN',
+      icon: Icons.logout_rounded,
+      iconColor: const Color(0xFFEF4444),
+      confirmColor: const Color(0xFFEF4444),
+      isDestructive: true,
+    );
+    if (confirmed) {
+      widget.onLogout();
+    }
+  }
+
+  PreferredSizeWidget _buildTopNav(int upcomingCount) {
+    String title;
+    String subtitle;
+
+    switch (_tabIndex) {
+      case 0:
+        title = 'ARCHER';
+        subtitle = _user != null && _user!.name.isNotEmpty
+            ? 'Welcome, ${_user!.name}'
+            : 'Tier 1 Client Portal';
+        break;
+      case 1:
+        title = 'Reserve Chauffeur';
+        subtitle = 'Bespoke Executive Fleet';
+        break;
+      case 2:
+        title = 'Security Command';
+        subtitle = 'Tier-1 Close Protection';
+        break;
+      case 3:
+        title = 'My Reservations';
+        subtitle = '$upcomingCount Active Missions Scheduled';
+        break;
+      case 4:
+        title = 'Executive Profile';
+        subtitle = 'Preferences & Membership';
+        break;
+      default:
+        title = 'ARCHER';
+        subtitle = 'Tier 1 Client Portal';
+    }
+
+    return ArcherTopAppBar(
+      title: title,
+      subtitle: subtitle,
+      profileInitials: _getProfileInitials(_user?.name),
+      onProfileTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _tabIndex = 4);
+      },
+      actions: [
+        // 24/7 Priority Concierge line
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0x33C8A96A)),
+            color: const Color(0xFF11141E),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.phone_in_talk_rounded, color: Color(0xFFC8A96A), size: 16),
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            padding: EdgeInsets.zero,
+            tooltip: 'Priority Concierge Line',
+            onPressed: () {
+              ArcherToast.show(
+                context,
+                message: 'Connecting to 24/7 Priority Concierge: +1 (848) 231-9997',
+                icon: Icons.support_agent_rounded,
+              );
+            },
+          ),
+        ),
+        if (_tabIndex == 3) ...[
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 19, color: Color(0xFFC8A96A)),
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            padding: EdgeInsets.zero,
+            tooltip: 'Refresh Reservations',
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _loadAllData();
+            },
+          ),
+        ],
+        const SizedBox(width: 4),
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, size: 18, color: Color(0xFF9CA3AF)),
+          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+          padding: EdgeInsets.zero,
+          tooltip: 'Tutorial & Guide',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            widget.onReplayTutorial();
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -766,132 +908,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF07080B),
       extendBody: true,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(64),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF0A0C12),
-            border: Border(
-              bottom: BorderSide(color: Color(0x18C8A96A), width: 1),
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFC8A96A), width: 1.2),
-                      color: const Color(0xFF131722),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'A',
-                        style: TextStyle(
-                          color: Color(0xFFC8A96A),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          fontFamily: 'serif',
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ARCHER',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 3.0,
-                          color: Color(0xFFC8A96A),
-                          fontFamily: 'serif',
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
-                          const Text(
-                            'TIER 1 CLIENT PORTAL',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.5,
-                              color: Color(0xFF9CA3AF),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  // 24/7 Priority Concierge line
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0x33C8A96A)),
-                      color: const Color(0xFF11141E),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.phone_in_talk_rounded, color: Color(0xFFC8A96A), size: 17),
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      padding: EdgeInsets.zero,
-                      tooltip: 'Priority Concierge Line',
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Connecting to 24/7 Priority Concierge: +1 (848) 231-9997'),
-                            duration: Duration(seconds: 4),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.help_outline_rounded, size: 19, color: Color(0xFF9CA3AF)),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    padding: EdgeInsets.zero,
-                    tooltip: 'Tutorial',
-                    onPressed: widget.onReplayTutorial,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.logout_rounded, size: 19, color: Color(0xFF6B7280)),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    padding: EdgeInsets.zero,
-                    tooltip: 'Sign Out',
-                    onPressed: widget.onLogout,
-                  ),
-                ],
-              ),
-            ),
-          ),
+      appBar: _buildTopNav(upcomingCount),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: IndexedStack(
+          index: _tabIndex,
+          children: [
+            _buildHomeDashboardTab(),
+            _buildBookTab(),
+            _buildSecurityTab(),
+            _buildMyTripsTab(),
+            _buildAccountTab(),
+          ],
         ),
-      ),
-      body: IndexedStack(
-        index: _tabIndex,
-        children: [
-          _buildHomeDashboardTab(),
-          _buildBookTab(),
-          _buildSecurityTab(),
-          _buildMyTripsTab(),
-          _buildAccountTab(),
-        ],
       ),
       bottomNavigationBar: _buildModernLuxuryNavbar(upcomingCount),
     );
@@ -965,7 +995,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => _tabIndex = index),
+                    onTap: () {
+                      if (_tabIndex != index) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _tabIndex = index);
+                      }
+                    },
                     behavior: HitTestBehavior.opaque,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 220),
@@ -1990,8 +2025,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     ),
                   ),
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Directing call to Security Operations Command (+1 848-231-9997)...')),
+                    ArcherToast.show(
+                      context,
+                      message: 'Directing call to Security Operations Command (+1 848-231-9997)...',
+                      icon: Icons.shield_rounded,
                     );
                   },
                 ),
@@ -2314,8 +2351,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   onPressed: () {
                     Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Contacting Archer Dispatch for live telemetry: (848) 231-9997')),
+                    ArcherToast.show(
+                      context,
+                      message: 'Contacting Archer Dispatch for live telemetry: (848) 231-9997',
+                      icon: Icons.phone_in_talk_rounded,
                     );
                   },
                 ),
@@ -2529,7 +2568,29 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444), size: 20),
                 title: const Text('Sign Out of Archer Account', style: TextStyle(fontSize: 13, color: Color(0xFFEF4444))),
                 trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: Color(0xFF6B7280)),
-                onTap: widget.onLogout,
+                onTap: _handleLogoutConfirmation,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 28),
+        Center(
+          child: Column(
+            children: [
+              Text(
+                'ARCHER EXECUTIVE SERVICES',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.5,
+                  color: const Color(0xFFC8A96A).withOpacity(0.7),
+                  fontFamily: 'serif',
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Version 1.0.0 (Build 8) • Production Tier 1',
+                style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
               ),
             ],
           ),

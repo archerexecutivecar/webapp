@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:archer_core/archer_core.dart';
 
 void main() {
@@ -428,18 +429,18 @@ class _DriverMainShellState extends State<DriverMainShell> {
         setState(() {
           _isOnline = updatedPortal?['is_online'] == true || next;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isOnline ? 'Online: Receiving dispatch ride offers' : 'Offline: No incoming offers'),
-            backgroundColor: _isOnline ? ArcherColors.success : ArcherColors.surfaceElevated,
-            duration: const Duration(seconds: 2),
-          ),
+        ArcherToast.show(
+          context,
+          message: _isOnline ? 'Online: Receiving real-time dispatch assignment offers' : 'Standby / Offline: Not receiving dispatch offers',
+          icon: _isOnline ? Icons.radar_rounded : Icons.pause_circle_outline_rounded,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update presence: $e')),
+        ArcherToast.show(
+          context,
+          message: 'Failed to update presence: $e',
+          isError: true,
         );
       }
     } finally {
@@ -450,15 +451,23 @@ class _DriverMainShellState extends State<DriverMainShell> {
   Future<void> _acceptOffer(String offerId) async {
     try {
       await widget.api.post('/driver/offers/$offerId/accept');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offer accepted! Ride added to your active schedule.')),
-      );
+      if (mounted) {
+        ArcherToast.show(
+          context,
+          message: 'Dispatch offer accepted! Ride scheduled in your active missions.',
+          icon: Icons.check_circle_rounded,
+        );
+      }
       await _loadAllDriverData();
-      setState(() => _tabIndex = 1); // switch to Rides
+      if (mounted) setState(() => _tabIndex = 1); // switch to Rides
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to accept offer: $e')),
-      );
+      if (mounted) {
+        ArcherToast.show(
+          context,
+          message: 'Failed to accept offer: $e',
+          isError: true,
+        );
+      }
     }
   }
 
@@ -468,15 +477,158 @@ class _DriverMainShellState extends State<DriverMainShell> {
         '/driver/rides/$rideId/status',
         data: {'status': nextStatus, if (notes != null) 'notes': notes},
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status updated to: ${nextStatus.replaceAll("_", " ").toUpperCase()}')),
-      );
+      if (mounted) {
+        ArcherToast.show(
+          context,
+          message: 'Mission status updated to: ${nextStatus.replaceAll("_", " ").toUpperCase()}',
+          icon: Icons.alt_route_rounded,
+        );
+      }
       await _loadAllDriverData();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update status: $e')),
-      );
+      if (mounted) {
+        ArcherToast.show(
+          context,
+          message: 'Failed to update status: $e',
+          isError: true,
+        );
+      }
     }
+  }
+
+  String _getDriverInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+  }
+
+  Future<void> _handleLogoutConfirmation() async {
+    final confirmed = await ArcherConfirmationDialog.show(
+      context: context,
+      title: 'Sign Out of Dispatch',
+      message: 'Are you sure you want to end your active dispatch session? You will be placed on Standby and will not receive assignment alerts until you sign back in.',
+      confirmLabel: 'SIGN OUT',
+      cancelLabel: 'STAY ON DUTY',
+      icon: Icons.logout_rounded,
+      iconColor: const Color(0xFFEF4444),
+      confirmColor: const Color(0xFFEF4444),
+      isDestructive: true,
+    );
+    if (confirmed) {
+      widget.onLogout();
+    }
+  }
+
+  PreferredSizeWidget _buildDriverTopNav(String driverName, int offersCount, int activeRidesCount, int unreadCount) {
+    String title;
+    String subtitle;
+
+    switch (_tabIndex) {
+      case 0:
+        title = 'DISPATCH OFFERS';
+        subtitle = offersCount > 0 ? '$offersCount Active Assignment Requests' : 'Waiting for Missions';
+        break;
+      case 1:
+        title = 'ACTIVE SCHEDULE';
+        subtitle = '$activeRidesCount Missions Assigned • $driverName';
+        break;
+      case 2:
+        title = 'EARNINGS & PAYOUTS';
+        subtitle = 'Weekly Pay Cycle & Statements';
+        break;
+      case 3:
+        title = 'DUTY ROSTER';
+        subtitle = 'Shift Schedule & Availability';
+        break;
+      case 4:
+        title = 'DISPATCH COMMS';
+        subtitle = unreadCount > 0 ? '$unreadCount Unread Operational Messages' : 'All Messages Read';
+        break;
+      case 5:
+        title = 'CHAUFFEUR PROFILE';
+        subtitle = 'Credentials, Badges & Dossier';
+        break;
+      default:
+        title = 'ARCHER CHAUFFEUR';
+        subtitle = driverName;
+    }
+
+    return ArcherTopAppBar(
+      title: title,
+      subtitle: subtitle,
+      profileInitials: _getDriverInitials(driverName),
+      onProfileTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _tabIndex = 5);
+      },
+      actions: [
+        // Interactive Duty Status Pill
+        InkWell(
+          onTap: _togglingPresence
+              ? null
+              : () {
+                  HapticFeedback.mediumImpact();
+                  _toggleOnlinePresence();
+                },
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _isOnline ? const Color(0x1F10B981) : const Color(0x1FF59E0B),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _isOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_isOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.55),
+                        blurRadius: 4,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _isOnline ? 'ON DUTY' : 'STANDBY',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: _isOnline ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, size: 18, color: ArcherColors.textSecondary),
+          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+          padding: EdgeInsets.zero,
+          tooltip: 'Chauffeur Guide',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            widget.onReplayTutorial();
+          },
+        ),
+      ],
+    );
   }
 
   @override
@@ -493,81 +645,21 @@ class _DriverMainShellState extends State<DriverMainShell> {
     return Scaffold(
       backgroundColor: ArcherColors.background,
       extendBody: true,
-      appBar: AppBar(
-        backgroundColor: ArcherColors.surface,
-        elevation: 0,
-        title: Row(
+      appBar: _buildDriverTopNav(driverName, offersCount, activeRidesCount, unreadCount),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: IndexedStack(
+          index: _tabIndex,
           children: [
-            const ArcherLogoWidget(size: 28, showText: false),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'ARCHER CHAUFFEUR',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2.2,
-                    color: ArcherColors.gold,
-                  ),
-                ),
-                Text(
-                  driverName,
-                  style: const TextStyle(fontSize: 10, color: ArcherColors.textSecondary),
-                ),
-              ],
-            ),
+            _buildRequestsTab(),
+            _buildRidesTab(),
+            _buildEarningsTab(),
+            _buildShiftsTab(),
+            _buildChatTab(),
+            _buildProfileTab(),
           ],
         ),
-        actions: [
-          // Online presence toggle switch
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              children: [
-                Text(
-                  _isOnline ? 'ONLINE' : 'OFFLINE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                    color: _isOnline ? ArcherColors.success : ArcherColors.textMuted,
-                  ),
-                ),
-                Switch(
-                  activeColor: ArcherColors.gold,
-                  activeTrackColor: ArcherColors.gold.withOpacity(0.35),
-                  inactiveThumbColor: ArcherColors.textMuted,
-                  inactiveTrackColor: ArcherColors.surfaceCard,
-                  value: _isOnline,
-                  onChanged: _togglingPresence ? null : (_) => _toggleOnlinePresence(),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.help_outline_rounded, size: 20, color: ArcherColors.textSecondary),
-            tooltip: 'Tutorial',
-            onPressed: widget.onReplayTutorial,
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, size: 20, color: ArcherColors.textMuted),
-            tooltip: 'Sign Out',
-            onPressed: widget.onLogout,
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _tabIndex,
-        children: [
-          _buildRequestsTab(),
-          _buildRidesTab(),
-          _buildEarningsTab(),
-          _buildShiftsTab(),
-          _buildChatTab(),
-          _buildProfileTab(),
-        ],
       ),
       bottomNavigationBar: _buildModernDriverNavbar(offersCount, activeRidesCount, unreadCount),
     );
@@ -640,7 +732,12 @@ class _DriverMainShellState extends State<DriverMainShell> {
 
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => _tabIndex = index),
+                    onTap: () {
+                      if (_tabIndex != index) {
+                        HapticFeedback.selectionClick();
+                        setState(() => _tabIndex = index);
+                      }
+                    },
                     behavior: HitTestBehavior.opaque,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -990,7 +1087,22 @@ class _DriverMainShellState extends State<DriverMainShell> {
                 ] else if (status == 'in_progress') ...[
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: ArcherColors.success),
-                    onPressed: () => _updateRideStatus(id, 'completed'),
+                    onPressed: () async {
+                      final confirmed = await ArcherConfirmationDialog.show(
+                        context: context,
+                        title: 'Complete Mission',
+                        message: 'Confirm passenger drop-off and arrival at destination for Mission #$ref?',
+                        confirmLabel: 'COMPLETE MISSION',
+                        cancelLabel: 'RESUME TRIP',
+                        icon: Icons.check_circle_rounded,
+                        iconColor: const Color(0xFF10B981),
+                        confirmColor: const Color(0xFF10B981),
+                        isDestructive: false,
+                      );
+                      if (confirmed) {
+                        _updateRideStatus(id, 'completed');
+                      }
+                    },
                     child: const Text('COMPLETE TRIP'),
                   ),
                 ],
@@ -1001,8 +1113,10 @@ class _DriverMainShellState extends State<DriverMainShell> {
                     icon: const Icon(Icons.phone_rounded, size: 16),
                     label: Text('CALL PASSENGER ($phone)'),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Dialing passenger: $phone')),
+                      ArcherToast.show(
+                        context,
+                        message: 'Dialing passenger: $phone',
+                        icon: Icons.phone_forwarded_rounded,
                       );
                     },
                   ),
@@ -1372,7 +1486,30 @@ class _DriverMainShellState extends State<DriverMainShell> {
           leading: const Icon(Icons.logout_rounded, color: ArcherColors.danger),
           title: const Text('Sign Out of Dispatch', style: TextStyle(fontSize: 14, color: ArcherColors.danger)),
           trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: ArcherColors.textMuted),
-          onTap: widget.onLogout,
+          onTap: _handleLogoutConfirmation,
+        ),
+        const SizedBox(height: 28),
+
+        Center(
+          child: Column(
+            children: [
+              Text(
+                'ARCHER CHAUFFEUR CORPS',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 2.5,
+                  color: ArcherColors.gold.withOpacity(0.7),
+                  fontFamily: 'serif',
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Version 1.0.0 (Build 8) • Dispatch Active',
+                style: TextStyle(fontSize: 11, color: ArcherColors.textMuted),
+              ),
+            ],
+          ),
         ),
       ],
     );
