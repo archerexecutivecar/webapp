@@ -348,6 +348,7 @@ class DriverMainShell extends StatefulWidget {
 
 class _DriverMainShellState extends State<DriverMainShell> {
   int _tabIndex = 0;
+  int _previousTabIndex = 0;
   bool _isLoading = true;
 
   // Driver data
@@ -558,10 +559,27 @@ class _DriverMainShellState extends State<DriverMainShell> {
     return ArcherTopAppBar(
       title: title,
       subtitle: subtitle,
+      customLeading: _tabIndex == 5
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFFC8A96A), size: 18),
+              tooltip: 'Return to Operations',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() => _tabIndex = _previousTabIndex);
+              },
+            )
+          : null,
       profileInitials: _getDriverInitials(driverName),
       onProfileTap: () {
         HapticFeedback.selectionClick();
-        setState(() => _tabIndex = 5);
+        setState(() {
+          if (_tabIndex == 5) {
+            _tabIndex = _previousTabIndex;
+          } else {
+            _previousTabIndex = _tabIndex;
+            _tabIndex = 5;
+          }
+        });
       },
       actions: [
         // Interactive Duty Status Pill
@@ -615,17 +633,6 @@ class _DriverMainShellState extends State<DriverMainShell> {
               ],
             ),
           ),
-        ),
-        const SizedBox(width: 4),
-        IconButton(
-          icon: const Icon(Icons.help_outline_rounded, size: 18, color: ArcherColors.textSecondary),
-          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-          padding: EdgeInsets.zero,
-          tooltip: 'Chauffeur Guide',
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            widget.onReplayTutorial();
-          },
         ),
       ],
     );
@@ -690,10 +697,6 @@ class _DriverMainShellState extends State<DriverMainShell> {
         label: 'Chat',
         badgeCount: unreadCount,
       ),
-      const _DriverNavItem(
-        icon: Icons.person_rounded,
-        label: 'Profile',
-      ),
     ];
 
     return SafeArea(
@@ -735,7 +738,10 @@ class _DriverMainShellState extends State<DriverMainShell> {
                     onTap: () {
                       if (_tabIndex != index) {
                         HapticFeedback.selectionClick();
-                        setState(() => _tabIndex = index);
+                        setState(() {
+                          _previousTabIndex = index;
+                          _tabIndex = index;
+                        });
                       }
                     },
                     behavior: HitTestBehavior.opaque,

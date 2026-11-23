@@ -554,6 +554,7 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _tabIndex = 0;
+  int _previousTabIndex = 0;
   bool _isLoading = true;
   CustomerUser? _user;
   List<Ride> _rides = [];
@@ -841,10 +842,27 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return ArcherTopAppBar(
       title: title,
       subtitle: subtitle,
+      customLeading: _tabIndex == 4
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFFC8A96A), size: 18),
+              tooltip: 'Return to Dashboard',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                setState(() => _tabIndex = _previousTabIndex);
+              },
+            )
+          : null,
       profileInitials: _getProfileInitials(_user?.name),
       onProfileTap: () {
         HapticFeedback.selectionClick();
-        setState(() => _tabIndex = 4);
+        setState(() {
+          if (_tabIndex == 4) {
+            _tabIndex = _previousTabIndex;
+          } else {
+            _previousTabIndex = _tabIndex;
+            _tabIndex = 4;
+          }
+        });
       },
       actions: [
         // 24/7 Priority Concierge line
@@ -882,17 +900,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             },
           ),
         ],
-        const SizedBox(width: 4),
-        IconButton(
-          icon: const Icon(Icons.help_outline_rounded, size: 18, color: Color(0xFF9CA3AF)),
-          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-          padding: EdgeInsets.zero,
-          tooltip: 'Tutorial & Guide',
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            widget.onReplayTutorial();
-          },
-        ),
       ],
     );
   }
@@ -979,11 +986,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         label: 'Itinerary',
         badgeCount: upcomingCount,
       ),
-      const _LuxuryNavItem(
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
-        label: 'Profile',
-      ),
     ];
 
     return SafeArea(
@@ -1027,7 +1029,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     onTap: () {
                       if (_tabIndex != index) {
                         HapticFeedback.selectionClick();
-                        setState(() => _tabIndex = index);
+                        setState(() {
+                          _previousTabIndex = index;
+                          _tabIndex = index;
+                        });
                       }
                     },
                     behavior: HitTestBehavior.opaque,
