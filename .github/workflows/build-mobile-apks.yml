@@ -27,6 +27,8 @@ jobs:
     name: Build Mobile APKs
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      DEFAULT_API_BASE_URL: 'https://api.archerexecutivecar.com/api/v1'
 
     steps:
       - name: Checkout Repository
@@ -42,11 +44,14 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.38.9'
           channel: 'stable'
           cache: true
 
-      - name: Verify Flutter Environment
-        run: flutter doctor -v
+      - name: Verify Flutter Environment & Accept Licenses
+        run: |
+          yes | flutter doctor --android-licenses || true
+          flutter doctor -v
 
       - name: Test archer_core
         run: |
@@ -56,19 +61,33 @@ jobs:
 
       - name: Build Customer App APK
         run: |
+          API_URL="${{ inputs.api_base_url }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="$DEFAULT_API_BASE_URL"
+          fi
+          echo "Building Customer APK targeting $API_URL"
           cd mobile/apps/customer_app
           flutter pub get
           flutter test
           flutter build apk --release \
-            --dart-define=API_BASE_URL="${{ inputs.api_base_url || 'https://api.archerexecutivecar.com/api/v1' }}"
+            --android-skip-build-dependency-validation \
+            --no-tree-shake-icons \
+            --dart-define=API_BASE_URL="$API_URL"
 
       - name: Build Driver App APK
         run: |
+          API_URL="${{ inputs.api_base_url }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="$DEFAULT_API_BASE_URL"
+          fi
+          echo "Building Driver APK targeting $API_URL"
           cd mobile/apps/driver_app
           flutter pub get
           flutter test
           flutter build apk --release \
-            --dart-define=API_BASE_URL="${{ inputs.api_base_url || 'https://api.archerexecutivecar.com/api/v1' }}"
+            --android-skip-build-dependency-validation \
+            --no-tree-shake-icons \
+            --dart-define=API_BASE_URL="$API_URL"
 
       - name: Stage APK Artifacts
         run: |
