@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../storage/token_store.dart';
 import 'api_error.dart';
@@ -6,12 +7,26 @@ class ArcherApiClient {
   final Dio dio;
   final TokenStore tokenStore;
 
+  static const String liveApiUrl = 'https://api.archerexecutivecar.com/api/v1';
+  static const String localApiUrl = 'http://localhost:8000/api/v1';
+
+  static String get defaultBaseUrl {
+    const fromEnv = String.fromEnvironment('API_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+    // On native mobile APKs (Android/iOS), connect to live production API
+    // On web running locally, default to local backend
+    if (kIsWeb) {
+      return localApiUrl;
+    }
+    return liveApiUrl;
+  }
+
   ArcherApiClient({
-    String baseUrl = 'http://localhost:8000/api/v1',
+    String? baseUrl,
     required this.tokenStore,
   }) : dio = Dio(
           BaseOptions(
-            baseUrl: baseUrl,
+            baseUrl: baseUrl ?? defaultBaseUrl,
             connectTimeout: const Duration(seconds: 15),
             receiveTimeout: const Duration(seconds: 15),
             headers: {
