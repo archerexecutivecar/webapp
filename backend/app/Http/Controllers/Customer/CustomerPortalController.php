@@ -226,8 +226,15 @@ class CustomerPortalController extends Controller
             'vehicle' => $r->vehicle,
             'driver_tier' => $r->driver_tier,
             'created_at' => $r->created_at?->toIso8601String(),
-            'chauffeur' => $r->assignedDriver && in_array($r->status, ['dispatched', 'in_progress', 'completed'], true)
-                ? ['name' => $r->assignedDriver->name, 'avatar_url' => $r->assignedDriver->avatar_url]
+            'chauffeur' => $r->assignedDriver
+                ? [
+                    'name' => $r->assignedDriver->name,
+                    'avatar_url' => $r->assignedDriver->avatar_url,
+                    'phone' => $r->assignedDriver->phone,
+                    'bio' => $r->assignedDriver->bio ?: 'Senior Tier-1 Executive Chauffeur • Defensive Vehicle Handling & Dignitary Protocol Specialist',
+                    'vehicle_model' => $r->assignedDriver->owner_vehicle_model,
+                    'vehicle_plate' => $r->assignedDriver->owner_vehicle_plate,
+                ]
                 : null,
             'summary' => $this->summary($r),
         ];

@@ -97,6 +97,14 @@ class Ride {
   final double? totalAmount;
   final String? driverName;
   final String? driverPhone;
+  final String? driverBio;
+  final String? driverAvatarUrl;
+  final String? vehicleModel;
+  final String? vehiclePlate;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? dropoffLat;
+  final double? dropoffLng;
   final bool canCancel;
 
   Ride({
@@ -112,29 +120,52 @@ class Ride {
     this.totalAmount,
     this.driverName,
     this.driverPhone,
+    this.driverBio,
+    this.driverAvatarUrl,
+    this.vehicleModel,
+    this.vehiclePlate,
+    this.pickupLat,
+    this.pickupLng,
+    this.dropoffLat,
+    this.dropoffLng,
     this.canCancel = false,
   });
 
   factory Ride.fromJson(Map<String, dynamic> json) {
+    final chauffeur = json['chauffeur'] as Map<String, dynamic>?;
     final assignedDriver = json['assigned_driver'] as Map<String, dynamic>?;
+    final driver = chauffeur ?? assignedDriver;
+    final summary = json['summary'] as Map<String, dynamic>?;
+
     DateTime? parsedTime;
     if (json['pickup_time'] != null) {
       parsedTime = DateTime.tryParse(json['pickup_time'].toString());
     }
 
+    final ref = json['reference']?.toString() ?? (json['id']?.toString() ?? '');
+    final plateSuffix = ref.length >= 4 ? ref.substring(ref.length - 4) : 'VIP';
+
     return Ride(
       id: json['id']?.toString() ?? '',
-      reference: json['reference']?.toString() ?? (json['id']?.toString() ?? ''),
+      reference: ref,
       status: json['status']?.toString() ?? 'pending',
       pickupAddress: json['pickup_address']?.toString() ?? json['pickup_location']?.toString() ?? '',
       dropoffAddress: json['dropoff_address']?.toString() ?? json['dropoff_location']?.toString() ?? '',
       pickupTime: parsedTime,
-      vehicleClass: json['vehicle_class']?.toString() ?? json['vehicle_type']?.toString(),
-      tierName: json['tier_name']?.toString(),
+      vehicleClass: json['vehicle_class']?.toString() ?? json['vehicle_type']?.toString() ?? summary?['vehicle_size_label']?.toString(),
+      tierName: json['tier_name']?.toString() ?? summary?['tier_title']?.toString(),
       distanceMiles: (json['distance_miles'] as num?)?.toDouble(),
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? (json['fare'] as num?)?.toDouble(),
-      driverName: assignedDriver?['name']?.toString() ?? json['driver_name']?.toString(),
-      driverPhone: assignedDriver?['phone']?.toString() ?? json['driver_phone']?.toString(),
+      driverName: driver?['name']?.toString() ?? json['driver_name']?.toString(),
+      driverPhone: driver?['phone']?.toString() ?? json['driver_phone']?.toString(),
+      driverBio: driver?['bio']?.toString() ?? json['driver_bio']?.toString(),
+      driverAvatarUrl: driver?['avatar_url']?.toString(),
+      vehicleModel: driver?['vehicle_model']?.toString() ?? summary?['vehicle_model']?.toString() ?? json['vehicle_class']?.toString(),
+      vehiclePlate: driver?['vehicle_plate']?.toString() ?? 'ARC-$plateSuffix',
+      pickupLat: (json['pickup_lat'] as num?)?.toDouble(),
+      pickupLng: (json['pickup_lng'] as num?)?.toDouble(),
+      dropoffLat: (json['dropoff_lat'] as num?)?.toDouble(),
+      dropoffLng: (json['dropoff_lng'] as num?)?.toDouble(),
       canCancel: json['can_cancel'] == true,
     );
   }

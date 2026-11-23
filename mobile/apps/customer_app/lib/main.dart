@@ -3299,7 +3299,17 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Route Vector Visualizer Card
+                // Live Interactive Route Map Canvas (Uber-Style with Street Grid, Route Polyline & Pins)
+                ArcherLiveRouteMapWidget(
+                  pickup: ride.pickupAddress,
+                  dropoff: ride.dropoffAddress,
+                  driverName: ride.driverName,
+                  vehicleInfo: ride.vehicleClass,
+                  status: ride.status,
+                ),
+                const SizedBox(height: 14),
+
+                // Route Vector Embarkation & Arrival Card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -3395,7 +3405,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Assigned Chauffeur & Vehicle Dossier Card
+                // 1. Chauffeur Specialist Dossier (Name, Details, Experience)
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -3403,54 +3413,140 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: const Color(0x33C8A96A)),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF1A2234),
-                          border: Border.all(color: const Color(0xFFC8A96A), width: 1.5),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.security_rounded, color: Color(0xFFDFBE82), size: 24),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF1A2234),
+                              border: Border.all(color: const Color(0xFFC8A96A), width: 1.5),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.person_rounded, color: Color(0xFFDFBE82), size: 28),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  ride.driverName ?? 'Chauffeur Specialist',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                                Row(
+                                  children: [
+                                    Text(
+                                      ride.driverName ?? 'Marcus Vance',
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.verified_rounded, size: 15, color: Color(0xFF10B981)),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.verified_rounded, size: 14, color: Color(0xFF10B981)),
+                                const SizedBox(height: 3),
+                                const Text(
+                                  'Tier-1 Armed Specialist • Dignitary Escort',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFDFBE82)),
+                                ),
+                                const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.star_rounded, size: 14, color: Color(0xFFC8A96A)),
+                                    const SizedBox(width: 3),
+                                    const Text('4.99 Rating', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                                    const SizedBox(width: 8),
+                                    Text('• 14+ Yrs Experience', style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                                  ],
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 3),
-                            const Text(
-                              'Tier-1 Armed Specialist • Defensive Handling',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFDFBE82)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: Color(0x22C8A96A), height: 1),
+                      const SizedBox(height: 10),
+                      Text(
+                        ride.driverBio ?? 'Former US Secret Service & State Dignitary Protection Specialist. 14+ years in defensive vehicle handling, precision motorcades, and route threat assessment.',
+                        style: const TextStyle(fontSize: 12, height: 1.45, color: Color(0xFFD1D5DB)),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _buildDossierTag('Defensive Driving Cert'),
+                          _buildDossierTag('Secret Service Protocol'),
+                          _buildDossierTag('First Aid / CPR'),
+                          _buildDossierTag('Live Threat Vetted'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // 2. Assigned Vehicle Details Dossier (Make, Model, Plate, Spec)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF131826),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0x33C8A96A)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.directions_car_filled_rounded, color: Color(0xFFC8A96A), size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                (ride.vehicleModel ?? ride.vehicleClass ?? 'Cadillac Escalade ESV').toUpperCase(),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0x22C8A96A),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0x44C8A96A)),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              ride.vehicleClass ?? 'Cadillac Escalade ESV',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                            child: Text(
+                              ride.vehiclePlate ?? 'ARC-740',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.2, color: Color(0xFFDFBE82)),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Class: ${ride.tierName ?? "1st Class Full-Size SUV"} • Black Sapphire Exterior • Ebony Leather Interior',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+                      ),
+                      const SizedBox(height: 10),
+                      const Row(
+                        children: [
+                          _VehicleAmenityChip(icon: Icons.shield_rounded, label: 'Ballistic Glass'),
+                          SizedBox(width: 8),
+                          _VehicleAmenityChip(icon: Icons.wifi_rounded, label: '5G Wi-Fi'),
+                          SizedBox(width: 8),
+                          _VehicleAmenityChip(icon: Icons.water_drop_rounded, label: 'Fiji Water'),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Action Buttons
+                // Action Buttons (PDF INVOICE removed per user request, replaced with Call Driver & Dispatch Line)
                 Row(
                   children: [
                     Expanded(
@@ -3462,14 +3558,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        icon: const Icon(Icons.receipt_long_rounded, size: 16),
-                        label: const Text('PDF INVOICE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        icon: const Icon(Icons.phone_rounded, size: 16),
+                        label: const Text('CALL CHAUFFEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                         onPressed: () {
                           Navigator.pop(context);
                           ArcherToast.show(
                             context,
-                            message: 'Corporate Expense PDF for Mission #${ride.reference} sent to your primary email.',
-                            icon: Icons.mark_email_read_rounded,
+                            message: 'Direct intercom connecting to ${ride.driverName ?? "assigned chauffeur"}...',
+                            icon: Icons.phone_forwarded_rounded,
                           );
                         },
                       ),
@@ -3483,7 +3579,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+                        icon: const Icon(Icons.support_agent_rounded, size: 16),
                         label: const Text('DISPATCH LINE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.0)),
                         onPressed: () {
                           Navigator.pop(context);
@@ -3502,6 +3598,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildDossierTag(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: const Color(0x18C8A96A),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0x33C8A96A)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFDFBE82)),
+      ),
     );
   }
 
@@ -3751,4 +3862,385 @@ class _LuxuryNavItem {
     required this.label,
     this.badgeCount,
   });
+}
+
+class _VehicleAmenityChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _VehicleAmenityChip({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1420),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0x22C8A96A)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: const Color(0xFFDFBE82)),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFD1D5DB)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// High-contrast live interactive route map canvas matching executive telemetry
+class ArcherLiveRouteMapWidget extends StatefulWidget {
+  final String pickup;
+  final String dropoff;
+  final String? driverName;
+  final String? vehicleInfo;
+  final String? status;
+
+  const ArcherLiveRouteMapWidget({
+    super.key,
+    required this.pickup,
+    required this.dropoff,
+    this.driverName,
+    this.vehicleInfo,
+    this.status,
+  });
+
+  @override
+  State<ArcherLiveRouteMapWidget> createState() => _ArcherLiveRouteMapWidgetState();
+}
+
+class _ArcherLiveRouteMapWidgetState extends State<ArcherLiveRouteMapWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE5EBF2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x44C8A96A), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          // Live Custom Map Canvas
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _UberStyleMapPainter(
+                    pulseProgress: _pulseController.value,
+                    pickupName: widget.pickup.split(',').first,
+                    dropoffName: widget.dropoff.split(',').first,
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Top Info Pill
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xF00F1420),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x55C8A96A), width: 1),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black38, blurRadius: 6),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF10B981),
+                      boxShadow: [
+                        BoxShadow(color: Color(0xFF10B981), blurRadius: 4, spreadRadius: 1),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'LIVE RADAR • ON TIME',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: Color(0xFFDFBE82),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ETA Pill Top Right
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xF010B981),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 4),
+                ],
+              ),
+              child: const Text(
+                'ETA: 14 MIN',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+
+          // Zoom simulator buttons bottom-right
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: const Color(0xF0FFFFFF),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3)],
+                  ),
+                  child: const Center(child: Icon(Icons.add, size: 16, color: Colors.black87)),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: const Color(0xF0FFFFFF),
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 3)],
+                  ),
+                  child: const Center(child: Icon(Icons.remove, size: 16, color: Colors.black87)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UberStyleMapPainter extends CustomPainter {
+  final double pulseProgress;
+  final String pickupName;
+  final String dropoffName;
+
+  _UberStyleMapPainter({
+    required this.pulseProgress,
+    required this.pickupName,
+    required this.dropoffName,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // 1. Base Map Background
+    final bgPaint = Paint()..color = const Color(0xFFE8EEF5);
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
+
+    // 2. Water / Park Feature Contours
+    final waterPaint = Paint()..color = const Color(0xFFD4E2EE);
+    final waterPath = Path();
+    waterPath.moveTo(w * 0.52, h * 0.22);
+    waterPath.cubicTo(w * 0.58, h * 0.18, w * 0.68, h * 0.24, w * 0.72, h * 0.36);
+    waterPath.cubicTo(w * 0.70, h * 0.44, w * 0.60, h * 0.48, w * 0.54, h * 0.40);
+    waterPath.close();
+    canvas.drawPath(waterPath, waterPaint);
+
+    // 3. Road Network Grid (Streets & Arteries)
+    final roadCasing = Paint()
+      ..color = const Color(0xFFD5DCE6)
+      ..strokeWidth = 3.5
+      ..style = PaintingStyle.stroke;
+
+    final roadSurface = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke;
+
+    final highwayPaint = Paint()
+      ..color = const Color(0xFF9FB6CD)
+      ..strokeWidth = 3.0
+      ..style = PaintingStyle.stroke;
+
+    // Highway NH-5 / I-95 Diagonal Arterial
+    final highwayPath = Path();
+    highwayPath.moveTo(w * 0.25, h * 1.05);
+    highwayPath.lineTo(w * 0.85, h * 0.40);
+    highwayPath.lineTo(w * 1.05, h * 0.30);
+    canvas.drawPath(highwayPath, roadCasing);
+    canvas.drawPath(highwayPath, highwayPaint);
+
+    // Secondary street grid lines
+    final streetLines = [
+      [Offset(0, h * 0.35), Offset(w, h * 0.35)],
+      [Offset(0, h * 0.65), Offset(w, h * 0.65)],
+      [Offset(w * 0.25, 0), Offset(w * 0.25, h)],
+      [Offset(w * 0.50, 0), Offset(w * 0.50, h)],
+      [Offset(w * 0.78, 0), Offset(w * 0.78, h)],
+      [Offset(w * 0.10, h * 0.85), Offset(w * 0.90, h * 0.15)],
+      [Offset(w * 0.35, h * 0.95), Offset(w * 0.95, h * 0.45)],
+    ];
+
+    for (final line in streetLines) {
+      canvas.drawLine(line[0], line[1], roadCasing);
+      canvas.drawLine(line[0], line[1], roadSurface);
+    }
+
+    // 4. Map Geographic Labels & Highway Badges
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    void drawMapLabel(String text, Offset pos, {bool isHighway = false}) {
+      textPainter.text = TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: isHighway ? 9 : 8.5,
+          fontWeight: isHighway ? FontWeight.w800 : FontWeight.w600,
+          color: isHighway ? const Color(0xFF334155) : const Color(0xFF64748B),
+          letterSpacing: 0.2,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, pos);
+    }
+
+    drawMapLabel('Metro Airport Hub (JFK / EWR)', Offset(w * 0.52, h * 0.44));
+    drawMapLabel('Executive Corridor', Offset(w * 0.12, h * 0.28));
+    drawMapLabel('NH5 / I-95 EXPRESS', Offset(w * 0.52, h * 0.78), isHighway: true);
+
+    // 5. Route Polyline (High-Contrast Bold Black Path, Matching Uber Screenshot)
+    final routeCasing = Paint()
+      ..color = Colors.black.withOpacity(0.18)
+      ..strokeWidth = 6.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+
+    final routePaint = Paint()
+      ..color = const Color(0xFF111827)
+      ..strokeWidth = 3.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+
+    final startPoint = Offset(w * 0.68, h * 0.80);
+    final p1 = Offset(w * 0.58, h * 0.68);
+    final p2 = Offset(w * 0.62, h * 0.54);
+    final p3 = Offset(w * 0.44, h * 0.38);
+    final p4 = Offset(w * 0.48, h * 0.28);
+    final endPoint = Offset(w * 0.42, h * 0.16);
+
+    final routePath = Path();
+    routePath.moveTo(startPoint.dx, startPoint.dy);
+    routePath.lineTo(p1.dx, p1.dy);
+    routePath.lineTo(p2.dx, p2.dy);
+    routePath.lineTo(p3.dx, p3.dy);
+    routePath.lineTo(p4.dx, p4.dy);
+    routePath.lineTo(endPoint.dx, endPoint.dy);
+
+    canvas.drawPath(routePath, routeCasing);
+    canvas.drawPath(routePath, routePaint);
+
+    // 6. Start Pin (Circular Ring with Black Dot, exactly matching Uber style)
+    final pickupHalo = Paint()..color = Colors.white;
+    final pickupOuter = Paint()
+      ..color = const Color(0xFF111827)
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke;
+    final pickupInner = Paint()..color = const Color(0xFF111827);
+
+    canvas.drawCircle(startPoint, 7, pickupHalo);
+    canvas.drawCircle(startPoint, 7, pickupOuter);
+    canvas.drawCircle(startPoint, 2.5, pickupInner);
+
+    // 7. Destination Pin (Black Solid Square with White Center Dot, matching Uber)
+    final dropoffRect = Rect.fromCenter(center: endPoint, width: 12, height: 12);
+    final dropoffOuter = Paint()..color = const Color(0xFF111827);
+    final dropoffInner = Paint()..color = Colors.white;
+
+    canvas.drawRect(dropoffRect, dropoffOuter);
+    canvas.drawRect(Rect.fromCenter(center: endPoint, width: 4, height: 4), dropoffInner);
+
+    // 8. Chauffeur Car Marker with Live Pulsing Radar Beacon
+    final carPoint = Offset(w * 0.49, h * 0.44);
+
+    final radarPaint = Paint()
+      ..color = const Color(0xFF10B981).withOpacity((1.0 - pulseProgress) * 0.5)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(carPoint, 10 + (pulseProgress * 14), radarPaint);
+
+    final carHalo = Paint()..color = Colors.white;
+    final carBg = Paint()..color = const Color(0xFF111827);
+    canvas.drawCircle(carPoint, 8, carHalo);
+    canvas.drawCircle(carPoint, 6.5, carBg);
+
+    final carDot = Paint()..color = const Color(0xFFDFBE82);
+    canvas.drawCircle(carPoint, 2.8, carDot);
+  }
+
+  @override
+  bool shouldRepaint(covariant _UberStyleMapPainter oldDelegate) {
+    return oldDelegate.pulseProgress != pulseProgress ||
+        oldDelegate.pickupName != pickupName ||
+        oldDelegate.dropoffName != dropoffName;
+  }
 }
