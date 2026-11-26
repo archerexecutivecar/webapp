@@ -146,8 +146,14 @@ class CustomerPortalController extends Controller
         $active = in_array($ride->status, ['on_my_way', 'at_doorstep', 'at_your_doorstep', 'ride_started', 'in_progress'], true);
         $driver = $ride->assignedDriver;
 
+        $hasFreshLocation = $driver
+            && $driver->current_lat !== null
+            && $driver->current_lng !== null
+            && $driver->last_location_at !== null
+            && $driver->last_location_at->greaterThanOrEqualTo(now()->subMinutes(3));
+
         $driverTelemetry = null;
-        if ($active && $driver && $driver->current_lat !== null && $driver->current_lng !== null) {
+        if ($active && $hasFreshLocation) {
             $driverTelemetry = [
                 'name' => $driver->name,
                 'avatar_url' => $driver->avatar_url,
@@ -177,7 +183,7 @@ class CustomerPortalController extends Controller
             'reference' => $ride->reference,
             'status' => $ride->status,
             'status_label' => $this->label($ride),
-            'is_live' => $active,
+            'is_live' => $active && $driverTelemetry !== null,
             'driver' => $driverTelemetry,
             'pickup' => [
                 'address' => $ride->pickup_location,
@@ -215,6 +221,8 @@ class CustomerPortalController extends Controller
             'service_type' => $r->service_type,
             'status' => $r->status,
             'status_label' => $this->label($r),
+            'cancellation_reason' => $r->status === 'cancelled' ? $r->cancellation_reason : null,
+            'cancelled_at' => $r->cancelled_at?->toIso8601String(),
             'ride_date' => $r->ride_date,
             'ride_time' => $r->ride_time,
             'pickup_location' => $r->pickup_location,

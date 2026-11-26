@@ -3162,6 +3162,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
+                    if (ride.status == 'cancelled' && (ride.cancellationReason?.isNotEmpty ?? false)) ...[
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0x1AEF4444),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0x44EF4444)),
+                        ),
+                        child: Text(
+                          'Cancellation Reason: ${ride.cancellationReason}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFFFCA5A5), fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ],
                     const Divider(color: Color(0x18C8A96A), height: 1),
                     const SizedBox(height: 10),
                     Row(
@@ -3298,6 +3314,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 18),
+
+                if (ride.status == 'cancelled') ...[
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1AEF4444),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0x55EF4444)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.cancel_outlined, color: Color(0xFFF87171), size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            (ride.cancellationReason?.isNotEmpty ?? false)
+                                ? 'This ride was cancelled.\nReason: ${ride.cancellationReason}'
+                                : 'This ride was cancelled.',
+                            style: const TextStyle(fontSize: 13, color: Color(0xFFFCA5A5), height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 // Live Interactive Route Map Canvas (Uber-Style with Street Grid, Route Polyline & Pins)
                 ArcherLiveRouteMapWidget(

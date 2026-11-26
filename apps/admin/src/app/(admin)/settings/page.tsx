@@ -10,6 +10,8 @@ interface PlatformSettings {
   unaccepted_alert_hours: number;
   cancellation_window_hours: number;
   customer_notice_channel: string;
+  email_notifications_enabled?: boolean;
+  phone_notifications_enabled?: boolean;
   driver_btn_step1: string;
   driver_btn_step2: string;
   driver_btn_step3: string;
@@ -22,6 +24,8 @@ export default function SettingsPage() {
     unaccepted_alert_hours: 24,
     cancellation_window_hours: 24,
     customer_notice_channel: 'SMS + email',
+    email_notifications_enabled: false,
+    phone_notifications_enabled: true,
     driver_btn_step1: 'On my way',
     driver_btn_step2: 'At your doorstep',
     driver_btn_step3: 'Ride started',
@@ -268,6 +272,38 @@ export default function SettingsPage() {
               <option value="SMS only">SMS only</option>
               <option value="Email only">Email only</option>
             </select>
+          </div>
+
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer', fontSize: '0.82rem' }}>
+              <span>
+                <strong style={{ display: 'block', color: 'var(--text)' }}>Outgoing Email Notifications</strong>
+                <span style={{ fontSize: '0.73rem', color: settings.email_notifications_enabled ? '#16a34a' : '#d97706' }}>
+                  {settings.email_notifications_enabled ? 'Enabled — live emails active' : 'Suppressed (Testing Mode — no customer emails sent)'}
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={Boolean(settings.email_notifications_enabled)}
+                onChange={(e) => handleSave({ email_notifications_enabled: e.target.checked })}
+                style={{ width: 18, height: 18, accentColor: '#E87722' }}
+              />
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, cursor: 'pointer', fontSize: '0.82rem' }}>
+              <span>
+                <strong style={{ display: 'block', color: 'var(--text)' }}>Phone / SMS Notifications</strong>
+                <span style={{ fontSize: '0.73rem', color: 'var(--muted)' }}>
+                  Alternative channel when email is disabled
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.phone_notifications_enabled !== false}
+                onChange={(e) => handleSave({ phone_notifications_enabled: e.target.checked })}
+                style={{ width: 18, height: 18, accentColor: '#E87722' }}
+              />
+            </label>
           </div>
         </div>
 

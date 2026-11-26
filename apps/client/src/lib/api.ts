@@ -93,6 +93,7 @@ export type RideSummary = {
 };
 export type Ride = {
   id: string; reference: string; request_type: string | null; service_type: string; status: string; status_label: string;
+  cancellation_reason?: string | null; cancelled_at?: string | null;
   ride_date: string | null; ride_time: string | null; pickup_location: string | null; dropoff_location: string | null;
   vehicle: string | null; driver_tier: string; created_at: string;
   chauffeur: { name: string; avatar_url: string | null } | null;

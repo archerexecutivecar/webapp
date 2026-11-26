@@ -51,6 +51,9 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/careers/jobs/{id}/apply', [\App\Http\Controllers\PublicCareerController::class, 'apply'])->middleware('throttle:public-submissions');
     Route::post('/careers/track', [\App\Http\Controllers\PublicCareerController::class, 'track'])->middleware('throttle:60,1');
 
+    // Public Influencer Marketing Applications (stored & managed separately from Driver/Staff Careers)
+    Route::post('/influencer-applications', [\App\Http\Controllers\PublicInfluencerApplicationController::class, 'store'])->middleware('throttle:public-submissions');
+
     // Customer account: register directly, sign in with an emailed code (no password), or with email + password via /auth/login.
     Route::prefix('customer')->group(function (): void {
         Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:customer-code');
@@ -85,24 +88,35 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/dashboard', [DashboardController::class, 'show'])->middleware('permission:dashboard.view');
 
         // Admin Real-Time Notifications
-        Route::get('/notifications', [AdminNotificationController::class, 'index']);
-        Route::put('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+        Route::middleware('permission:dashboard.view')->group(function (): void {
+            Route::get('/notifications', [AdminNotificationController::class, 'index']);
+            Route::put('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+        });
 
-        // Rides & Dispatch Management
+        // Rides & Dispatch Management (read-only)
         Route::middleware('permission:rides.view')->group(function (): void {
             Route::get('/rides', [RideDispatchController::class, 'index']);
-            Route::post('/rides', [RideDispatchController::class, 'store']);
             Route::get('/rides/{id}', [RideDispatchController::class, 'show']);
-            Route::put('/rides/{id}', [RideDispatchController::class, 'update']);
-            Route::post('/rides/{id}/broadcast', [RideDispatchController::class, 'broadcast']);
-            Route::post('/rides/{id}/record-agreement', [RideDispatchController::class, 'recordAgreement']);
+            Route::get('/reports/rides', [\App\Http\Controllers\Admin\RideReportController::class, 'index']);
+            Route::get('/reports/rides/export', [\App\Http\Controllers\Admin\RideReportController::class, 'export']);
+            Route::get('/cancellation-reasons', [\App\Http\Controllers\Admin\CancellationReasonController::class, 'index']);
 
             // Customer directory (read-only; opening a customer is audited)
             Route::get('/customers', [CustomerController::class, 'index']);
-            Route::post('/customers', [CustomerController::class, 'store']);
             Route::get('/customers/{id}', [CustomerController::class, 'show'])->whereNumber('id');
-            Route::put('/customers/{id}', [CustomerController::class, 'update'])->whereNumber('id');
             Route::get('/notices', [\App\Http\Controllers\Admin\CustomerNoticeController::class, 'index']);
+        });
+
+        // Rides, Customers & Notices mutations
+        Route::middleware('permission:rides.manage')->group(function (): void {
+            Route::post('/rides', [RideDispatchController::class, 'store']);
+            Route::put('/rides/{id}', [RideDispatchController::class, 'update']);
+            Route::post('/rides/{id}/broadcast', [RideDispatchController::class, 'broadcast']);
+            Route::post('/rides/{id}/record-agreement', [RideDispatchController::class, 'recordAgreement']);
+            Route::post('/cancellation-reasons', [\App\Http\Controllers\Admin\CancellationReasonController::class, 'store']);
+
+            Route::post('/customers', [CustomerController::class, 'store']);
+            Route::put('/customers/{id}', [CustomerController::class, 'update'])->whereNumber('id');
             Route::post('/notices', [\App\Http\Controllers\Admin\CustomerNoticeController::class, 'store']);
         });
 
@@ -215,6 +229,12 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/careers/applications/{id}/status', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'updateStatus']);
             Route::patch('/careers/applications/{id}/notes', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'updateNotes']);
             Route::post('/careers/applications/{id}/convert-to-driver', [\App\Http\Controllers\Admin\AdminCareerApplicationController::class, 'convertToDriver']);
+
+            // Separate Influencer Marketing Applications Management
+            Route::get('/influencer-applications', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'index']);
+            Route::get('/influencer-applications/{id}', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'show']);
+            Route::patch('/influencer-applications/{id}/status', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'updateStatus']);
+            Route::get('/influencer-applications/{id}/resume', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'downloadResume']);
         });
 
         Route::get('/drivers', [DriverController::class, 'index'])->middleware('permission:drivers.view');

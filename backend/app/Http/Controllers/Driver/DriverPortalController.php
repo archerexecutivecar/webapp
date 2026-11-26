@@ -40,12 +40,7 @@ class DriverPortalController extends Controller
             return null;
         }
 
-        $driver = Driver::with('tier')->where('user_id', $user->id)->first();
-        if (!$driver && $user->email) {
-            $driver = Driver::with('tier')->where('email', $user->email)->latest()->first();
-        }
-
-        return $driver;
+        return Driver::with('tier')->where('user_id', $user->id)->first();
     }
 
     protected function resolveDriverOrPreview(Request $request): ?Driver
@@ -362,30 +357,43 @@ class DriverPortalController extends Controller
             return ApiResponse::error('DRIVER_NOT_FOUND', 'Driver profile not found.', 404);
         }
 
-        $ride = RideRequest::where('id', $rideId)
-            ->where('assigned_driver_id', $driver->id)
-            ->firstOrFail();
-
         $validated = $request->validate([
             'status' => 'required|string|in:dispatched,on_my_way,at_doorstep,at_your_doorstep,ride_started,in_progress,ride_ended,completed,cancelled',
             'notes' => 'nullable|string',
         ]);
 
         try {
-            $validated['status'] = RideStateMachine::assertTransition($ride->status, $validated['status']);
+            $result = \Illuminate\Support\Facades\DB::transaction(function () use ($driver, $rideId, $validated, $request): array {
+                $ride = RideRequest::where('id', $rideId)
+                    ->where('assigned_driver_id', $driver->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $previousStatus = $ride->status;
+                $nextStatus = RideStateMachine::assertTransition($previousStatus, $validated['status']);
+
+                $ride->status = $nextStatus;
+                if (! empty($validated['notes'])) {
+                    $ride->dispatch_notes = ($ride->dispatch_notes ? $ride->dispatch_notes . "\n" : '') . '[Driver Note]: ' . $validated['notes'];
+                }
+                $ride->save();
+
+                \App\Models\AuditLog::record('ride.driver_status_updated', $request->user()?->id, [
+                    'driver_id' => $driver->id,
+                    'before' => ['status' => $previousStatus],
+                    'after' => ['status' => $nextStatus],
+                ], $ride);
+
+                return [$ride, $previousStatus, $nextStatus];
+            });
         } catch (\InvalidArgumentException $e) {
             return ApiResponse::error('ILLEGAL_STATUS_TRANSITION', $e->getMessage(), 422);
         }
 
-        $previousStatus = $ride->status;
-        $ride->status = $validated['status'];
-        if (!empty($validated['notes'])) {
-            $ride->dispatch_notes = ($ride->dispatch_notes ? $ride->dispatch_notes . "\n" : '') . '[Driver Note]: ' . $validated['notes'];
-        }
-        $ride->save();
+        [$ride, $previousStatus, $nextStatus] = $result;
 
-        if ($previousStatus !== $validated['status']) {
-            CustomerMailer::sendRideStatusChanged($ride, $previousStatus, $validated['status']);
+        if ($previousStatus !== $nextStatus) {
+            CustomerMailer::sendRideStatusChanged($ride, $previousStatus, $nextStatus);
         }
 
         return ApiResponse::data([

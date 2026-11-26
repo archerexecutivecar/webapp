@@ -143,11 +143,14 @@ export function RequestRide() {
         throw new Error(result?.message || "Failed to submit ride request.");
       }
 
-      const ref = result?.data?.ride?.reference || `AR-${Math.floor(1000 + Math.random() * 9000)}`;
+      const ref = result?.data?.ride?.reference;
+      if (!ref) {
+        throw new Error("Server did not return a ride reference.");
+      }
       setSubmitted(ref);
       toast.success(`Request ${ref} sent to the dispatch queue`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit request.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit request.");
     } finally {
       setSubmitting(false);
     }

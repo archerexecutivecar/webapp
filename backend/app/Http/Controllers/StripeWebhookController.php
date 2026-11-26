@@ -7,8 +7,10 @@ use App\Models\IntegrationSetting;
 use App\Models\RideRequest;
 use App\Models\StripeWebhookEvent;
 use App\Support\ApiResponse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Stripe\Exception\SignatureVerificationException;
@@ -41,21 +43,34 @@ class StripeWebhookController extends Controller
             return ApiResponse::error('INVALID_SIGNATURE', 'Webhook signature verification failed.', 400);
         }
 
-        if (Schema::hasTable('stripe_webhook_events')) {
-            $exists = StripeWebhookEvent::where('stripe_event_id', $event->id)->exists();
-            if ($exists) {
-                return ApiResponse::data(['received' => true, 'duplicate' => true]);
-            }
+        $duplicate = false;
 
-            StripeWebhookEvent::create([
-                'stripe_event_id' => $event->id,
-                'event_type' => $event->type,
-                'processed_at' => now(),
-            ]);
+        try {
+            DB::transaction(function () use ($event, &$duplicate): void {
+                if (Schema::hasTable('stripe_webhook_events')) {
+                    if (StripeWebhookEvent::where('stripe_event_id', $event->id)->lockForUpdate()->exists()) {
+                        $duplicate = true;
+
+                        return;
+                    }
+
+                    StripeWebhookEvent::create([
+                        'stripe_event_id' => $event->id,
+                        'event_type' => $event->type,
+                        'processed_at' => now(),
+                    ]);
+                }
+
+                if (in_array($event->type, ['payment_intent.succeeded', 'charge.succeeded'], true)) {
+                    $this->applyPaymentSuccess($event->type, $event->data->object);
+                }
+            });
+        } catch (QueryException) {
+            return ApiResponse::data(['received' => true, 'duplicate' => true]);
         }
 
-        if (in_array($event->type, ['payment_intent.succeeded', 'charge.succeeded'], true)) {
-            $this->applyPaymentSuccess($event->type, $event->data->object);
+        if ($duplicate) {
+            return ApiResponse::data(['received' => true, 'duplicate' => true]);
         }
 
         return ApiResponse::data(['received' => true]);
@@ -72,10 +87,10 @@ class StripeWebhookController extends Controller
 
         $ride = null;
         if ($rideId) {
-            $ride = RideRequest::find($rideId);
+            $ride = RideRequest::whereKey($rideId)->lockForUpdate()->first();
         }
         if ($ride === null && $rideReference) {
-            $ride = RideRequest::where('reference', $rideReference)->first();
+            $ride = RideRequest::where('reference', $rideReference)->lockForUpdate()->first();
         }
 
         if ($ride === null) {
@@ -87,7 +102,21 @@ class StripeWebhookController extends Controller
             return;
         }
 
-        $details = $ride->details ?? [];
+        $details = is_array($ride->details) ? $ride->details : [];
+        $expectedIntentId = $details['stripe_payment_intent_id'] ?? null;
+        $incomingIntentId = $eventType === 'payment_intent.succeeded'
+            ? ($stripeObject->id ?? null)
+            : ($stripeObject->payment_intent ?? null);
+        if ($expectedIntentId !== null && $incomingIntentId !== null && $expectedIntentId !== $incomingIntentId) {
+            AuditLog::record('payment.stripe.intent_mismatch', null, [
+                'ride_id' => $ride->id,
+                'expected_intent_id' => $expectedIntentId,
+                'incoming_intent_id' => $incomingIntentId,
+            ], $ride);
+
+            return;
+        }
+
         $details['payment_status'] = 'paid';
         $details['payment_provider'] = 'stripe';
         $details['stripe_payment_id'] = $stripeObject->id ?? null;

@@ -9,6 +9,7 @@ use App\Models\RideRequest;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Stripe\StripeClient;
 
@@ -18,7 +19,6 @@ class StripePaymentController extends Controller
     {
         $validated = $request->validate([
             'ride_id' => 'required|string',
-            'amount_cents' => 'nullable|integer|min:50',
             'currency' => 'nullable|string|size:3',
         ]);
 
@@ -27,7 +27,7 @@ class StripePaymentController extends Controller
         }
 
         $settings = IntegrationSetting::current();
-        $secret = $settings->stripe_secret_key ?: env('STRIPE_SECRET_KEY');
+        $secret = $settings->stripe_secret_key ?: config('services.stripe.secret');
         if (! $secret) {
             return ApiResponse::error('STRIPE_NOT_CONFIGURED', 'Stripe secret key is not configured in Integrations.', 422);
         }
@@ -36,18 +36,17 @@ class StripePaymentController extends Controller
         $details = is_array($ride->details) ? $ride->details : [];
         $closeout = is_array($details['closeout'] ?? null) ? $details['closeout'] : [];
 
-        $amountCents = $validated['amount_cents'] ?? null;
-        if ($amountCents === null) {
-            $dollars = $closeout['total']
-                ?? $closeout['amount']
-                ?? $details['fare_total']
-                ?? $details['booked_price']
-                ?? null;
-            if ($dollars === null) {
-                return ApiResponse::error('AMOUNT_REQUIRED', 'Provide amount_cents or store a closeout total on the ride.', 422);
-            }
-            $amountCents = (int) round(((float) $dollars) * 100);
+        $dollars = $closeout['total']
+            ?? $closeout['amount']
+            ?? $details['client_paid']
+            ?? $details['fare_total']
+            ?? $details['booked_price']
+            ?? null;
+        if ($dollars === null) {
+            return ApiResponse::error('AMOUNT_REQUIRED', 'A server-side closeout or fare total must exist on the ride before creating a payment intent.', 422);
         }
+
+        $amountCents = (int) round(((float) $dollars) * 100);
 
         if ($amountCents < 50) {
             return ApiResponse::error('AMOUNT_TOO_LOW', 'Stripe requires at least 50 cents.', 422);
@@ -67,14 +66,18 @@ class StripePaymentController extends Controller
                 'automatic_payment_methods' => ['enabled' => true],
             ]);
         } catch (\Throwable $e) {
-            return ApiResponse::error('STRIPE_ERROR', $e->getMessage(), 502);
+            return ApiResponse::error('STRIPE_ERROR', 'Unable to create Stripe payment intent.', 502);
         }
 
-        $details['stripe_payment_intent_id'] = $intent->id;
-        $details['stripe_payment_status'] = $intent->status;
-        $details['payment_provider'] = 'stripe';
-        $ride->details = $details;
-        $ride->save();
+        DB::transaction(function () use ($ride, $intent): void {
+            $locked = RideRequest::whereKey($ride->id)->lockForUpdate()->firstOrFail();
+            $lockedDetails = is_array($locked->details) ? $locked->details : [];
+            $lockedDetails['stripe_payment_intent_id'] = $intent->id;
+            $lockedDetails['stripe_payment_status'] = $intent->status;
+            $lockedDetails['payment_provider'] = 'stripe';
+            $locked->details = $lockedDetails;
+            $locked->save();
+        });
 
         AuditLog::record('payment.stripe.intent_created', $request->user()?->id, [
             'ride_id' => $ride->id,

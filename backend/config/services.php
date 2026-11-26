@@ -35,4 +35,21 @@ return [
         ],
     ],
 
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET_KEY'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    'google_maps' => [
+        'browser_key' => env('GOOGLE_MAPS_BROWSER_KEY'),
+        'server_key' => env('GOOGLE_MAPS_SERVER_KEY'),
+    ],
+
+    'app_urls' => [
+        'client' => env('CLIENT_URL', 'https://app.archerexecutivecar.com'),
+        'admin' => env('ADMIN_URL', 'https://admin.archerexecutivecar.com'),
+        'site' => env('NEXT_PUBLIC_SITE_URL', 'https://archerexecutivecar.com'),
+    ],
+
 ];

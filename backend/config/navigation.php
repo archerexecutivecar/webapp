@@ -12,6 +12,7 @@ return [
             ['key' => 'dashboard', 'label' => 'Dashboard', 'href' => '/dashboard', 'icon' => 'layout-dashboard', 'permissions' => ['dashboard.view'], 'available' => true],
             ['key' => 'driver-portal', 'label' => 'My Assigned Rides', 'href' => '/my-rides', 'icon' => 'car', 'permissions' => ['driver.portal'], 'available' => true],
             ['key' => 'rides', 'label' => 'Ride requests', 'href' => '/rides', 'icon' => 'route', 'permissions' => ['rides.view', 'dispatch.manage'], 'available' => true],
+            ['key' => 'reports', 'label' => 'Reports', 'href' => '/reports', 'icon' => 'file-text', 'permissions' => ['reports.view'], 'available' => true],
             ['key' => 'customers', 'label' => 'Clients', 'href' => '/customers', 'icon' => 'users', 'permissions' => ['rides.view'], 'available' => true],
             ['key' => 'drivers', 'label' => 'Drivers', 'href' => '/drivers', 'icon' => 'user-check', 'permissions' => ['drivers.view', 'drivers.manage'], 'available' => true],
             ['key' => 'careers', 'label' => 'Careers & Applicants', 'href' => '/careers', 'icon' => 'user-check', 'permissions' => ['careers.manage', 'settings.manage'], 'available' => true],

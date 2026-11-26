@@ -915,6 +915,31 @@ export function CareersClient() {
           </div>
         </div>
       )}
+
+      {/* Separated Influencer Marketing Application Portal (non-adjacent to Driver section) */}
+      <section className="mt-20 border-t border-white/10 pt-14">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="rounded-xl border border-white/10 bg-[#141414] p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <span className="text-[#c59b27] font-semibold text-xs tracking-[0.22em] uppercase">
+                Brand & Creator Partnerships
+              </span>
+              <h2 className="text-2xl font-bold text-white mt-2">
+                Influencer Marketing Applications
+              </h2>
+              <p className="text-sm text-[#B3ADA5] mt-2 max-w-xl">
+                Content creators, lifestyle influencers, and brand ambassadors interested in collaborating with Archer Executive Services apply through our dedicated creator portal.
+              </p>
+            </div>
+            <Link
+              href="/careers/influencer-marketing"
+              className="shrink-0 px-6 py-3 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-bold text-xs uppercase tracking-wider text-center"
+            >
+              Apply for Influencer Marketing →
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -159,7 +159,7 @@ class PublicCareerController extends Controller
             foreach ($docTypes as $field => $label) {
                 if ($request->hasFile($field)) {
                     $file = $request->file($field);
-                    $path = $file->store("career_documents/{$application->id}", 'public');
+                    $path = $file->store("career_documents/{$application->id}", 'local');
 
                     CareerApplicationDocument::create([
                         'career_application_id' => $application->id,

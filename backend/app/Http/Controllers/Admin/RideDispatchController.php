@@ -99,6 +99,7 @@ class RideDispatchController extends Controller
                 'driver_preference' => 'nullable|string|max:100',
                 'pickup_location' => 'nullable|string|max:255',
                 'dropoff_location' => 'nullable|string|max:255',
+                'cancellation_reason' => 'nullable|string|max:255',
                 'dispatch_notes' => 'nullable|string',
                 'details' => 'nullable|array',
             ]);
@@ -133,12 +134,19 @@ class RideDispatchController extends Controller
             if ($isClientCar && $newDriverId && $newDriverId !== $previousDriverId) {
                 $details = $validated['details'] ?? $ride->details ?? [];
                 $isSigned = ! empty($details['is_client_car_signed']);
-                if (! $isSigned && ! $request->boolean('override_agreement')) {
-                    return ApiResponse::error(
-                        'CLIENT_CAR_AGREEMENT_REQUIRED',
-                        'Dispatch is blocked: Client Car Service Agreement has not been signed or recorded.',
-                        422
-                    );
+                if (! $isSigned) {
+                    if (! $request->boolean('override_agreement')) {
+                        return ApiResponse::error(
+                            'CLIENT_CAR_AGREEMENT_REQUIRED',
+                            'Dispatch is blocked: Client Car Service Agreement has not been signed or recorded.',
+                            422
+                        );
+                    }
+
+                    AuditLog::record('ride.agreement_overridden', $request->user()?->id, [
+                        'ride_id' => $ride->id,
+                        'driver_id' => $newDriverId,
+                    ], $ride);
                 }
             }
 
@@ -254,40 +262,57 @@ class RideDispatchController extends Controller
      */
     public function broadcast(Request $request, string $id): JsonResponse
     {
-        $ride = RideRequest::findOrFail($id);
-        $drivers = DriverOfferEligibility::eligibleDrivers($ride);
-        foreach ($drivers as $driver) {
-            DriverNotification::create([
-                'driver_id' => $driver->id,
-                'ride_request_id' => $ride->id,
-                'title' => "Broadcast Offer ({$ride->reference})",
-                'message' => "New {$ride->service_type} ride offer on {$ride->ride_date} at {$ride->ride_time}. First to accept secures the run.",
-                'type' => 'broadcast',
-                'is_read' => false,
-            ]);
+        try {
+            $result = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $id): array {
+                $ride = RideRequest::whereKey($id)->lockForUpdate()->firstOrFail();
+                $previousStatus = $ride->status;
+                $nextStatus = \App\Support\RideStateMachine::assertTransition($previousStatus, 'broadcast');
+
+                $drivers = DriverOfferEligibility::eligibleDrivers($ride);
+                foreach ($drivers as $driver) {
+                    DriverNotification::create([
+                        'driver_id' => $driver->id,
+                        'ride_request_id' => $ride->id,
+                        'title' => "Broadcast Offer ({$ride->reference})",
+                        'message' => "New {$ride->service_type} ride offer on {$ride->ride_date} at {$ride->ride_time}. First to accept secures the run.",
+                        'type' => 'broadcast',
+                        'is_read' => false,
+                    ]);
+                }
+
+                $details = $ride->details ?? [];
+                $statusLog = $details['status_log'] ?? [];
+                $statusLog[] = [
+                    'status' => 'Broadcast',
+                    'channel' => 'Dispatch',
+                    'timestamp' => now()->toDayDateTimeString(),
+                    'notes' => 'Broadcasted to '.$drivers->count().' qualified operators.',
+                ];
+                $details['status_log'] = $statusLog;
+                $details['broadcast_at'] = now()->toISOString();
+                $details['broadcast_recipients_count'] = $drivers->count();
+
+                $ride->update([
+                    'status' => $nextStatus,
+                    'details' => $details,
+                ]);
+
+                AuditLog::record('ride.broadcasted', $request->user()?->id, [
+                    'before' => ['status' => $previousStatus],
+                    'after' => ['status' => $nextStatus],
+                    'recipients_count' => $drivers->count(),
+                ], $ride);
+
+                return [
+                    'ride' => $ride->fresh()->load('assignedDriver'),
+                    'recipients_count' => $drivers->count(),
+                    'message' => "Offer broadcasted to {$drivers->count()} qualified operators.",
+                ];
+            });
+        } catch (\InvalidArgumentException $e) {
+            return ApiResponse::error('ILLEGAL_STATUS_TRANSITION', $e->getMessage(), 422);
         }
 
-        $details = $ride->details ?? [];
-        $statusLog = $details['status_log'] ?? [];
-        $statusLog[] = [
-            'status' => 'Broadcast',
-            'channel' => 'Dispatch',
-            'timestamp' => now()->toDayDateTimeString(),
-            'notes' => 'Broadcasted to '.$drivers->count().' qualified operators.',
-        ];
-        $details['status_log'] = $statusLog;
-        $details['broadcast_at'] = now()->toISOString();
-        $details['broadcast_recipients_count'] = $drivers->count();
-
-        $ride->update([
-            'status' => 'broadcast',
-            'details' => $details,
-        ]);
-
-        return ApiResponse::data([
-            'ride' => $ride->fresh()->load('assignedDriver'),
-            'recipients_count' => $drivers->count(),
-            'message' => "Offer broadcasted to {$drivers->count()} qualified operators.",
-        ]);
+        return ApiResponse::data($result);
     }
 }

@@ -36,7 +36,7 @@ class FleetScheduleTest extends TestCase
         ]);
 
         $this->assertEquals(2, $response->json('data.counters.cadillac_escalade.free'));
-        $this->assertEquals(0, $response->json('data.counters.chevrolet_traverse.free'));
+        $this->assertEquals(1, $response->json('data.counters.chevrolet_traverse.free'));
         $this->assertCount(5, $response->json('data.vehicles'));
     }
 

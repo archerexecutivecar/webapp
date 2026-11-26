@@ -20,12 +20,6 @@ class CustomerNoticeController extends Controller
             return ApiResponse::data(['notices' => []]);
         }
 
-        try {
-            $this->ensureSeedNoticesExist();
-        } catch (\Throwable $e) {
-            // Non-blocking fallback
-        }
-
         $query = CustomerNotice::query()->orderBy('sent_at', 'desc');
 
         if ($request->filled('trigger') && $request->trigger !== 'all') {

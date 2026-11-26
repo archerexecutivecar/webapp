@@ -69,7 +69,9 @@ function Detail() {
       {error && <div role="alert" className="alert">{error}</div>}
 
       {ride.status === "cancelled" ? (
-        <div className="alert">This ride was cancelled. Need a new one? Call dispatch at <a href={`tel:${dispatchTel()}`}>{dispatchDisplay()}</a>.</div>
+        <div className="alert">
+          This ride was cancelled{ride.cancellation_reason ? ` — Reason: ${ride.cancellation_reason}` : "."} Need a new one? Call dispatch at <a href={`tel:${dispatchTel()}`}>{dispatchDisplay()}</a>.
+        </div>
       ) : (
         <section aria-label="Ride progress">
           <RideCarProgress

@@ -23,12 +23,24 @@ class DriverWebsiteTierTest extends TestCase
 
         $res = $this->postJson('/api/v1/admin/drivers', ['name' => 'Jordan Reyes', 'service_tier' => 2], $ops)->assertCreated();
         $res->assertJsonPath('data.driver.service_tier', 2)
+            ->assertJsonPath('data.driver.eligible_tiers', [1, 2])
             ->assertJsonPath('data.driver.tier.name', 'TIER 2 · EXECUTIVE');
 
         $id = $res->json('data.driver.id');
         $this->putJson("/api/v1/admin/drivers/{$id}", ['service_tier' => 3], $ops)->assertOk()
+            ->assertJsonPath('data.driver.eligible_tiers', [1, 2, 3])
             ->assertJsonPath('data.driver.tier.name', 'TIER 3 · ELITE');
         $this->assertSame(3, Driver::find($id)->service_tier);
+
+        // Tier 1 driver cannot select Tier 2
+        $tier1 = $this->postJson('/api/v1/admin/drivers', ['name' => 'Alex TierOne', 'service_tier' => 1], $ops)->assertCreated();
+        $tier1->assertJsonPath('data.driver.eligible_tiers', [1]);
+        $t1Id = $tier1->json('data.driver.id');
+
+        $this->putJson("/api/v1/admin/drivers/{$t1Id}", [
+            'service_tier' => 1,
+            'eligible_tiers' => [1, 2],
+        ], $ops)->assertUnprocessable();
     }
 
     public function test_a_tier_with_drivers_assigned_cannot_be_deleted(): void

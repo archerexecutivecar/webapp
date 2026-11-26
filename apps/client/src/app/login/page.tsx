@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { api, ApiError, errorText, safeNext, tokenStore, type Session } from "@/lib/api";
+import { api, API_BASE, ApiError, errorText, safeNext, tokenStore, type Session } from "@/lib/api";
 import { usePublicBrand } from "@/lib/brand";
 
 type Mode = "code" | "password" | "register";
@@ -82,7 +82,7 @@ export default function Login() {
         auth: false,
       });
       if (!s.user.roles.includes("customer")) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1"}/auth/logout`, {
+        await fetch(`${API_BASE}/auth/logout`, {
           method: "POST",
           headers: { Authorization: `Bearer ${s.token}`, Accept: "application/json" },
         }).catch(() => undefined);

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 
 class Driver extends Model
 {
@@ -17,6 +18,7 @@ class Driver extends Model
         'phone',
         'tier_id',
         'service_tier',
+        'eligible_tiers',
         'avatar_url',
         'bio',
         'sort_order',
@@ -46,6 +48,7 @@ class Driver extends Model
 
     protected $casts = [
         'service_tier' => 'integer',
+        'eligible_tiers' => 'array',
         'sort_order' => 'integer',
         'is_active' => 'boolean',
         'is_online' => 'boolean',
@@ -83,5 +86,69 @@ class Driver extends Model
     public function notifications()
     {
         return $this->hasMany(DriverNotification::class, 'driver_id')->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Return all tiers this driver is eligible to serve, falling back to 1..service_tier.
+     *
+     * @return array<int, int>
+     */
+    public function resolvedEligibleTiers(): array
+    {
+        if (is_array($this->eligible_tiers) && $this->eligible_tiers !== []) {
+            $tiers = array_values(array_unique(array_map('intval', $this->eligible_tiers)));
+            sort($tiers);
+
+            return $tiers;
+        }
+
+        if ($this->service_tier !== null && (int) $this->service_tier >= 1) {
+            return [(int) $this->service_tier];
+        }
+
+        return [];
+    }
+
+    /**
+     * Enforce tier hierarchy: Tier N qualifies for tiers 1..N; lower tiers cannot select higher tiers.
+     *
+     * @param  array<int, int|string>|null  $eligibleTiers
+     * @return array{0: ?int, 1: array<int, int>}
+     */
+    public static function resolveTierHierarchy(?int $serviceTier, ?array $eligibleTiers): array
+    {
+        $selected = $eligibleTiers !== null
+            ? array_values(array_unique(array_map('intval', $eligibleTiers)))
+            : null;
+
+        if ($selected !== null && $selected !== []) {
+            sort($selected);
+            $highestSelected = max($selected);
+
+            if ($serviceTier !== null && $highestSelected > $serviceTier) {
+                throw ValidationException::withMessages([
+                    'eligible_tiers' => [
+                        "Driver qualification (Tier {$serviceTier}) does not allow selecting Tier {$highestSelected}.",
+                    ],
+                ]);
+            }
+
+            $qualifiedTier = $serviceTier ?? $highestSelected;
+
+            return [$qualifiedTier, $selected];
+        }
+
+        if ($serviceTier !== null && $serviceTier >= 1) {
+            $availableTiers = SiteTier::where('kind', 'driver')
+                ->where('tier', '<=', $serviceTier)
+                ->orderBy('tier')
+                ->pluck('tier')
+                ->map(fn ($t) => (int) $t)
+                ->all();
+
+            return [$serviceTier, $availableTiers !== [] ? $availableTiers : range(1, $serviceTier)];
+        }
+
+        return [null, []];
     }
 }

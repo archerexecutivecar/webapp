@@ -216,12 +216,6 @@ class RideCloseoutMath
         $details['archer_profit'] = $archerProfit;
         $details['payment_method'] = $details['payment_method'] ?? 'Card';
 
-        try {
-            $ride->updateQuietly(['details' => $details]);
-        } catch (\Throwable) {
-            // Read-only or test transaction fallback
-        }
-
         return $details;
     }
 

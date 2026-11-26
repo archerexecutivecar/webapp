@@ -12,27 +12,27 @@ import { useArcherStore } from "@/lib/archer-store";
 import { WhatsAppIcon } from "@/components/archer/reveal";
 import { Headset, Mail, Phone } from "lucide-react";
 
-function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+function scrollToId(_id: string) {
+  // Navigation opens dedicated pages directly without in-page scrolling.
 }
 
-const SERVICE_LINKS = [
-  { label: "Driver Tiers", target: "tiers" },
-  { label: "Black Car Fleet", target: "fleet" },
-  { label: "Executive Protection", target: "security" },
-  { label: "Hourly Chauffeur", target: "services" },
-  { label: "Airport Transfers", target: "services" },
-  { label: "Special Events", target: "services" },
+const SERVICE_LINKS: { label: string; href: string }[] = [
+  { label: "Driver Tiers", href: "/tiers" },
+  { label: "Black Car Fleet", href: "/fleet" },
+  { label: "Hourly Chauffeur", href: "/services/hourly" },
+  { label: "Airport Transfers", href: "/services/airport" },
+  { label: "Point to Point", href: "/services/point-to-point" },
+  { label: "Concierge", href: "/services/concierge" },
 ];
 
 const EXPLORE_LINKS: { label: string; target?: string; href?: string }[] = [
-  { label: "Tiers of Service", target: "tiers" },
-  { label: "Fleet", target: "fleet" },
-  { label: "Security", target: "security" },
-  { label: "The Archer Standard", target: "about" },
-  { label: "Chauffeur Experience", target: "experience" },
+  { label: "Tiers of Service", href: "/tiers" },
+  { label: "Fleet", href: "/fleet" },
+  { label: "Client Car Service", href: "/services/client-car" },
+  { label: "For EA's & PA's", href: "/services/assistants" },
   { label: "Careers", href: "/careers" },
-  { label: "FAQs", target: "faq" },
+  { label: "Influencer Marketing", href: "/careers/influencer-marketing" },
+  { label: "Book a Ride", href: "/book" },
 ];
 
 export function Footer() {
@@ -68,12 +68,12 @@ export function Footer() {
             <ul className="mt-5 space-y-3">
               {SERVICE_LINKS.map((l) => (
                 <li key={l.label}>
-                  <button
-                    onClick={() => scrollToId(l.target)}
+                  <Link
+                    href={l.href}
                     className="text-[13px] text-archer-gray transition-colors hover:text-archer-orange"
                   >
                     {l.label}
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

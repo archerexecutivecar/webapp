@@ -93,6 +93,7 @@ class AdminSmokeTest extends TestCase
 
         foreach ([
             '/api/v1/admin/dashboard',
+            '/api/v1/admin/notifications',
             '/api/v1/admin/rides',
             '/api/v1/admin/payments-earnings',
             '/api/v1/admin/payroll',
@@ -179,6 +180,8 @@ class AdminSmokeTest extends TestCase
             '/security/swaps' => '/api/v1/admin/security/swaps',
             '/security/credentials' => '/api/v1/admin/security/credentials',
             '/security/announcements' => '/api/v1/admin/security/announcements',
+            '/reports' => '/api/v1/admin/reports/rides',
+            '/careers' => '/api/v1/admin/careers/jobs',
         ];
     }
 

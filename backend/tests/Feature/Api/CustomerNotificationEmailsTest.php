@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use Database\Seeders\SiteContentSeeder;
 use App\Models\Driver;
+use App\Models\PlatformSetting;
 use App\Models\RideRequest;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,8 +30,29 @@ class CustomerNotificationEmailsTest extends TestCase
         return app('mail.manager')->mailer()->getSymfonyTransport()->messages();
     }
 
+    private function enableEmailNotifications(): void
+    {
+        PlatformSetting::current()->update(['email_notifications_enabled' => true]);
+    }
+
+    public function test_emails_are_suppressed_by_default_during_testing(): void
+    {
+        $this->assertFalse(PlatformSetting::emailsEnabled());
+
+        $this->postJson('/api/v1/customer/auth/register', [
+            'name' => 'Test Suppress',
+            'email' => 'suppress@example.com',
+            'phone' => '8485550111',
+            'password' => 'SecretPass123',
+            'password_confirmation' => 'SecretPass123',
+        ])->assertCreated();
+
+        $this->assertCount(0, $this->sentMessages());
+    }
+
     public function test_booking_sends_welcome_and_confirmation_emails(): void
     {
+        $this->enableEmailNotifications();
         $res = $this->postJson('/api/v1/booking-requests', [
             'request_type' => 'point_to_point',
             'way' => 'one',
@@ -65,6 +87,7 @@ class CustomerNotificationEmailsTest extends TestCase
 
     public function test_direct_registration_sends_welcome_email(): void
     {
+        $this->enableEmailNotifications();
         $this->postJson('/api/v1/customer/auth/register', [
             'name' => 'Jane Smith',
             'email' => 'jane.smith@example.com',
@@ -80,6 +103,7 @@ class CustomerNotificationEmailsTest extends TestCase
 
     public function test_status_change_sends_update_email(): void
     {
+        $this->enableEmailNotifications();
         $driver = Driver::create(['name' => 'Marcus Vance', 'bio' => 'Top tier chauffeur', 'is_active' => true]);
         $ride = RideRequest::create([
             'reference' => 'ARC-TEST99',

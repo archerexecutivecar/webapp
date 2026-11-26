@@ -36,6 +36,6 @@ class CareerApplicationDocument extends Model
 
     public function getUrlAttribute(): string
     {
-        return Storage::disk('public')->url($this->file_path);
+        return '';
     }
 }

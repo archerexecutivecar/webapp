@@ -164,4 +164,41 @@ class LiveTrackingTest extends TestCase
         $response = $this->withHeaders($otherCustomerHeaders)->getJson("/api/v1/customer/rides/{$ride->id}/tracking");
         $response->assertNotFound();
     }
+
+    public function test_stale_driver_location_is_not_shown_as_live(): void
+    {
+        $driverUser = User::factory()->create();
+        $driver = Driver::create([
+            'user_id' => $driverUser->id,
+            'name' => 'Stale Driver',
+            'email' => $driverUser->email,
+            'service_tier' => 2,
+            'is_active' => true,
+            'current_lat' => 34.0522,
+            'current_lng' => -118.2437,
+            'last_location_at' => now()->subMinutes(10),
+        ]);
+
+        [$customerUser, $headers] = $this->actingAsRole('customer');
+
+        $ride = RideRequest::create([
+            'reference' => 'AR-STALE-1',
+            'first_name' => 'John',
+            'phone' => '3105550199',
+            'customer_id' => $customerUser->id,
+            'assigned_driver_id' => $driver->id,
+            'status' => 'on_my_way',
+            'service_type' => 'p2p',
+            'vehicle' => 'sedan|first',
+            'ride_date' => now()->toDateString(),
+            'ride_time' => '14:00',
+            'pickup_location' => '100 Main St',
+        ]);
+
+        $response = $this->withHeaders($headers)->getJson("/api/v1/customer/rides/{$ride->id}/tracking");
+
+        $response->assertOk();
+        $response->assertJsonPath('data.is_live', false);
+        $this->assertNull($response->json('data.driver'));
+    }
 }

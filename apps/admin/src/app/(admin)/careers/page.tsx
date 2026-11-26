@@ -70,11 +70,29 @@ const STATUS_COLORS: Record<string, { bg: string; color: string; border: string 
   closed: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
 };
 
+interface InfluencerApplication {
+  id: number;
+  reference_code: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  city: string | null;
+  instagram_handle: string | null;
+  tiktok_handle: string | null;
+  follower_count: string | null;
+  portfolio_url: string | null;
+  resume_name: string | null;
+  cover_note: string | null;
+  status: string;
+  created_at: string;
+}
+
 export default function AdminCareersPage() {
-  const [activeTab, setActiveTab] = useState<'applications' | 'jobs'>('applications');
+  const [activeTab, setActiveTab] = useState<'applications' | 'influencer' | 'jobs'>('applications');
   const [featureEnabled, setFeatureEnabled] = useState<boolean>(true);
   const [jobs, setJobs] = useState<CareerJob[]>([]);
   const [applications, setApplications] = useState<CareerApplication[]>([]);
+  const [influencerApps, setInfluencerApps] = useState<InfluencerApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -112,7 +130,7 @@ export default function AdminCareersPage() {
       setLoading(true);
       setError(null);
 
-      const [toggleRes, jobsRes, appsRes] = await Promise.all([
+      const [toggleRes, jobsRes, appsRes, infRes] = await Promise.all([
         api<any>('/admin/careers/toggle', { auth: true }),
         api<any>('/admin/careers/jobs', { auth: true }),
         api<any>(
@@ -123,6 +141,13 @@ export default function AdminCareersPage() {
           }).toString()}`,
           { auth: true }
         ),
+        api<any>(
+          `/admin/influencer-applications?${new URLSearchParams({
+            ...(filterStatus ? { status: filterStatus } : {}),
+            ...(search ? { search } : {}),
+          }).toString()}`,
+          { auth: true }
+        ).catch(() => ({ data: [] })),
       ]);
 
       const isEnabled = typeof toggleRes?.enabled === 'boolean'
@@ -147,6 +172,13 @@ export default function AdminCareersPage() {
         ? rawApps.data.data
         : [];
       setApplications(appList);
+
+      const infList: InfluencerApplication[] = Array.isArray(infRes?.data?.data)
+        ? infRes.data.data
+        : Array.isArray(infRes?.data)
+        ? infRes.data
+        : [];
+      setInfluencerApps(infList);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load career data.');
     } finally {
@@ -397,6 +429,21 @@ export default function AdminCareersPage() {
           Applicants Pipeline ({applications.length})
         </button>
         <button
+          onClick={() => setActiveTab('influencer')}
+          style={{
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'influencer' ? '2px solid #c59b27' : '2px solid transparent',
+            color: activeTab === 'influencer' ? 'var(--text)' : 'var(--muted)',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            padding: '10px 16px',
+            cursor: 'pointer',
+          }}
+        >
+          Influencer Marketing ({influencerApps.length})
+        </button>
+        <button
           onClick={() => setActiveTab('jobs')}
           style={{
             background: 'none',
@@ -590,7 +637,91 @@ export default function AdminCareersPage() {
         </div>
       )}
 
-      {/* TAB 2: JOB OPENINGS */}
+      {/* TAB 2: INFLUENCER MARKETING APPLICATIONS */}
+      {activeTab === 'influencer' && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+          {influencerApps.length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', color: 'var(--muted)' }}>
+              No Influencer Marketing applications found.
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', color: 'var(--muted)', fontSize: '0.78rem', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '12px 16px' }}>Applicant</th>
+                    <th style={{ padding: '12px 16px' }}>Social Handles & Reach</th>
+                    <th style={{ padding: '12px 16px' }}>Portfolio / Resume</th>
+                    <th style={{ padding: '12px 16px' }}>Status</th>
+                    <th style={{ padding: '12px 16px' }}>Submitted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {influencerApps.map((app) => {
+                    const sc = STATUS_COLORS[app.status] || STATUS_COLORS.new;
+                    return (
+                      <tr key={app.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--text)' }}>{app.full_name}</div>
+                          <div style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>{app.email} · {app.phone}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#c59b27', fontFamily: 'monospace' }}>{app.reference_code}</div>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.8rem' }}>
+                          {app.instagram_handle && <div>IG: {app.instagram_handle}</div>}
+                          {app.tiktok_handle && <div>TikTok: {app.tiktok_handle}</div>}
+                          {app.follower_count && <div style={{ color: 'var(--muted)' }}>Reach: {app.follower_count}</div>}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.8rem' }}>
+                          {app.portfolio_url && (
+                            <div>
+                              <a href={app.portfolio_url} target="_blank" rel="noopener noreferrer" style={{ color: '#c59b27' }}>
+                                View Portfolio ↗
+                              </a>
+                            </div>
+                          )}
+                          {app.resume_name && <div style={{ color: 'var(--muted)' }}>📄 {app.resume_name}</div>}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <select
+                            value={app.status}
+                            onChange={async (e) => {
+                              const nextStatus = e.target.value;
+                              await api(`/admin/influencer-applications/${app.id}/status`, {
+                                method: 'PATCH',
+                                auth: true,
+                                body: { status: nextStatus },
+                              });
+                              loadData();
+                            }}
+                            style={{
+                              background: sc.bg,
+                              color: sc.color,
+                              border: `1px solid ${sc.border}`,
+                              borderRadius: 6,
+                              padding: '4px 8px',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {['new', 'screening', 'interview', 'offer', 'hired', 'rejected', 'withdrawn'].map((st) => (
+                              <option key={st} value={st}>{st}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: 'var(--muted)' }}>
+                          {new Date(app.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: JOB OPENINGS */}
       {activeTab === 'jobs' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
           {jobs.map((job) => {

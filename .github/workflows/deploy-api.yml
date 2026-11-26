@@ -8,8 +8,32 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: Backend Test Suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_sqlite, sqlite
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Laravel tests
+        run: php artisan test
+
   deploy:
     name: Deploy Laravel API
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

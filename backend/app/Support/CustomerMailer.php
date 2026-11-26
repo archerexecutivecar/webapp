@@ -11,7 +11,7 @@ class CustomerMailer
 {
     private static function portalUrl(string $path = ''): string
     {
-        $base = rtrim((string) env('CLIENT_URL', 'https://app.archerexecutivecar.com'), '/');
+        $base = rtrim((string) config('services.app_urls.client', 'https://app.archerexecutivecar.com'), '/');
 
         return $path !== '' ? "{$base}/" . ltrim($path, '/') : $base;
     }
@@ -126,10 +126,14 @@ class CustomerMailer
             $time = $ride->ride_time ? " at {$ride->ride_time}" : '';
             $pickup = $ride->pickup_location ?: 'As requested';
             $dropoff = $ride->dropoff_location ?: 'As requested';
+            $cancelLine = ($newStatus === 'cancelled' && ! empty($ride->cancellation_reason))
+                ? "Cancellation Reason: {$ride->cancellation_reason}\n"
+                : '';
 
             $body = "Hello {$name},\n\n"
                 . "Your Archer Executive reservation ({$ride->reference}) has an update.\n\n"
                 . "Current Status: {$label}\n"
+                . $cancelLine
                 . "Date & Time: {$date}{$time}\n"
                 . "Pickup: {$pickup}\n"
                 . "Destination: {$dropoff}\n"

@@ -28,9 +28,13 @@ export function RideCard({ r }: { r: Ride }) {
         {whenText(r)}
       </div>
 
-      {r.status !== "cancelled" && (
+      {r.status !== "cancelled" ? (
         <RideCarProgress status={r.status} variant="compact" timeline={r.timeline} />
-      )}
+      ) : r.cancellation_reason ? (
+        <div style={{ fontSize: 12.5, color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "6px 10px" }}>
+          Reason: {r.cancellation_reason}
+        </div>
+      ) : null}
 
       {(r.pickup_location || r.dropoff_location) && (
         <div className="route-uber">

@@ -16,6 +16,32 @@ class CustomerNoticeTest extends TestCase
     {
         [, $h] = $this->actingAsRole('dispatcher');
 
+        CustomerNotice::create([
+            'sent_at' => now(),
+            'recipient_name' => 'Morgan Hale',
+            'recipient_phone' => '+15550001111',
+            'recipient_email' => 'morgan@example.com',
+            'channel' => 'sms',
+            'trigger' => 'allocated',
+            'trigger_label' => 'Chauffeur Allocated',
+            'ride_reference' => 'AR-1048',
+            'message' => 'Your chauffeur has been allocated.',
+            'status' => 'sent',
+        ]);
+
+        CustomerNotice::create([
+            'sent_at' => now()->subMinute(),
+            'recipient_name' => 'Grant Whitfield',
+            'recipient_phone' => '+15550002222',
+            'recipient_email' => 'grant@example.com',
+            'channel' => 'sms',
+            'trigger' => 'on_my_way',
+            'trigger_label' => 'On My Way',
+            'ride_reference' => 'AR-1047',
+            'message' => 'Your chauffeur is on the way.',
+            'status' => 'sent',
+        ]);
+
         $response = $this->getJson('/api/v1/admin/notices', $h);
 
         $response->assertOk();
@@ -45,16 +71,40 @@ class CustomerNoticeTest extends TestCase
         $this->assertTrue($notices->contains('recipient_name', 'Grant Whitfield'));
         $this->assertTrue($notices->contains('trigger', 'allocated'));
         $this->assertTrue($notices->contains('trigger', 'on_my_way'));
-        $this->assertTrue($notices->contains('trigger', 'at_your_doorstep'));
     }
 
     public function test_filter_and_search_notices(): void
     {
         [, $h] = $this->actingAsRole('dispatcher');
 
+        CustomerNotice::create([
+            'sent_at' => now(),
+            'recipient_name' => 'Morgan Hale',
+            'recipient_phone' => '+15550001111',
+            'channel' => 'sms',
+            'trigger' => 'on_my_way',
+            'trigger_label' => 'On My Way',
+            'ride_reference' => 'AR-1048',
+            'message' => 'On the way.',
+            'status' => 'sent',
+        ]);
+
+        CustomerNotice::create([
+            'sent_at' => now()->subMinute(),
+            'recipient_name' => 'Grant Whitfield',
+            'recipient_phone' => '+15550002222',
+            'channel' => 'sms',
+            'trigger' => 'allocated',
+            'trigger_label' => 'Chauffeur Allocated',
+            'ride_reference' => 'AR-1047',
+            'message' => 'Allocated.',
+            'status' => 'sent',
+        ]);
+
         // Filter by trigger: on_my_way
         $filterRes = $this->getJson('/api/v1/admin/notices?trigger=on_my_way', $h)->assertOk();
         $filtered = collect($filterRes->json('data.notices'));
+        $this->assertCount(1, $filtered);
         $this->assertTrue($filtered->every(fn ($n) => $n['trigger'] === 'on_my_way'));
 
         // Search by recipient: Morgan

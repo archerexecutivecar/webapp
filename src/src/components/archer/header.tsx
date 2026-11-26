@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useArcherStore } from "@/lib/archer-store";
@@ -20,17 +21,18 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, Headset, Menu, Plane, X } from "lucide-react";
 
 const NAV_LINKS = [
-  { label: "Services", href: "#services" },
-  { label: "Tiers", href: "#tiers" },
-  { label: "Fleet", href: "#fleet" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Contact", href: "#contact" },
+  { label: "Services", href: "/services/hourly" },
+  { label: "Tiers", href: "/tiers" },
+  { label: "Fleet", href: "/fleet" },
+  { label: "Careers", href: "/careers" },
+  { label: "Influencer Marketing", href: "/careers/influencer-marketing" },
+  { label: "Book Now", href: "/book" },
 ];
 
-const SPY_IDS = NAV_LINKS.map((l) => l.href.slice(1));
+const SPY_IDS: string[] = [];
 
-function scrollToId(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+function scrollToId(_id: string) {
+  // Navigation opens dedicated pages directly without in-page scrolling.
 }
 
 export function Header() {
@@ -273,20 +275,30 @@ export function Header() {
                   const active = activeId === link.href.slice(1);
                   return (
                     <li key={link.href}>
-                      <a
-                        href={link.href}
-                        aria-current={active ? "true" : undefined}
-                        className={`group relative font-heading text-[11px] font-bold tracking-[0.18em] uppercase transition-colors hover:text-white ${
-                          active ? "text-white" : "text-archer-silver/85"
-                        }`}
-                      >
-                        {link.label}
-                        <span
-                          className={`absolute -bottom-1.5 left-0 h-[2px] bg-archer-orange transition-all duration-300 ${
-                            active ? "w-full" : "w-0 group-hover:w-full"
+                      {link.href.startsWith("/") ? (
+                        <Link
+                          href={link.href}
+                          className="group relative font-heading text-[11px] font-bold tracking-[0.18em] uppercase transition-colors hover:text-white text-archer-silver/85"
+                        >
+                          {link.label}
+                          <span className="absolute -bottom-1.5 left-0 h-[2px] bg-archer-orange transition-all duration-300 w-0 group-hover:w-full" />
+                        </Link>
+                      ) : (
+                        <a
+                          href={link.href}
+                          aria-current={active ? "true" : undefined}
+                          className={`group relative font-heading text-[11px] font-bold tracking-[0.18em] uppercase transition-colors hover:text-white ${
+                            active ? "text-white" : "text-archer-silver/85"
                           }`}
-                        />
-                      </a>
+                        >
+                          {link.label}
+                          <span
+                            className={`absolute -bottom-1.5 left-0 h-[2px] bg-archer-orange transition-all duration-300 ${
+                              active ? "w-full" : "w-0 group-hover:w-full"
+                            }`}
+                          />
+                        </a>
+                      )}
                     </li>
                   );
                 })}
@@ -410,10 +422,27 @@ export function Header() {
                   { label: "Services", href: "services" },
                   { label: "Tiers", href: "tiers" },
                   { label: "Fleet", href: "fleet" },
+                  { label: "Careers", href: "/careers", isPage: true },
                   { label: "FAQ", href: "faq" },
                   { label: "Contact", href: "contact" },
                 ].map((item, i) =>
-                  item.href ? (
+                  item.isPage ? (
+                    <motion.li
+                      key={item.label}
+                      initial={{ opacity: 0, x: -12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 + i * 0.03 }}
+                    >
+                      <Link
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex w-full items-center justify-between border-b border-white/6 py-4 text-left font-heading text-[15px] font-bold tracking-[0.15em] text-white uppercase transition-colors hover:text-archer-orange"
+                      >
+                        {item.label}
+                        <span className="text-xs text-archer-gray">→</span>
+                      </Link>
+                    </motion.li>
+                  ) : item.href ? (
                     <motion.li
                       key={item.label}
                       initial={{ opacity: 0, x: -12 }}

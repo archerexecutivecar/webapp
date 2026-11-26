@@ -9,9 +9,18 @@ import { D, EYEBROW, ghost, HEAD, PHONE, primary, WRAP } from "@/components/arch
 export { D, EYEBROW, ghost, HEAD, PHONE, primary, WRAP };
 
 const MENU = [
-  ["HOME", "/"], ["SERVICES", "/#services"], ["TIERS OF SERVICE", "/tiers"], ["FLEET", "/fleet"],
-  ["CLIENT CAR", "/services/client-car"], ["CONCIERGE", "/services/concierge"], ["SECURITY", "/#security"],
-  ["CAREERS", "/careers"], ["FOR EA'S & PA'S", "/services/assistants"], ["ABOUT", "/#about"], ["CONTACT", "/#contact"],
+  ["HOME", "/"],
+  ["HOURLY SERVICE", "/services/hourly"],
+  ["AIRPORT", "/services/airport"],
+  ["POINT TO POINT", "/services/point-to-point"],
+  ["CLIENT CAR", "/services/client-car"],
+  ["CONCIERGE", "/services/concierge"],
+  ["FOR EA'S & PA'S", "/services/assistants"],
+  ["TIERS OF SERVICE", "/tiers"],
+  ["FLEET", "/fleet"],
+  ["CAREERS", "/careers"],
+  ["INFLUENCER MARKETING", "/careers/influencer-marketing"],
+  ["BOOK A RIDE", "/book"],
 ];
 
 export function PhoneIcon() {
@@ -76,7 +85,7 @@ export function SiteMenu({ active = "" }: { active?: string }) {
       {open && (
         <nav aria-label="Main" className={`${panel} max-h-[calc(100svh-90px)] w-[min(320px,calc(100vw-32px))] overflow-y-auto py-2.5`}>
           {MENU.map(([l, h]) => (
-            <Link key={l} href={h} onClick={() => setOpen(false)} className={`block px-6 py-3 text-[14px] font-medium tracking-[0.12em] hover:text-[#E87722] ${l === active ? "border-l-[3px] border-[#E87722] pl-[21px] text-[#E87722]" : "text-[#F4F1EC]"}`}>{l}</Link>
+            <Link key={l} href={h} onClick={() => setOpen(false)} className={`block px-6 py-3 text-[14px] font-medium tracking-[0.12em] hover:text-[#E87722] ${l === active || h === active ? "border-l-[3px] border-[#E87722] pl-[21px] text-[#E87722]" : "text-[#F4F1EC]"}`}>{l}</Link>
           ))}
           <div className="mt-2 flex flex-col gap-1.5 border-t border-[#2E2E2E] px-6 pb-2 pt-4 text-[14px] text-[#B3ADA5]">
             <a href={`tel:${DISPATCH_PHONE_TEL}`} className="font-medium text-[#F4F1EC]">Call {PHONE}</a>

@@ -55,10 +55,10 @@ export function Hero() {
   const [options, setOptions] = useState<BookingOptions>(DEFAULT_OPTIONS);
 
   // Form states matching client prototype
-  const [firstName, setFirstName] = useState("Avery");
-  const [lastName, setLastName] = useState("Cole");
-  const [email, setEmail] = useState("avery.cole@example.com");
-  const [phone, setPhone] = useState("(732) 555-0192");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [pickup, setPickup] = useState("");
   const [dropoff, setDropoff] = useState("");
   const [service, setService] = useState("hourly");
@@ -147,11 +147,14 @@ export function Hero() {
         throw new Error(result?.message || "Failed to submit ride request.");
       }
 
-      const ref = result?.data?.ride?.reference || `AR-${Math.floor(1000 + Math.random() * 9000)}`;
+      const ref = result?.data?.ride?.reference;
+      if (!ref) {
+        throw new Error("Server did not return a ride reference.");
+      }
       setSubmitted(ref);
       toast.success(`Request ${ref} sent to the dispatch queue`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit request.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit request.");
     } finally {
       setSubmitting(false);
     }

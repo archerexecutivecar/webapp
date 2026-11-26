@@ -63,6 +63,7 @@ export interface RideRequest {
   customer_id?: number | null;
   assigned_driver?: Driver | null;
   status: 'pending' | 'new' | 'broadcast' | 'dispatched' | 'driver_assigned' | 'in_progress' | 'completed' | 'cancelled';
+  cancellation_reason?: string | null;
   dispatch_notes: string | null;
   details?: {
     is_client_car_signed?: boolean;
@@ -141,6 +142,13 @@ export default function RidesPage() {
   const [editGuardCount, setEditGuardCount] = useState('1');
   const [clientCarVehicle, setClientCarVehicle] = useState('2023 Obsidian black Mercedes-Benz S 580 NJ M41-HLE');
 
+  // Cancellation Reasons state
+  const [cancelReasons, setCancelReasons] = useState<{ id: number; label: string }[]>([]);
+  const [cancelPanelOpen, setCancelPanelOpen] = useState(false);
+  const [selectedCancelReason, setSelectedCancelReason] = useState('');
+  const [newCancelReason, setNewCancelReason] = useState('');
+  const [addingReason, setAddingReason] = useState(false);
+
   // Phone Booking Modal
   const [phoneBookingOpen, setPhoneBookingOpen] = useState(false);
   const [pbForm, setPbForm] = useState({
@@ -169,14 +177,17 @@ export default function RidesPage() {
       const q = search.trim();
       if (q) params.append('q', q);
 
-      const [ridesRes, driversRes] = await Promise.all([
+      const [ridesRes, driversRes, reasonsRes] = await Promise.all([
         api<{ rides: RideRequest[] }>(`/admin/rides?${params.toString()}`, { auth: true }),
         api<{ drivers: Driver[] }>('/admin/drivers', { auth: true }).catch(() => ({ drivers: [] })),
+        api<{ reasons?: { id: number; label: string }[]; data?: { reasons?: { id: number; label: string }[] } }>('/admin/cancellation-reasons', { auth: true }).catch(() => ({ reasons: [] })),
       ]);
       const ridesList = (ridesRes as any)?.rides ?? (ridesRes as any)?.data?.rides ?? (Array.isArray(ridesRes) ? ridesRes : []);
       const driversList = (driversRes as any)?.drivers ?? (driversRes as any)?.data?.drivers ?? (Array.isArray(driversRes) ? driversRes : []);
+      const reasonsList = (reasonsRes as any)?.reasons ?? (reasonsRes as any)?.data?.reasons ?? [];
       setRides(ridesList);
       setDrivers(driversList.filter((d: any) => d.is_active));
+      setCancelReasons(reasonsList);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load dispatch requests.');
     } finally {
@@ -389,18 +400,68 @@ export default function RidesPage() {
     }
   };
 
+  const handleCreateCancelReason = async (): Promise<string | null> => {
+    const label = newCancelReason.trim();
+    if (!label) return null;
+    try {
+      setAddingReason(true);
+      setError(null);
+      const res = await api<{ reason?: { id: number; label: string }; data?: { reason?: { id: number; label: string } } }>(
+        '/admin/cancellation-reasons',
+        {
+          method: 'POST',
+          auth: true,
+          body: { label },
+        }
+      );
+      const created = res?.reason ?? res?.data?.reason;
+      if (created) {
+        setCancelReasons((prev) =>
+          prev.some((r) => r.label.toLowerCase() === created.label.toLowerCase())
+            ? prev
+            : [...prev, created].sort((a, b) => a.label.localeCompare(b.label))
+        );
+        setSelectedCancelReason(created.label);
+        setNewCancelReason('');
+        return created.label;
+      }
+      return label;
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to create cancellation reason.');
+      return null;
+    } finally {
+      setAddingReason(false);
+    }
+  };
+
   const handleCancelRide = async () => {
     if (!selectedRide || selectedRide.status === 'cancelled') return;
-    if (!confirm(`Cancel ride ${selectedRide.reference}?`)) return;
+
+    let reason = selectedCancelReason;
+    if (reason === '__new__' || (!reason && newCancelReason.trim())) {
+      const created = await handleCreateCancelReason();
+      if (!created) return;
+      reason = created;
+    }
+
+    if (!reason || reason === '__new__') {
+      setError('Please select or create a cancellation reason before cancelling.');
+      return;
+    }
+
     try {
       setSaving(true);
+      setError(null);
       const res = await api<{ ride: RideRequest }>(`/admin/rides/${selectedRide.id}`, {
         method: 'PUT',
         auth: true,
-        body: { status: 'cancelled' },
+        body: { status: 'cancelled', cancellation_reason: reason },
       });
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
       setSelectedRide(res.ride);
+      setCancelPanelOpen(false);
+      setSelectedCancelReason('');
+      setNewCancelReason('');
       setSuccess('Ride cancelled.');
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -1010,14 +1071,88 @@ export default function RidesPage() {
                 {selectedRide.status !== 'cancelled' && selectedRide.status !== 'completed' && (
                   <button
                     type="button"
-                    onClick={handleCancelRide}
+                    onClick={() => {
+                      setCancelPanelOpen((v) => !v);
+                      setError(null);
+                    }}
                     disabled={saving}
                     className="py-2 px-3 rounded text-xs font-bold border border-rose-500/40 text-rose-600 hover:bg-rose-500/10"
                   >
-                    Cancel ride
+                    {cancelPanelOpen ? 'Close cancel' : 'Cancel ride'}
                   </button>
                 )}
               </div>
+
+              {selectedRide.status === 'cancelled' && selectedRide.cancellation_reason && (
+                <div className="p-3 rounded-lg border border-rose-500/30 bg-rose-500/10 text-xs text-rose-700 dark:text-rose-300">
+                  <strong>Cancellation Reason:</strong> {selectedRide.cancellation_reason}
+                </div>
+              )}
+
+              {cancelPanelOpen && selectedRide.status !== 'cancelled' && selectedRide.status !== 'completed' && (
+                <div className="p-3.5 rounded-lg border border-rose-500/30 bg-rose-500/5 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 block mb-1">
+                      Cancellation Reason *
+                    </label>
+                    <select
+                      value={selectedCancelReason}
+                      onChange={(e) => setSelectedCancelReason(e.target.value)}
+                      className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                    >
+                      <option value="">Select a reason...</option>
+                      {cancelReasons.map((r) => (
+                        <option key={r.id} value={r.label}>
+                          {r.label}
+                        </option>
+                      ))}
+                      <option value="__new__">+ Add new reason...</option>
+                    </select>
+                  </div>
+
+                  {(selectedCancelReason === '__new__' || cancelReasons.length === 0) && (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enter new cancellation reason..."
+                        value={newCancelReason}
+                        onChange={(e) => setNewCancelReason(e.target.value)}
+                        className="flex-1 h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCancelReason}
+                        disabled={addingReason || !newCancelReason.trim()}
+                        className="px-3 h-8 rounded text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {addingReason ? 'Adding...' : 'Add'}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelPanelOpen(false);
+                        setSelectedCancelReason('');
+                        setNewCancelReason('');
+                      }}
+                      className="px-3 py-1.5 rounded text-xs border border-border hover:bg-muted"
+                    >
+                      Keep ride
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelRide}
+                      disabled={saving || addingReason}
+                      className="px-3 py-1.5 rounded text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+                    >
+                      {saving ? 'Cancelling...' : 'Confirm cancellation'}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {selectedRide.assigned_driver_id && (
                 <Link

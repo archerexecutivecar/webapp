@@ -96,7 +96,7 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
         <div className="absolute inset-x-0 bottom-0 h-[90%] bg-gradient-to-t from-black/95 via-black/70 to-transparent md:h-[60%] md:from-black/[0.88] md:via-transparent" />
         <div className="absolute inset-x-0 bottom-20 flex flex-wrap items-end justify-between gap-5 px-4 md:bottom-24 md:gap-8 md:px-14">
           <div className="flex max-w-[680px] flex-col gap-2.5 md:gap-3.5">
-            <span className={`${EYEBROW} [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]`}>BLACK CAR SERVICE · EXECUTIVE PROTECTION</span>
+            <span className={`${EYEBROW} [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]`}>BLACK CAR SERVICE · CHAUFFEURS</span>
             <h1 className="m-0 text-[40px] font-extrabold leading-[0.98] tracking-[-0.02em] [text-shadow:0_2px_16px_rgba(0,0,0,0.6)] md:text-[69px]" style={HEAD}>Arrive with Archer.</h1>
             <p className="m-0 mt-1 text-[20px] font-semibold leading-[1.2] md:mt-1.5 md:text-[30px]" style={HEAD}>{cur.head}</p>
             <p className="m-0 text-[16px] text-[#E6E1DA] md:text-[18px]">{cur.line}</p>
@@ -152,40 +152,42 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
         </div>
       </section>
 
-      {TILES.map((t) => (
-        <Link key={t.id} id={t.id} href={t.href} className="group relative block min-h-[360px] overflow-hidden border-t border-white/10 bg-[#191919] text-[#F4F1EC] md:min-h-[420px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={D + t.img} alt={t.photo} className="absolute inset-0 block h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" style={{ objectPosition: t.pos }} />
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.1)_100%)]" />
-          <div className="absolute inset-x-0 bottom-0 top-0 flex items-center">
-            <div className={`${WRAP} flex w-full flex-col gap-3`}>
-              <h2 className="m-0 text-[32px] leading-[1.02] tracking-[-0.02em] md:text-[39px]" style={HEAD}>{t.title}</h2>
-              <p className="m-0 max-w-[560px] text-[19px] text-[#E6E1DA]">{t.line}</p>
-              <span className="mt-2 text-[13px] font-medium tracking-[0.12em] text-[#E87722]">{t.cta}</span>
+      <div className="flex flex-col gap-6 bg-[#121212] pb-8 md:gap-10 md:pb-12">
+        {TILES.map((t) => (
+          <Link key={t.id} id={t.id} href={t.href} className="group relative block min-h-[360px] overflow-hidden border-y border-white/10 bg-[#191919] text-[#F4F1EC] md:min-h-[420px]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={D + t.img} alt={t.photo} className="absolute inset-0 block h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" style={{ objectPosition: t.pos }} />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.1)_100%)]" />
+            <div className="absolute inset-x-0 bottom-0 top-0 flex items-center">
+              <div className={`${WRAP} flex w-full flex-col gap-3`}>
+                <h2 className="m-0 text-[32px] leading-[1.02] tracking-[-0.02em] md:text-[39px]" style={HEAD}>{t.title}</h2>
+                <p className="m-0 max-w-[560px] text-[19px] text-[#E6E1DA]">{t.line}</p>
+                <span className="mt-2 text-[13px] font-medium tracking-[0.12em] text-[#E87722]">{t.cta}</span>
+              </div>
+            </div>
+          </Link>
+        ))}
+
+        {/* Full-Width Influencer Marketing Banner (replaces Executive Protection split) */}
+        <section aria-label="Influencer Marketing" className="relative overflow-hidden border-y border-white/10 bg-[#161616]">
+          <div className={`${WRAP} flex flex-col justify-between gap-6 py-14 md:flex-row md:items-center md:py-20`}>
+            <div className="max-w-[680px]">
+              <span className={EYEBROW}>SOCIAL MEDIA &amp; BRAND PARTNERSHIPS</span>
+              <h2 className="mb-3 mt-2 text-[32px] leading-[1.08] md:text-[42px]" style={HEAD}>
+                Archer Influencer Marketing.
+              </h2>
+              <p className="m-0 text-[17px] text-[#D2CCC4]">
+                Collaborate with Archer Executive Services on curated brand campaigns, luxury lifestyle storytelling, and VIP event arrivals across New York, New Jersey, and Pennsylvania.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-3">
+              <Link href="/careers/influencer-marketing" className={primary}>
+                PARTNER WITH ARCHER →
+              </Link>
             </div>
           </div>
-        </Link>
-      ))}
-
-      <section id="security" className="border-t border-white/10 bg-[#121212]">
-        <div className={`${WRAP} py-12`}>
-          <span className={EYEBROW}>SECURITY DIVISION</span>
-          <h2 className="mb-2 mt-2 text-[34px] leading-[1.08]" style={HEAD}>What we provide.</h2>
-          <p className="m-0 max-w-[640px] text-[16px] text-[#B3ADA5]">Licensed security professionals with military and law-enforcement backgrounds, on the road and on site.</p>
-          <div className="mt-6 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))]">
-            {SECURITY.map((c) => (
-              <a key={c.name} href="#security" className="flex flex-col bg-[#1E1E1E] text-[#F4F1EC]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={D + c.img} alt={c.photo} className="block aspect-[16/10] w-full bg-[#262626] object-cover object-[center_25%]" />
-                <div className="flex flex-col gap-1 px-[18px] py-3.5">
-                  <h3 className="m-0 text-[17px]" style={HEAD}>{c.name}</h3>
-                  <span className="text-[12px] font-medium tracking-[0.1em] text-[#E87722]">LEARN MORE →</span>
-                </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <section aria-label="How it works" className="border-t border-white/10 bg-[#1A1A1A]">
         <div className={`${WRAP} py-12`}>
@@ -204,6 +206,45 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
       </section>
 
       <ClientReviews />
+
+      {/* Dedicated Social Media Follow Section */}
+      <section aria-label="Follow Archer on Social Media" className="border-t border-white/10 bg-[#151515]">
+        <div className={`${WRAP} flex flex-col items-center justify-between gap-6 py-12 md:flex-row md:py-16`}>
+          <div>
+            <span className={EYEBROW}>STAY CONNECTED</span>
+            <h2 className="mb-2 mt-2 text-[28px] leading-[1.1] md:text-[34px]" style={HEAD}>
+              Follow Archer on Social Media.
+            </h2>
+            <p className="m-0 max-w-[540px] text-[15px] text-[#B3ADA5]">
+              Follow our official Instagram and Facebook channels for fleet highlights, exclusive events, and community updates.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3.5">
+            <a
+              href={st.social?.instagram || "https://www.instagram.com/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-[#1E1E1E] px-5 py-3 text-[14px] font-semibold text-[#F4F1EC] transition hover:border-[#E87722] hover:text-[#E87722]"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm5 3.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 2a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM17.5 5.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+              </svg>
+              Instagram
+            </a>
+            <a
+              href={st.social?.facebook || "https://www.facebook.com/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-[#1E1E1E] px-5 py-3 text-[14px] font-semibold text-[#F4F1EC] transition hover:border-[#E87722] hover:text-[#E87722]"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                <path d="M14 8h3V4h-3c-2.8 0-4.5 1.8-4.5 4.6V11H7v4h2.5v9h4v-9h3l.5-4h-3.5V9c0-.6.4-1 1-1z" />
+              </svg>
+              Facebook
+            </a>
+          </div>
+        </div>
+      </section>
 
       <section aria-label="Book with Archer" className="relative border-t border-[#2E2E2E] bg-[#0E0E0E]">
         <div className={`${WRAP} flex flex-col items-center gap-7 py-16 md:py-[140px] text-center`}>
@@ -229,7 +270,7 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
               <SocialLinks />
             </div>
             <FooterCol title="SERVICES" links={[["Hourly", "/services/hourly"], ["Airport", "/services/airport"], ["Point to Point", "/services/point-to-point"], ["Client Car Service", "/services/client-car"], ["Concierge", "/services/concierge"]]} />
-            <FooterCol title="ARCHER" links={[["Tiers of Service", "/tiers"], ["Fleet", "/fleet"], ["Security", "#security"], ["Careers", "/careers"], ["For EA's & PA's", "/services/assistants"]]} />
+            <FooterCol title="ARCHER" links={[["Tiers of Service", "/tiers"], ["Fleet", "/fleet"], ["Careers", "/careers"], ["Influencer Marketing", "/careers/influencer-marketing"], ["For EA's & PA's", "/services/assistants"]]} />
             <FooterCol title="BOOK" links={[["Book a Ride", "/book"], [`Call ${st.phone}`, `tel:${st.phone_tel}`]]} />
           </div>
           <div className="mt-12 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[#2E2E2E] pt-[22px] text-[12px]">
@@ -246,7 +287,13 @@ function FooterCol({ title, links }: { title: string; links: string[][] }) {
   return (
     <div className="flex flex-col gap-2">
       <strong className="text-[13px] tracking-[0.12em] text-[#F4F1EC]">{title}</strong>
-      {links.map(([l, h]) => (<a key={l} href={h} className="text-[#B3ADA5] hover:text-[#E87722]">{l}</a>))}
+      {links.map(([l, h]) =>
+        h.startsWith("/") ? (
+          <Link key={l} href={h} className="text-[#B3ADA5] hover:text-[#E87722]">{l}</Link>
+        ) : (
+          <a key={l} href={h} className="text-[#B3ADA5] hover:text-[#E87722]">{l}</a>
+        )
+      )}
     </div>
   );
 }

@@ -41,7 +41,7 @@ class FleetScheduleController extends Controller
             // Ignore if seeding already handled
         }
 
-        $dateStr = $request->query('date', '2026-11-18');
+        $dateStr = $request->query('date', now()->toDateString());
         $selectedDate = Carbon::parse($dateStr)->startOfDay();
 
         $vehicles = Vehicle::with('blockouts')->orderBy('sort_order', 'asc')->get();
@@ -66,9 +66,7 @@ class FleetScheduleController extends Controller
                 });
             }
             $hasActiveRide = false;
-            if (str_contains($v->name, 'Traverse')) {
-                $hasActiveRide = true;
-            } elseif (Schema::hasTable('ride_requests')) {
+            if (Schema::hasTable('ride_requests')) {
                 try {
                     $hasActiveRide = RideRequest::where(function ($q) use ($v) {
                         $q->where('vehicle_id', $v->id)
@@ -88,21 +86,6 @@ class FleetScheduleController extends Controller
             $classAndSize = $v->category ? (($v->class_type === 'first' ? '1st Class · ' : 'Executive Class · ').$v->category) : '1st Class · SUV';
 
             $bookedRides = [];
-            if (str_contains($v->name, 'Escalade #1')) {
-                $bookedRides = [
-                    'AR-1048 Thu, Nov 19, 7:17 AM',
-                    'AR-1050 Sat, Nov 21, 10:17 AM',
-                    'AR-1052 Sun, Nov 22, 11:17 AM',
-                ];
-            } elseif (str_contains($v->name, 'Escalade #2')) {
-                $bookedRides = [
-                    'AR-1051 Sat, Nov 21, 11:17 AM',
-                ];
-            } elseif (str_contains($v->name, 'Traverse')) {
-                $bookedRides = [
-                    'AR-1047 Wed, Nov 18, 10:05 AM',
-                ];
-            }
 
             return [
                 'id' => $v->id,
@@ -184,19 +167,6 @@ class FleetScheduleController extends Controller
 
             $bookings = array_merge($rideBookings->all(), $blockoutItems->all());
 
-            if (empty($bookings) && str_contains($v->name, 'Traverse') && $selectedDate->isSameDay(Carbon::parse('2026-11-18'))) {
-                $bookings = [
-                    [
-                        'ride_reference' => 'AR-1047',
-                        'client_name' => 'Grant',
-                        'label' => 'AR-1047 · Grant',
-                        'start_hour' => 10.08,
-                        'end_hour' => 14.08,
-                        'color' => 'amber',
-                    ],
-                ];
-            }
-
             return [
                 'vehicle_id' => (string) $v->id,
                 'vehicle_name' => $v->name,
@@ -230,7 +200,10 @@ class FleetScheduleController extends Controller
         ]);
 
         $vehicle = Vehicle::find($validated['vehicle_id']);
-        $vehicleName = $vehicle ? $vehicle->name : 'Fleet Vehicle';
+        if (! $vehicle) {
+            return ApiResponse::error('VEHICLE_NOT_FOUND', 'Vehicle not found.', 404);
+        }
+        $vehicleName = $vehicle->name;
 
         $blockout = VehicleBlockout::create([
             'vehicle_id' => $validated['vehicle_id'],

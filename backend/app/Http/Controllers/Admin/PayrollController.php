@@ -12,6 +12,8 @@ use App\Support\RideCloseoutMath;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -166,9 +168,8 @@ class PayrollController extends Controller
     {
         $validated = $request->validate([
             'driver_id' => 'required',
-            'pay_week_start' => 'required|string',
-            'pay_week_end' => 'required|string',
-            'amount' => 'required|numeric',
+            'pay_week_start' => 'required|date',
+            'pay_week_end' => 'required|date|after_or_equal:pay_week_start',
             'payment_method' => 'required|string|in:check,ach',
             'reference_number' => 'required|string|max:100',
             'notes' => 'nullable|string|max:500',
@@ -179,24 +180,44 @@ class PayrollController extends Controller
             return ApiResponse::error('DRIVER_NOT_FOUND', 'Driver not found.', 422);
         }
 
-        $disbursement = PayrollDisbursement::updateOrCreate(
-            [
-                'driver_id' => $driver->id,
-                'pay_week_start' => $validated['pay_week_start'],
-            ],
-            [
-                'pay_week_end' => $validated['pay_week_end'],
-                'gross_earnings' => $validated['amount'],
-                'cash_deductions' => 0,
-                'carried_balance' => 0,
-                'net_amount' => $validated['amount'],
-                'payment_method' => $validated['payment_method'],
-                'reference_number' => $validated['reference_number'],
-                'disbursed_at' => now(),
-                'notes' => $validated['notes'] ?? null,
-                'created_by' => $request->user()?->id,
-            ]
-        );
+        $weekStart = Carbon::parse($validated['pay_week_start'])->startOfDay();
+        $weekEnd = Carbon::parse($validated['pay_week_end'])->endOfDay();
+        $rides = Schema::hasTable('ride_requests')
+            ? RideRequest::with('assignedDriver')
+                ->where('assigned_driver_id', $driver->id)
+                ->where('status', 'completed')
+                ->where(function ($q) use ($weekStart, $weekEnd) {
+                    $q->whereBetween('ride_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                        ->orWhereBetween('updated_at', [$weekStart, $weekEnd]);
+                })
+                ->get()
+            : collect();
+
+        $summary = $this->summarizeDriverRides($driver, $rides);
+        if ($summary['net_amount'] <= 0) {
+            return ApiResponse::error('NO_PAYOUT_DUE', 'Driver has no positive net payout due for this pay week.', 422);
+        }
+
+        $disbursement = DB::transaction(function () use ($driver, $weekStart, $weekEnd, $summary, $validated, $request): PayrollDisbursement {
+            return PayrollDisbursement::updateOrCreate(
+                [
+                    'driver_id' => $driver->id,
+                    'pay_week_start' => $weekStart->toDateString(),
+                ],
+                [
+                    'pay_week_end' => $weekEnd->toDateString(),
+                    'gross_earnings' => $summary['gross_earnings'],
+                    'cash_deductions' => $summary['cash_deductions'],
+                    'carried_balance' => 0,
+                    'net_amount' => $summary['net_amount'],
+                    'payment_method' => $validated['payment_method'],
+                    'reference_number' => $validated['reference_number'],
+                    'disbursed_at' => now(),
+                    'notes' => $validated['notes'] ?? null,
+                    'created_by' => $request->user()?->id,
+                ]
+            );
+        });
 
         AuditLog::record(
             'payroll.disbursed',
@@ -204,7 +225,7 @@ class PayrollController extends Controller
             [
                 'driver_id' => $driver->id,
                 'driver_name' => $driver->name,
-                'amount' => $validated['amount'],
+                'amount' => $summary['net_amount'],
                 'method' => $validated['payment_method'],
                 'reference' => $validated['reference_number'],
             ],
@@ -215,6 +236,36 @@ class PayrollController extends Controller
             'message' => 'Disbursement recorded successfully.',
             'disbursement' => $disbursement,
         ]);
+    }
+
+    /**
+     * @param  Collection<int, RideRequest>  $rides
+     * @return array{gross_earnings: float, cash_deductions: float, net_amount: float}
+     */
+    private function summarizeDriverRides(Driver $driver, Collection $rides): array
+    {
+        $grossEarnings = 0.0;
+        $cashDeductions = 0.0;
+
+        foreach ($rides as $ride) {
+            $row = RideCloseoutMath::ledgerRow($ride);
+            if ($row === null) {
+                continue;
+            }
+            $grossEarnings += round($row['driver_pay'] + $row['tip'], 2);
+            if (strcasecmp($row['method'], 'Cash') === 0) {
+                $cashDeductions += $row['client_paid'];
+            }
+        }
+
+        $grossEarnings = round($grossEarnings, 2);
+        $cashDeductions = round($cashDeductions, 2);
+
+        return [
+            'gross_earnings' => $grossEarnings,
+            'cash_deductions' => $cashDeductions,
+            'net_amount' => round($grossEarnings - $cashDeductions, 2),
+        ];
     }
 
     public function export(Request $request): StreamedResponse

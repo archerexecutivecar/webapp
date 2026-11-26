@@ -145,14 +145,14 @@ class IntegrationSettingsController extends Controller
                 'exception' => $e,
             ]);
 
-            return ApiResponse::error('UPDATE_FAILED', 'Failed to update integration settings: ' . $e->getMessage(), 500);
+            return ApiResponse::error('UPDATE_FAILED', 'Failed to update integration settings.', 500);
         }
     }
 
     public function publicConfig(): JsonResponse
     {
-        $browserKey = env('GOOGLE_MAPS_BROWSER_KEY');
-        $publishable = env('STRIPE_KEY');
+        $browserKey = config('services.google_maps.browser_key');
+        $publishable = config('services.stripe.key');
         $provider = 'stripe';
         $countryCodes = ['us'];
         $serviceArea = null;

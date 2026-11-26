@@ -32,6 +32,7 @@ export interface DriverSummary {
   email: string | null;
   phone: string | null;
   service_tier: number | null;
+  eligible_tiers?: number[];
   tier?: { tier: number; name: string } | null;
   avatar_url: string | null;
   bio: string | null;
@@ -127,6 +128,7 @@ export default function DriversPage() {
   const [ownerInsExpires, setOwnerInsExpires] = useState('');
   const [ownerInspected, setOwnerInspected] = useState(false);
   const [selectedTier, setSelectedTier] = useState<number>(3);
+  const [selectedEligibleTiers, setSelectedEligibleTiers] = useState<number[]>([1, 2, 3]);
 
   // New Driver Onboarding Modal
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -134,6 +136,7 @@ export default function DriversPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newTier, setNewTier] = useState(1);
+  const [newEligibleTiers, setNewEligibleTiers] = useState<number[]>([1]);
 
   const fetchDrivers = async () => {
     try {
@@ -188,7 +191,13 @@ export default function DriversPage() {
       setOwnerRegExpires(d.owner_vehicle_reg_expires || '');
       setOwnerInsExpires(d.owner_vehicle_ins_expires || '');
       setOwnerInspected(Boolean(d.owner_vehicle_inspected));
-      setSelectedTier(d.service_tier || 3);
+      const baseTier = d.service_tier || 3;
+      setSelectedTier(baseTier);
+      setSelectedEligibleTiers(
+        Array.isArray(d.eligible_tiers) && d.eligible_tiers.length > 0
+          ? d.eligible_tiers
+          : Array.from({ length: baseTier }, (_, i) => i + 1)
+      );
       if (switchView) {
         setViewMode('profile');
       }
@@ -230,6 +239,7 @@ export default function DriversPage() {
       phone: editPhone,
       email: editEmail,
       service_tier: overrides.service_tier !== undefined ? overrides.service_tier : selectedTier,
+      eligible_tiers: overrides.eligible_tiers !== undefined ? overrides.eligible_tiers : selectedEligibleTiers,
       is_fleet_operator: overrides.is_fleet_operator !== undefined ? overrides.is_fleet_operator : isFleetOp,
       is_client_car_operator: overrides.is_client_car_operator !== undefined ? overrides.is_client_car_operator : isClientCarOp,
       is_owner_operator: overrides.is_owner_operator !== undefined ? overrides.is_owner_operator : isOwnerOp,
@@ -277,7 +287,20 @@ export default function DriversPage() {
 
   const handleSelectTier = (tier: number) => {
     setSelectedTier(tier);
-    handleSaveDetails({ service_tier: tier });
+    const autoEligible = Array.from({ length: tier }, (_, i) => i + 1);
+    setSelectedEligibleTiers(autoEligible);
+    handleSaveDetails({ service_tier: tier, eligible_tiers: autoEligible });
+  };
+
+  const handleToggleEligibleTier = (tier: number) => {
+    if (tier > selectedTier) return; // Lower qualification cannot select higher tier
+    const exists = selectedEligibleTiers.includes(tier);
+    const next = exists
+      ? selectedEligibleTiers.filter((t) => t !== tier)
+      : [...selectedEligibleTiers, tier].sort((a, b) => a - b);
+    if (next.length === 0) return; // At least one tier required
+    setSelectedEligibleTiers(next);
+    handleSaveDetails({ service_tier: selectedTier, eligible_tiers: next });
   };
 
   const handleToggleActive = async () => {
@@ -332,6 +355,7 @@ export default function DriversPage() {
           email: newEmail.trim() || null,
           phone: newPhone.trim() || null,
           service_tier: newTier,
+          eligible_tiers: newEligibleTiers,
           is_active: true,
           is_fleet_operator: true,
           is_client_car_operator: false,
@@ -770,58 +794,66 @@ export default function DriversPage() {
               )}
 
               {/* Tiers Multi-Select (Screenshot 4) */}
-              <div className="space-y-2 pt-2">
-                <label className="block text-[11px] text-muted-foreground">
-                  Tiers (only admin can change these)
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(1)}
-                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                      selectedTier === 1
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    T1 Essential
-                  </button>
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="block text-[11px] text-muted-foreground mb-1.5">
+                    Qualification Tier (sets highest tier; higher tiers automatically unlock lower tiers)
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { tier: 1, label: 'T1 Essential' },
+                      { tier: 2, label: 'T2 Executive' },
+                      { tier: 3, label: 'T3 Elite' },
+                      { tier: 4, label: 'T4 Armed (Inactive)' },
+                    ].map((t) => (
+                      <button
+                        key={t.tier}
+                        type="button"
+                        onClick={() => handleSelectTier(t.tier)}
+                        className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                          selectedTier === t.tier
+                            ? 'bg-amber-600 text-white shadow-xs'
+                            : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(2)}
-                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                      selectedTier === 2
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    T2 Executive
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(3)}
-                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                      selectedTier === 3
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'border border-border bg-background text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    T3 Elite
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTier(4)}
-                    className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                      selectedTier === 4
-                        ? 'bg-amber-600 text-white shadow-xs'
-                        : 'border border-border bg-background text-muted-foreground/60 hover:bg-muted'
-                    }`}
-                  >
-                    T4 Armed (Inactive)
-                  </button>
+                <div>
+                  <label className="block text-[11px] text-muted-foreground mb-1.5">
+                    Active Eligible Ride Tiers (multi-select within qualification)
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { tier: 1, label: 'Tier 1 · Essential' },
+                      { tier: 2, label: 'Tier 2 · Executive' },
+                      { tier: 3, label: 'Tier 3 · Elite' },
+                      { tier: 4, label: 'Tier 4 · Armed' },
+                    ].map((t) => {
+                      const allowed = t.tier <= selectedTier;
+                      const active = selectedEligibleTiers.includes(t.tier);
+                      return (
+                        <button
+                          key={t.tier}
+                          type="button"
+                          disabled={!allowed}
+                          onClick={() => handleToggleEligibleTier(t.tier)}
+                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                            !allowed
+                              ? 'border border-border/50 bg-muted/40 text-muted-foreground/40 cursor-not-allowed'
+                              : active
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'border border-border bg-background text-muted-foreground hover:bg-muted'
+                          }`}
+                        >
+                          {active ? '✓ ' : ''}{t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -1183,7 +1215,11 @@ export default function DriversPage() {
                 </label>
                 <select
                   value={newTier}
-                  onChange={(e) => setNewTier(Number(e.target.value))}
+                  onChange={(e) => {
+                    const t = Number(e.target.value);
+                    setNewTier(t);
+                    setNewEligibleTiers(Array.from({ length: t }, (_, i) => i + 1));
+                  }}
                   className="w-full h-8 px-2 rounded border border-border bg-background text-foreground text-xs"
                 >
                   <option value={1}>T1 Essential ($25/hr)</option>
@@ -1191,6 +1227,43 @@ export default function DriversPage() {
                   <option value={3}>T3 Elite ($35/hr)</option>
                   <option value={4}>T4 Armed ($55/hr)</option>
                 </select>
+                <div className="mt-2">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Eligible Ride Tiers (auto-includes lower tiers)
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[1, 2, 3, 4].map((t) => {
+                      const allowed = t <= newTier;
+                      const checked = newEligibleTiers.includes(t);
+                      return (
+                        <label
+                          key={t}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-[11px] ${
+                            !allowed
+                              ? 'opacity-40 cursor-not-allowed border-border bg-muted/40'
+                              : checked
+                              ? 'border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400 cursor-pointer'
+                              : 'border-border cursor-pointer'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            disabled={!allowed}
+                            checked={checked}
+                            onChange={() => {
+                              if (!allowed) return;
+                              const next = checked
+                                ? newEligibleTiers.filter((x) => x !== t)
+                                : [...newEligibleTiers, t].sort((a, b) => a - b);
+                              if (next.length > 0) setNewEligibleTiers(next);
+                            }}
+                          />
+                          T{t}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
             </form>

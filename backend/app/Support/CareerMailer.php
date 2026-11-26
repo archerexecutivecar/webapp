@@ -21,7 +21,7 @@ class CareerMailer
         try {
             $name = $application->full_name ?: 'Applicant';
             $code = $application->reference_code;
-            $siteUrl = rtrim((string) env('NEXT_PUBLIC_SITE_URL', 'https://archerexecutivecar.com'), '/');
+            $siteUrl = rtrim((string) config('services.app_urls.site', 'https://archerexecutivecar.com'), '/');
             $trackUrl = "{$siteUrl}/careers?track={$code}";
 
             $tierInfo = $application->selected_tier ? "\n  Selected Tier: {$application->selected_tier}" : '';

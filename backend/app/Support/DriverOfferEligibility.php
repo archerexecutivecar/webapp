@@ -25,11 +25,12 @@ class DriverOfferEligibility
 
     public static function driverMatches(Driver $driver, RideRequest $ride): bool
     {
-        if (! $driver->is_active || $driver->service_tier === null) {
+        if (! $driver->is_active) {
             return false;
         }
 
-        if ((int) $driver->service_tier > self::requiredTier($ride)) {
+        $eligibleTiers = $driver->resolvedEligibleTiers();
+        if ($eligibleTiers === [] || ! in_array(self::requiredTier($ride), $eligibleTiers, true)) {
             return false;
         }
 
@@ -43,10 +44,7 @@ class DriverOfferEligibility
     /** @return Collection<int, Driver> */
     public static function eligibleDrivers(RideRequest $ride): Collection
     {
-        $query = Driver::query()
-            ->where('is_active', true)
-            ->whereNotNull('service_tier')
-            ->where('service_tier', '<=', self::requiredTier($ride));
+        $query = Driver::query()->where('is_active', true);
 
         if (self::isClientCar($ride)) {
             $query->where('is_client_car_operator', true);
@@ -54,6 +52,8 @@ class DriverOfferEligibility
             $query->where('is_fleet_operator', true);
         }
 
-        return $query->get();
+        return $query->get()
+            ->filter(fn (Driver $driver) => self::driverMatches($driver, $ride))
+            ->values();
     }
 }

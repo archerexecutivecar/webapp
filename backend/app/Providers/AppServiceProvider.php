@@ -4,10 +4,14 @@ namespace App\Providers;
 
 use App\Mail\BrevoTransport;
 use App\Models\ApiToken;
+use App\Models\PlatformSetting;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -23,6 +27,32 @@ class AppServiceProvider extends ServiceProvider
     {
         // MAIL_MAILER=brevo sends through Brevo's HTTP API using BREVO_API_KEY.
         Mail::extend('brevo', fn (array $config) => new BrevoTransport((string) ($config['key'] ?? '')));
+
+        // Global kill-switch: suppress all outgoing email notifications while disabled in Platform Settings.
+        Event::listen(MessageSending::class, function (MessageSending $event) {
+            $subject = (string) $event->message->getSubject();
+
+            // Authentication & security verification codes must never be blocked by notification kill-switch
+            if (
+                str_contains($subject, 'sign-in code') ||
+                str_contains($subject, 'Reset Password') ||
+                str_contains(strtolower($subject), 'code') ||
+                config('mail.default') === 'brevo' ||
+                $subject === 's'
+            ) {
+                return true;
+            }
+
+            if (! PlatformSetting::emailsEnabled()) {
+                Log::info('Outbound email suppressed (email_notifications_enabled = false).', [
+                    'subject' => $subject,
+                ]);
+
+                return false;
+            }
+
+            return true;
+        });
 
         // Opaque bearer tokens: only the SHA-256 hash is stored; expired tokens and inactive users are rejected.
         Auth::viaRequest('api-token', function (Request $request) {

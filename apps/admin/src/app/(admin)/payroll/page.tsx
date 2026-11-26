@@ -115,7 +115,6 @@ export default function PayrollPage() {
           driver_id: selectedDriver.id,
           pay_week_start: data.pay_week.start,
           pay_week_end: data.pay_week.end,
-          amount: selectedDriver.net_amount,
           payment_method: paymentMethod,
           reference_number: referenceNumber,
           notes,

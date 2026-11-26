@@ -106,6 +106,7 @@ class Ride {
   final double? dropoffLat;
   final double? dropoffLng;
   final bool canCancel;
+  final String? cancellationReason;
 
   Ride({
     required this.id,
@@ -129,6 +130,7 @@ class Ride {
     this.dropoffLat,
     this.dropoffLng,
     this.canCancel = false,
+    this.cancellationReason,
   });
 
   factory Ride.fromJson(Map<String, dynamic> json) {
@@ -167,6 +169,7 @@ class Ride {
       dropoffLat: (json['dropoff_lat'] as num?)?.toDouble(),
       dropoffLng: (json['dropoff_lng'] as num?)?.toDouble(),
       canCancel: json['can_cancel'] == true,
+      cancellationReason: json['cancellation_reason']?.toString(),
     );
   }
 

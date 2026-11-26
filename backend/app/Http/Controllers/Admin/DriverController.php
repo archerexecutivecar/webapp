@@ -39,6 +39,8 @@ class DriverController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:50',
             'service_tier' => 'nullable|integer|exists:site_tiers,tier,kind,driver',
+            'eligible_tiers' => 'nullable|array',
+            'eligible_tiers.*' => 'integer|exists:site_tiers,tier,kind,driver',
             'avatar_url' => 'nullable|string|max:255',
             'bio' => 'nullable|string',
             'sort_order' => 'nullable|integer',
@@ -102,7 +104,14 @@ class DriverController extends Controller
 
             // service_tier was added after the original drivers table; skip when schema is behind.
             if (Schema::hasColumn('drivers', 'service_tier')) {
-                $driverData['service_tier'] = $validated['service_tier'] ?? null;
+                [$resolvedTier, $resolvedEligible] = Driver::resolveTierHierarchy(
+                    isset($validated['service_tier']) ? (int) $validated['service_tier'] : null,
+                    $validated['eligible_tiers'] ?? null
+                );
+                $driverData['service_tier'] = $resolvedTier;
+                if (Schema::hasColumn('drivers', 'eligible_tiers')) {
+                    $driverData['eligible_tiers'] = $resolvedEligible;
+                }
             }
 
             // Operating-mode columns (migration 2026_11_21_000001). Guard so a delayed
@@ -147,6 +156,8 @@ class DriverController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:50',
             'service_tier' => 'nullable|integer|exists:site_tiers,tier,kind,driver',
+            'eligible_tiers' => 'nullable|array',
+            'eligible_tiers.*' => 'integer|exists:site_tiers,tier,kind,driver',
             'avatar_url' => 'nullable|string|max:255',
             'bio' => 'nullable|string',
             'sort_order' => 'nullable|integer',
@@ -201,7 +212,21 @@ class DriverController extends Controller
             ];
 
             if (Schema::hasColumn('drivers', 'service_tier')) {
-                $updates['service_tier'] = array_key_exists('service_tier', $validated) ? $validated['service_tier'] : $driver->service_tier;
+                $targetTier = array_key_exists('service_tier', $validated)
+                    ? ($validated['service_tier'] !== null ? (int) $validated['service_tier'] : null)
+                    : $driver->service_tier;
+                $targetEligible = array_key_exists('eligible_tiers', $validated)
+                    ? $validated['eligible_tiers']
+                    : null;
+
+                // When service_tier changes without an explicit eligible_tiers list, re-derive 1..N.
+                if (array_key_exists('service_tier', $validated) || $targetEligible !== null) {
+                    [$resolvedTier, $resolvedEligible] = Driver::resolveTierHierarchy($targetTier, $targetEligible);
+                    $updates['service_tier'] = $resolvedTier;
+                    if (Schema::hasColumn('drivers', 'eligible_tiers')) {
+                        $updates['eligible_tiers'] = $resolvedEligible;
+                    }
+                }
             }
 
             if (Schema::hasColumn('drivers', 'is_fleet_operator')) {
@@ -271,6 +296,7 @@ class DriverController extends Controller
             'email' => $d->email,
             'phone' => $d->phone,
             'service_tier' => $d->service_tier,
+            'eligible_tiers' => $d->resolvedEligibleTiers(),
             'tier' => $d->tier ? ['tier' => $d->tier->tier, 'name' => $d->tier->label] : null,
             'avatar_url' => $d->avatar_url,
             'bio' => $d->bio,
@@ -317,6 +343,7 @@ class DriverController extends Controller
             'email' => $d->email,
             'phone' => $d->phone,
             'service_tier' => $d->service_tier,
+            'eligible_tiers' => $d->resolvedEligibleTiers(),
             'tier' => $d->tier ? ['tier' => $d->tier->tier, 'name' => $d->tier->label] : null,
             'avatar_url' => $d->avatar_url,
             'bio' => $d->bio,

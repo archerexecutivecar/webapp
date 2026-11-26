@@ -26,5 +26,24 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Run admin smoke suite
-        run: php artisan test --group=smoke
+      - name: Run full backend test suite
+        run: php artisan test
+
+  frontend-typecheck:
+    name: Frontend TypeScript checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Typecheck apps
+        run: |
+          for app in apps/admin apps/client apps/driver; do
+            echo "=== $app ==="
+            (cd "$app" && npm ci && npx tsc --noEmit)
+          done

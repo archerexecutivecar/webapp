@@ -78,11 +78,31 @@ class PayrollTest extends TestCase
             'is_active' => true,
         ]);
 
+        RideRequest::create([
+            'reference' => 'AR-9002',
+            'phone' => '+15551234567',
+            'service_type' => 'hourly',
+            'first_name' => 'Priya',
+            'last_name' => 'Nair',
+            'status' => 'completed',
+            'ride_date' => '2026-11-18',
+            'assigned_driver_id' => $driver->id,
+            'details' => [
+                'fare' => 840.00,
+                'tip' => 110.00,
+                'driver_pay' => 135.00,
+                'client_paid' => 1010.98,
+                'payment_method' => 'Card',
+                'hours' => 4.5,
+                'tier_rate' => 30.00,
+            ],
+        ]);
+
         $payload = [
             'driver_id' => $driver->id,
             'pay_week_start' => '2026-11-16',
             'pay_week_end' => '2026-11-22',
-            'amount' => 245.00,
+            'amount' => 99999.00, // tampered client amount must be ignored
             'payment_method' => 'check',
             'reference_number' => 'CHK-10892',
             'notes' => 'Archer check signed by director',
@@ -102,5 +122,25 @@ class PayrollTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'event' => 'payroll.disbursed',
         ]);
+    }
+
+    public function test_disbursement_rejects_driver_with_no_payout_due(): void
+    {
+        [, $headers] = $this->actingAsRole('super_admin');
+
+        $driver = Driver::create([
+            'name' => 'Idle Driver',
+            'email' => 'idle.driver@archer.test',
+            'phone' => '(732) 555-0142',
+            'is_active' => true,
+        ]);
+
+        $this->withHeaders($headers)->postJson('/api/v1/admin/payroll/disbursements', [
+            'driver_id' => $driver->id,
+            'pay_week_start' => '2026-11-16',
+            'pay_week_end' => '2026-11-22',
+            'payment_method' => 'ach',
+            'reference_number' => 'ACH-001',
+        ])->assertStatus(422)->assertJsonPath('error.code', 'NO_PAYOUT_DUE');
     }
 }

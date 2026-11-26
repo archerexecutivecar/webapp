@@ -52,6 +52,6 @@ class IntegrationSetting extends Model
     {
         $fromDb = $this->stripe_webhook_secret;
 
-        return $fromDb ?: (env('STRIPE_WEBHOOK_SECRET') ?: null);
+        return $fromDb ?: (config('services.stripe.webhook_secret') ?: null);
     }
 }

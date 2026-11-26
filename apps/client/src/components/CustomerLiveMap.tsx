@@ -41,6 +41,10 @@ export function CustomerLiveMap({ rideId, status }: CustomerLiveMapProps) {
   const dropoffMarkerRef = useRef<any>(null);
   const directionsRendererRef = useRef<any>(null);
   const directionsServiceRef = useRef<any>(null);
+  const hasFittedBoundsRef = useRef(false);
+  const lastBoundsRef = useRef<any>(null);
+  const lastRouteOriginRef = useRef<{ lat: number; lng: number; at: number } | null>(null);
+  const animFrameRef = useRef<number | null>(null);
 
   // Poll tracking data every 6 seconds
   useEffect(() => {
@@ -219,21 +223,55 @@ export function CustomerLiveMap({ rideId, status }: CustomerLiveMapProps) {
           },
         });
       } else {
-        driverMarkerRef.current.setPosition(driverPos);
-        const icon = driverMarkerRef.current.getIcon();
-        if (icon) {
-          icon.rotation = heading;
-          driverMarkerRef.current.setIcon(icon);
+        const startLatLng = driverMarkerRef.current.getPosition();
+        const startPos = startLatLng
+          ? { lat: startLatLng.lat(), lng: startLatLng.lng() }
+          : driverPos;
+        const startIcon = driverMarkerRef.current.getIcon();
+        const startHeading = typeof startIcon?.rotation === 'number' ? startIcon.rotation : heading;
+        const deltaHeading = ((heading - startHeading + 540) % 360) - 180;
+
+        if (animFrameRef.current != null) {
+          cancelAnimationFrame(animFrameRef.current);
         }
+
+        const durationMs = 1200;
+        const startedAt = performance.now();
+        const step = (now: number) => {
+          const t = Math.min(1, (now - startedAt) / durationMs);
+          const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+          const lat = startPos.lat + (driverPos.lat - startPos.lat) * eased;
+          const lng = startPos.lng + (driverPos.lng - startPos.lng) * eased;
+          driverMarkerRef.current?.setPosition({ lat, lng });
+
+          const icon = driverMarkerRef.current?.getIcon();
+          if (icon) {
+            icon.rotation = (startHeading + deltaHeading * eased + 360) % 360;
+            driverMarkerRef.current?.setIcon(icon);
+          }
+
+          if (t < 1) {
+            animFrameRef.current = requestAnimationFrame(step);
+          } else {
+            animFrameRef.current = null;
+          }
+        };
+        animFrameRef.current = requestAnimationFrame(step);
       }
       bounds.extend(driverPos);
 
-      // 4. Calculate Driving Route from Driver to Target
+      // 4. Calculate Driving Route from Driver to Target (throttled to >=30s or >~150m move)
       const targetPos = ['ride_started', 'in_progress'].includes(data.status)
         ? (data.dropoff.lat != null && data.dropoff.lng != null ? { lat: data.dropoff.lat, lng: data.dropoff.lng } : null)
         : (data.pickup.lat != null && data.pickup.lng != null ? { lat: data.pickup.lat, lng: data.pickup.lng } : null);
 
-      if (targetPos && directionsServiceRef.current && directionsRendererRef.current) {
+      const prevRoute = lastRouteOriginRef.current;
+      const movedEnough = !prevRoute
+        || Math.hypot(driverPos.lat - prevRoute.lat, driverPos.lng - prevRoute.lng) > 0.0015
+        || Date.now() - prevRoute.at > 30000;
+
+      if (targetPos && movedEnough && directionsServiceRef.current && directionsRendererRef.current) {
+        lastRouteOriginRef.current = { lat: driverPos.lat, lng: driverPos.lng, at: Date.now() };
         directionsServiceRef.current.route(
           {
             origin: driverPos,
@@ -250,8 +288,19 @@ export function CustomerLiveMap({ rideId, status }: CustomerLiveMapProps) {
     }
 
     if (!bounds.isEmpty()) {
-      map.fitBounds(bounds, 60);
+      lastBoundsRef.current = bounds;
+      if (!hasFittedBoundsRef.current) {
+        map.fitBounds(bounds, 60);
+        hasFittedBoundsRef.current = true;
+      }
     }
+
+    return () => {
+      if (animFrameRef.current != null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    };
   }, [mapLoaded, data]);
 
   // Don't show if ride has no coordinate data at all
@@ -319,14 +368,41 @@ export function CustomerLiveMap({ rideId, status }: CustomerLiveMapProps) {
       </div>
 
       {/* Map Canvas */}
-      <div
-        ref={mapContainerRef}
-        style={{
-          width: '100%',
-          height: 280,
-          background: '#121316',
-        }}
-      />
+      <div style={{ position: 'relative' }}>
+        <div
+          ref={mapContainerRef}
+          style={{
+            width: '100%',
+            height: 280,
+            background: '#121316',
+          }}
+        />
+        {mapLoaded && (
+          <button
+            type="button"
+            onClick={() => {
+              if (mapInstanceRef.current && lastBoundsRef.current) {
+                mapInstanceRef.current.fitBounds(lastBoundsRef.current, 60);
+              }
+            }}
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              background: 'rgba(20, 21, 25, 0.9)',
+              color: '#d4af37',
+              border: '1px solid rgba(212, 175, 55, 0.4)',
+              borderRadius: 999,
+              padding: '5px 10px',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Recenter
+          </button>
+        )}
+      </div>
 
       {/* Footer Location Summary */}
       <div
