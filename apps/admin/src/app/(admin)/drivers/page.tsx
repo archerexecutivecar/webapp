@@ -500,9 +500,27 @@ export default function DriversPage() {
                         </td>
 
                         <td className="py-3 px-3">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
-                            T{d.service_tier || 1} {d.tier?.name || 'Essential'}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {(d.eligible_tiers && d.eligible_tiers.length > 0
+                              ? d.eligible_tiers
+                              : [d.service_tier || 1]
+                            ).map((t) => {
+                              const labels: Record<number, string> = {
+                                1: 'T1 Essential',
+                                2: 'T2 Executive',
+                                3: 'T3 Elite',
+                                4: 'T4 Armed',
+                              };
+                              return (
+                                <span
+                                  key={t}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800"
+                                >
+                                  {labels[t] || `T${t}`}
+                                </span>
+                              );
+                            })}
+                          </div>
                         </td>
 
                         <td className="py-3 px-3">

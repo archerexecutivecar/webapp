@@ -1133,6 +1133,7 @@ export default function AdminCareersPage() {
                 style={{ width: '100%', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '9px 12px', color: 'var(--text)', fontSize: '0.85rem' }}
               >
                 <option value="Chauffeur Operations">Chauffeur Operations</option>
+                <option value="Influencer Marketing">Influencer Marketing</option>
                 <option value="Security Detail">Security Detail</option>
                 <option value="Dispatch & Logistics">Dispatch & Logistics</option>
                 <option value="Fleet Operations">Fleet Operations</option>

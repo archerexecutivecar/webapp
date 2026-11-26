@@ -139,13 +139,14 @@ export default function SettingsPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { href: '/settings', label: 'Platform rules', desc: 'Booking notice & dispatch buttons' },
-          { href: '/settings/brand', label: 'Brand', desc: 'Name, logo, phone, and email' },
+          { href: '/settings/brand', label: 'Brand & social', desc: 'Name, logo, contact & social links' },
           { href: '/settings/careers', label: 'Careers switch', desc: 'Enable / disable public careers page' },
           { href: '/settings/integrations', label: 'Integrations', desc: 'Maps, Stripe, SMS, DocuSign' },
           { href: '/site-content', label: 'Page content', desc: 'Homepage & marketing copy' },
           { href: '/site-tiers', label: 'Tiers', desc: 'Public tier table' },
           { href: '/testimonials', label: 'Testimonials', desc: 'Client quotes on site' },
           { href: '/cms-pages', label: 'CMS pages', desc: 'Marketing pages & sections' },
+          { href: '/social-club', label: 'Archer Social Club', desc: 'Events, spotlights, members & causes' },
         ].map((card) => (
           <Link
             key={card.href + card.label}

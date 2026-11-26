@@ -4,6 +4,13 @@ import Link from 'next/link';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
 
+type SocialLinks = {
+  instagram?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
+  x?: string | null;
+};
+
 type Brand = {
   brand_name: string;
   legal_name: string;
@@ -14,6 +21,7 @@ type Brand = {
   phone_secondary: string | null;
   email: string;
   address: string[];
+  social?: SocialLinks;
 };
 
 const empty = (): Brand => ({
@@ -26,6 +34,7 @@ const empty = (): Brand => ({
   phone_secondary: '',
   email: '',
   address: [],
+  social: { instagram: '', facebook: '', linkedin: '', x: '' },
 });
 
 export default function BrandSettingsPage() {
@@ -47,6 +56,12 @@ export default function BrandSettingsPage() {
         logo_url: brand.logo_url ?? '',
         phone_secondary: brand.phone_secondary ?? '',
         address: brand.address ?? [],
+        social: {
+          instagram: brand.social?.instagram ?? '',
+          facebook: brand.social?.facebook ?? '',
+          linkedin: brand.social?.linkedin ?? '',
+          x: brand.social?.x ?? '',
+        },
       });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load brand settings.');
@@ -82,6 +97,12 @@ export default function BrandSettingsPage() {
           phone_secondary: form.phone_secondary?.trim() || null,
           email: form.email.trim(),
           address,
+          social: {
+            instagram: form.social?.instagram?.trim() || null,
+            facebook: form.social?.facebook?.trim() || null,
+            linkedin: form.social?.linkedin?.trim() || null,
+            x: form.social?.x?.trim() || null,
+          },
         },
       });
       setForm({
@@ -89,6 +110,12 @@ export default function BrandSettingsPage() {
         tagline: res.brand.tagline ?? '',
         logo_url: res.brand.logo_url ?? '',
         phone_secondary: res.brand.phone_secondary ?? '',
+        social: {
+          instagram: res.brand.social?.instagram ?? '',
+          facebook: res.brand.social?.facebook ?? '',
+          linkedin: res.brand.social?.linkedin ?? '',
+          x: res.brand.social?.x ?? '',
+        },
       });
       setSuccess('Brand settings saved. The website, customer app, and driver app will show these values.');
       setTimeout(() => setSuccess(null), 4000);
@@ -172,6 +199,40 @@ export default function BrandSettingsPage() {
               }}
             />
           </label>
+
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18, marginBottom: 16 }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text)', marginBottom: 12 }}>
+              Social Media Links
+            </div>
+            {(['instagram', 'facebook', 'linkedin', 'x'] as const).map((network) => (
+              <label key={network} style={{ display: 'block', marginBottom: 12 }}>
+                <span style={{ display: 'block', fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {network === 'x' ? 'X (Twitter) URL' : `${network} URL`}
+                </span>
+                <input
+                  type="url"
+                  value={form.social?.[network] ?? ''}
+                  placeholder={`https://${network}.com/...`}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      social: { ...(f.social ?? {}), [network]: e.target.value },
+                    }))
+                  }
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 4,
+                    color: 'var(--text)',
+                    padding: '8px 10px',
+                    fontSize: '0.84rem',
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+
           <button
             type="submit"
             disabled={saving}

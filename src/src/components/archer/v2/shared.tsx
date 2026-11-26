@@ -18,6 +18,7 @@ const MENU = [
   ["FOR EA'S & PA'S", "/services/assistants"],
   ["TIERS OF SERVICE", "/tiers"],
   ["FLEET", "/fleet"],
+  ["ARCHER SOCIAL CLUB", "/social-club"],
   ["CAREERS", "/careers"],
   ["INFLUENCER MARKETING", "/careers/influencer-marketing"],
   ["BOOK A RIDE", "/book"],

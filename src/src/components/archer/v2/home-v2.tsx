@@ -270,7 +270,7 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
               <SocialLinks />
             </div>
             <FooterCol title="SERVICES" links={[["Hourly", "/services/hourly"], ["Airport", "/services/airport"], ["Point to Point", "/services/point-to-point"], ["Client Car Service", "/services/client-car"], ["Concierge", "/services/concierge"]]} />
-            <FooterCol title="ARCHER" links={[["Tiers of Service", "/tiers"], ["Fleet", "/fleet"], ["Careers", "/careers"], ["Influencer Marketing", "/careers/influencer-marketing"], ["For EA's & PA's", "/services/assistants"]]} />
+            <FooterCol title="ARCHER" links={[["Tiers of Service", "/tiers"], ["Fleet", "/fleet"], ["Archer Social Club", "/social-club"], ["Careers", "/careers"], ["Influencer Marketing", "/careers/influencer-marketing"], ["For EA's & PA's", "/services/assistants"]]} />
             <FooterCol title="BOOK" links={[["Book a Ride", "/book"], [`Call ${st.phone}`, `tel:${st.phone_tel}`]]} />
           </div>
           <div className="mt-12 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[#2E2E2E] pt-[22px] text-[12px]">

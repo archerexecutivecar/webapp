@@ -125,6 +125,7 @@ export default function RidesPage() {
 
   // Drawer state
   const [selectedRide, setSelectedRide] = useState<RideRequest | null>(null);
+  const [editStatus, setEditStatus] = useState<string>('pending');
   const [editServiceType, setEditServiceType] = useState('hourly');
   const [editPickupTime, setEditPickupTime] = useState('');
   const [editVehicle, setEditVehicle] = useState('');
@@ -225,6 +226,10 @@ export default function RidesPage() {
     setEditPickupAddress(ride.pickup_location || '');
     setEditDropoffAddress(ride.dropoff_location || '');
     setEditNotes(ride.dispatch_notes || '');
+    setEditStatus(ride.status);
+    setCancelPanelOpen(false);
+    setSelectedCancelReason('');
+    setNewCancelReason('');
     setEditRideAmount(String(ride.details?.ride_amount || 145));
     setEditPreferredDriver(ride.driver_preference || '');
     setEditAssignedDriverId(ride.assigned_driver_id || '');
@@ -282,10 +287,17 @@ export default function RidesPage() {
   const handleSaveRide = async (assignDriverId?: string) => {
     if (!selectedRide) return;
 
+    if (!assignDriverId && editStatus === 'cancelled' && selectedRide.status !== 'cancelled') {
+      setCancelPanelOpen(true);
+      setError('Please select or create a cancellation reason below and click Confirm cancellation.');
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
       const targetDriverId = assignDriverId !== undefined ? assignDriverId : (editAssignedDriverId || null);
+      const nextStatus = assignDriverId ? 'driver_assigned' : editStatus;
 
       const res = await api<{ ride: RideRequest }>(`/admin/rides/${selectedRide.id}`, {
         method: 'PUT',
@@ -299,7 +311,7 @@ export default function RidesPage() {
           dispatch_notes: editNotes,
           driver_preference: editPreferredDriver || null,
           assigned_driver_id: targetDriverId,
-          status: targetDriverId ? 'driver_assigned' : selectedRide.status,
+          status: nextStatus,
           details: {
             hours: Number(editHours) || 4,
             passengers: Number(editPassengers) || 2,
@@ -313,6 +325,7 @@ export default function RidesPage() {
 
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
       setSelectedRide(res.ride);
+      setEditStatus(res.ride.status);
       setSuccess(`Ride ${res.ride.reference} saved successfully.`);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -334,6 +347,7 @@ export default function RidesPage() {
       );
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
       setSelectedRide(res.ride);
+      setEditStatus(res.ride.status);
       setSuccess(res.message);
       setTimeout(() => setSuccess(null), 3500);
     } catch (err) {
@@ -355,6 +369,7 @@ export default function RidesPage() {
       );
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
       setSelectedRide(res.ride);
+      setEditStatus(res.ride.status);
       setSuccess(res.message);
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
@@ -459,6 +474,7 @@ export default function RidesPage() {
       });
       setRides((prev) => prev.map((r) => (r.id === res.ride.id ? res.ride : r)));
       setSelectedRide(res.ride);
+      setEditStatus(res.ride.status);
       setCancelPanelOpen(false);
       setSelectedCancelReason('');
       setNewCancelReason('');
@@ -1056,6 +1072,34 @@ export default function RidesPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Ride Status Selector */}
+              <div className="bg-muted/20 p-3 rounded-lg border border-border">
+                <label className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">
+                  Ride Status
+                </label>
+                <select
+                  value={editStatus}
+                  disabled={selectedRide.status === 'completed' || selectedRide.status === 'cancelled'}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setEditStatus(next);
+                    if (next === 'cancelled') {
+                      setCancelPanelOpen(true);
+                    }
+                  }}
+                  className="w-full h-8 px-2.5 rounded border border-border bg-background text-foreground text-xs font-semibold disabled:opacity-60"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="broadcast">Broadcast</option>
+                  <option value="dispatched">Driver Assigned</option>
+                  <option value="on_my_way">On My Way</option>
+                  <option value="at_doorstep">At Doorstep</option>
+                  <option value="in_progress">Ride in Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
 
               {/* Save Changes Button */}

@@ -42,7 +42,7 @@ class NavigationTest extends TestCase
 
     public function test_content_roles_see_only_website_items(): void
     {
-        $expected = ['testimonials', 'site-content', 'cms-pages'];
+        $expected = ['testimonials', 'site-content', 'cms-pages', 'social-club'];
         $this->assertEqualsCanonicalizing($expected, $this->keysFor('content_editor'));
         $this->assertEqualsCanonicalizing($expected, $this->keysFor('content_publisher'));
     }

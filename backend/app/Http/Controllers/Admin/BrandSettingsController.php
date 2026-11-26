@@ -15,18 +15,36 @@ class BrandSettingsController extends Controller
 {
     public function show(): JsonResponse
     {
+        $data = SiteContent::find('settings')?->data;
+        $brand = BrandSettings::present($data);
+        $brand['social'] = is_array($data['social'] ?? null)
+            ? $data['social']
+            : ['instagram' => null, 'facebook' => null, 'linkedin' => null, 'x' => null];
+
         return ApiResponse::data([
-            'brand' => BrandSettings::present(SiteContent::find('settings')?->data),
+            'brand' => $brand,
         ]);
     }
 
     public function update(Request $request): JsonResponse
     {
-        $request->merge([
+        $merge = [
             'tagline' => self::blankToNull($request->input('tagline')),
             'logo_url' => self::blankToNull($request->input('logo_url')),
             'phone_secondary' => self::blankToNull($request->input('phone_secondary')),
-        ]);
+        ];
+
+        if ($request->has('social') && is_array($request->input('social'))) {
+            $socialInput = $request->input('social');
+            $merge['social'] = [
+                'instagram' => self::blankToNull($socialInput['instagram'] ?? null),
+                'facebook' => self::blankToNull($socialInput['facebook'] ?? null),
+                'linkedin' => self::blankToNull($socialInput['linkedin'] ?? null),
+                'x' => self::blankToNull($socialInput['x'] ?? null),
+            ];
+        }
+
+        $request->merge($merge);
 
         $validated = $request->validate([
             'brand_name' => ['required', 'string', 'max:120'],
@@ -39,6 +57,11 @@ class BrandSettingsController extends Controller
             'email' => ['required', 'email', 'max:150'],
             'address' => ['required', 'array', 'min:1', 'max:5'],
             'address.*' => ['required', 'string', 'max:160'],
+            'social' => ['nullable', 'array'],
+            'social.instagram' => ['nullable', 'url', 'max:500'],
+            'social.facebook' => ['nullable', 'url', 'max:500'],
+            'social.linkedin' => ['nullable', 'url', 'max:500'],
+            'social.x' => ['nullable', 'url', 'max:500'],
         ]);
 
         $validated['brand_name'] = trim($validated['brand_name']);
@@ -67,9 +90,14 @@ class BrandSettingsController extends Controller
 
         AuditLog::record('brand.settings.updated', $request->user()?->id, $validated, $doc);
 
+        $brand = BrandSettings::present($doc->data);
+        $brand['social'] = is_array($doc->data['social'] ?? null)
+            ? $doc->data['social']
+            : ['instagram' => null, 'facebook' => null, 'linkedin' => null, 'x' => null];
+
         return ApiResponse::data([
             'message' => 'Brand settings saved.',
-            'brand' => BrandSettings::present($doc->data),
+            'brand' => $brand,
         ]);
     }
 

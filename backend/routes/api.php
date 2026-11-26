@@ -54,6 +54,12 @@ Route::prefix('v1')->group(function (): void {
     // Public Influencer Marketing Applications (stored & managed separately from Driver/Staff Careers)
     Route::post('/influencer-applications', [\App\Http\Controllers\PublicInfluencerApplicationController::class, 'store'])->middleware('throttle:public-submissions');
 
+    // Public Archer Social Club
+    Route::get('/social-club', [\App\Http\Controllers\PublicSocialClubController::class, 'index']);
+    Route::post('/social-club/join', [\App\Http\Controllers\PublicSocialClubController::class, 'join'])->middleware('throttle:public-submissions');
+    Route::post('/social-club/posts/{id}/like', [\App\Http\Controllers\PublicSocialClubController::class, 'toggleLike'])->middleware('throttle:60,1');
+    Route::post('/social-club/posts/{id}/comments', [\App\Http\Controllers\PublicSocialClubController::class, 'addComment'])->middleware('throttle:public-submissions');
+
     // Customer account: register directly, sign in with an emailed code (no password), or with email + password via /auth/login.
     Route::prefix('customer')->group(function (): void {
         Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:customer-code');
@@ -235,6 +241,16 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/influencer-applications/{id}', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'show']);
             Route::patch('/influencer-applications/{id}/status', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'updateStatus']);
             Route::get('/influencer-applications/{id}/resume', [\App\Http\Controllers\Admin\AdminInfluencerApplicationController::class, 'downloadResume']);
+
+            // Archer Social Club Administration
+            Route::get('/social-club/posts', [\App\Http\Controllers\Admin\SocialClubController::class, 'index']);
+            Route::post('/social-club/posts', [\App\Http\Controllers\Admin\SocialClubController::class, 'store']);
+            Route::put('/social-club/posts/{id}', [\App\Http\Controllers\Admin\SocialClubController::class, 'update']);
+            Route::delete('/social-club/posts/{id}', [\App\Http\Controllers\Admin\SocialClubController::class, 'destroy']);
+            Route::patch('/social-club/comments/{id}', [\App\Http\Controllers\Admin\SocialClubController::class, 'moderateComment']);
+            Route::get('/social-club/members', [\App\Http\Controllers\Admin\SocialClubController::class, 'members']);
+            Route::get('/social-club/config', [\App\Http\Controllers\Admin\SocialClubController::class, 'getConfig']);
+            Route::put('/social-club/config', [\App\Http\Controllers\Admin\SocialClubController::class, 'updateConfig']);
         });
 
         Route::get('/drivers', [DriverController::class, 'index'])->middleware('permission:drivers.view');

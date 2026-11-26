@@ -68,7 +68,7 @@ export function CareersClient() {
             getCareersJobs(),
             getCareersTiers(),
           ]);
-          setJobs(jobList);
+          setJobs(jobList.filter((j) => j.department !== "Influencer Marketing"));
           setTiers(tierList);
         }
       } catch {
@@ -163,6 +163,12 @@ export function CareersClient() {
 
         {/* Quick Jump Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/careers/apply?role=driver"
+            className="px-5 py-2.5 rounded-lg bg-[#E87722] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-[#F59A52] transition-colors"
+          >
+            Apply Now (3-Step) →
+          </Link>
           <a
             href="#openings"
             className="px-5 py-2.5 rounded-lg bg-[#c59b27] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#d6aa32] transition-colors"
@@ -917,26 +923,56 @@ export function CareersClient() {
       )}
 
       {/* Separated Influencer Marketing Application Portal (non-adjacent to Driver section) */}
-      <section className="mt-20 border-t border-white/10 pt-14">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="rounded-xl border border-white/10 bg-[#141414] p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <section className="mt-20 border-t-4 border-t-[#E87722] border-white/10 pt-14">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
+          <div className="grid gap-8 md:grid-cols-2 items-start">
             <div>
-              <span className="text-[#c59b27] font-semibold text-xs tracking-[0.22em] uppercase">
-                Brand & Creator Partnerships
+              <span className="text-[#E87722] font-semibold text-xs tracking-[0.22em] uppercase">
+                Now Hiring · Social Media &amp; Marketing
               </span>
-              <h2 className="text-2xl font-bold text-white mt-2">
-                Influencer Marketing Applications
+              <h2 className="text-3xl font-bold text-white mt-2">
+                Tell the Archer story.
               </h2>
-              <p className="text-sm text-[#B3ADA5] mt-2 max-w-xl">
-                Content creators, lifestyle influencers, and brand ambassadors interested in collaborating with Archer Executive Services apply through our dedicated creator portal.
+              <p className="text-sm text-[#B3ADA5] mt-3 leading-relaxed">
+                Archer is where luxury, safety and service meet: black cars at private jets, chauffeurs at galas, game days and first-date anniversaries. We&apos;re looking for a creator and marketer to show that world, grow our community and make Archer the name people think of first in New Jersey and New York.
               </p>
             </div>
-            <Link
-              href="/careers/influencer-marketing"
-              className="shrink-0 px-6 py-3 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-bold text-xs uppercase tracking-wider text-center"
-            >
-              Apply for Influencer Marketing →
-            </Link>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ["12+", "posts and reels / mo"],
+                ["2", "events covered on location"],
+                ["1", "Archer Club newsletter"],
+                ["1", "monthly growth report"],
+              ].map(([n, t]) => (
+                <div key={t} className="bg-[#181818] border-t-2 border-[#E87722] p-4">
+                  <div className="text-2xl font-extrabold text-white">{n}</div>
+                  <div className="text-xs text-[#B3ADA5] mt-1">{t}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 border-l-4 border-l-[#E87722] bg-[#141414] p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <h3 className="text-xl font-bold text-white">Show us your work.</h3>
+              <p className="text-sm text-[#B3ADA5] mt-1">
+                Three short steps: you, your work and portfolio, then availability. About five minutes.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 shrink-0">
+              <Link
+                href="/careers/apply?role=mkt"
+                className="px-6 py-3 rounded-lg bg-[#E87722] hover:bg-[#F59A52] text-[#121212] font-bold text-xs uppercase tracking-wider text-center"
+              >
+                Apply for Social Media &amp; Marketing →
+              </Link>
+              <Link
+                href="/careers/influencer-marketing"
+                className="px-5 py-3 rounded-lg border border-white/20 text-white font-semibold text-xs uppercase tracking-wider text-center"
+              >
+                Creator Portal
+              </Link>
+            </div>
           </div>
         </div>
       </section>

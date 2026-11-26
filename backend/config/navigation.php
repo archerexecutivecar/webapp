@@ -22,14 +22,17 @@ return [
             ['key' => 'pricing', 'label' => 'Payments & earnings', 'href' => '/pricing', 'icon' => 'credit-card', 'permissions' => ['payments.view', 'pricing.manage'], 'available' => true],
             ['key' => 'payroll', 'label' => 'Weekly payroll', 'href' => '/payroll', 'icon' => 'calculator', 'permissions' => ['payroll.view', 'payroll.manage'], 'available' => true],
         ]],
-        ['key' => 'setup', 'label' => 'SETUP', 'items' => [
+        ['key' => 'setup', 'label' => 'FLEET & SETTINGS', 'items' => [
             ['key' => 'fleet', 'label' => 'Fleet & availability', 'href' => '/site-vehicles', 'icon' => 'car', 'permissions' => ['fleet.manage'], 'available' => true],
             ['key' => 'rates', 'label' => 'Vehicles & rates', 'href' => '/site-rates', 'icon' => 'tag', 'permissions' => ['pricing.manage'], 'available' => true],
             ['key' => 'settings', 'label' => 'Settings', 'href' => '/settings', 'icon' => 'settings', 'permissions' => ['settings.manage'], 'available' => true],
+        ]],
+        ['key' => 'website', 'label' => 'WEBSITE & SOCIAL', 'items' => [
             ['key' => 'site-content', 'label' => 'Page Content', 'href' => '/site-content', 'icon' => 'file-text', 'permissions' => ['content.edit'], 'available' => true],
             ['key' => 'site-tiers', 'label' => 'Tiers', 'href' => '/site-tiers', 'icon' => 'shield-check', 'permissions' => ['tiers.manage'], 'available' => true],
             ['key' => 'testimonials', 'label' => 'Testimonials', 'href' => '/testimonials', 'icon' => 'message-square', 'permissions' => ['content.edit'], 'available' => true],
             ['key' => 'cms-pages', 'label' => 'CMS Pages', 'href' => '/cms-pages', 'icon' => 'file-text', 'permissions' => ['content.edit'], 'available' => true],
+            ['key' => 'social-club', 'label' => 'Archer Social Club', 'href' => '/social-club', 'icon' => 'megaphone', 'permissions' => ['content.edit', 'settings.manage'], 'available' => true],
         ]],
         ['key' => 'security', 'label' => 'SECURITY', 'items' => [
             ['key' => 'security-leads', 'label' => 'Security leads', 'href' => '/security/leads', 'icon' => 'shield-alert', 'permissions' => ['security.view', 'security.manage'], 'available' => true],

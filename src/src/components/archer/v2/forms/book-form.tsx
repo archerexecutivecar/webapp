@@ -26,8 +26,41 @@ export function BookForm() {
   const [guards, setGuards] = useState(0);
   const [passengers, setPassengers] = useState(1);
   const [bags, setBags] = useState(0);
+  const [pickupAddr, setPickupAddr] = useState("");
+  const [dropoffAddr, setDropoffAddr] = useState("");
+  const [rideDate, setRideDate] = useState("");
+  const [specialReq, setSpecialReq] = useState("");
+  const [eventName, setEventName] = useState<string | null>(null);
   const { submit, busy, errors, reference } = useSubmit("/booking-requests");
   const done = reference !== null;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const svcParam = sp.get("service");
+    if (svcParam) {
+      const mapped: Record<string, Svc> = {
+        hourly: "hourly",
+        airport: "airport",
+        "point-to-point": "p2p",
+        p2p: "p2p",
+        "client-car": "client",
+        client: "client",
+      };
+      if (mapped[svcParam]) setService(mapped[svcParam]);
+    }
+    const ev = sp.get("event");
+    if (ev) {
+      setEventName(ev);
+      setSpecialReq((prev) => prev || `Event booking: ${ev}`);
+    }
+    const dt = sp.get("date");
+    if (dt) setRideDate(dt);
+    const drop = sp.get("dropoff");
+    if (drop) setDropoffAddr(drop);
+    const pick = sp.get("pickup");
+    if (pick) setPickupAddr(pick);
+  }, []);
 
   useEffect(() => {
     if (activeTiers.length > 0 && !activeTiers.some((t) => t.id === tier)) {
@@ -91,6 +124,12 @@ export function BookForm() {
       <div className="mb-8 flex flex-col gap-2">
         <Title>Book your ride</Title>
         <StepLabels step={step} labels={["1 · TRIP DETAILS", "2 · ESTIMATE & CONTACT"]} />
+        {eventName && (
+          <div className="mt-2 inline-flex items-center gap-2 border border-[#E87722]/60 bg-[#E87722]/10 px-3.5 py-2 text-[14px] text-[#F4F1EC]">
+            <span className="font-semibold text-[#E87722]">EVENT BOOKING:</span>
+            <span>{eventName}</span>
+          </div>
+        )}
       </div>
       <TwoCol
         aside={<EstimateAside lines={lines} total={total} note={note} />}
@@ -100,9 +139,9 @@ export function BookForm() {
           <>
             <Fieldset legend="Service" gap="gap-3"><Chips list={SERVICES} value={service} onPick={(v) => { setService(v); if (v === "client" || v === "security") setHours((h) => Math.max(h, 3)); }} /></Fieldset>
             <Grid min={240}>
-              <Text label="Pickup address" placeholder="Street, city or airport" />
-              <Text label="Drop-off address" placeholder="Street, city or airport" />
-              <Text label="Date" type="date" />
+              <Text label="Pickup address" placeholder="Street, city or airport" value={pickupAddr} onChange={(e) => setPickupAddr(e.target.value)} />
+              <Text label="Drop-off address" placeholder="Street, city or airport" value={dropoffAddr} onChange={(e) => setDropoffAddr(e.target.value)} />
+              <Text label="Date" type="date" value={rideDate} onChange={(e) => setRideDate(e.target.value)} />
               <Text label="Pickup time" type="time" />
               <Text label="Passengers" type="number" min={1} value={passengers} onChange={(e) => setPassengers(Math.max(1, Number(e.target.value) || 1))} />
               <Text label="Bags" type="number" min={0} value={bags} onChange={(e) => setBags(Math.max(0, Number(e.target.value) || 0))} />
@@ -139,7 +178,7 @@ export function BookForm() {
               <Text label="Mobile phone" type="tel" autoComplete="tel" />
               <Text label="Email" type="email" autoComplete="email" />
             </Grid>
-            <Text label="Special requests (optional)" placeholder="Car seat, extra stops, meet-and-greet sign…" />
+            <Text label="Special requests (optional)" placeholder="Car seat, extra stops, meet-and-greet sign…" value={specialReq} onChange={(e) => setSpecialReq(e.target.value)} />
             <Agree>I agree to Archer&apos;s <a href="/#contact" className="text-[#E87722]">booking terms and cancellation policy</a>.</Agree>
             <FormErrors errors={errors} />
             <div className="flex flex-wrap gap-3">
