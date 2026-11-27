@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { DISPATCH_PHONE_TEL } from "@/lib/archer-data";
 import { useSiteSettings } from "@/lib/site-settings";
 import type { SiteData } from "@/lib/site-api";
@@ -29,6 +29,8 @@ const TILES_DEFAULT = [
   { id: "assistants", title: "For Executive & Personal Assistants.", line: "Plan their week. We'll handle every mile, from the first airport pickup to the last dinner.", photo: "Executive working on a laptop in the back seat", img: "e590ac6009ccd68effdacfa781d3c7cc.jpg", href: "/services/assistants", cta: "PLAN YOUR WEEK →", pos: "center 30%" },
   { id: "fleet", title: "Archer's Fleet.", line: "Executive Class and 1st Class, each in three sizes, ready for business and comfort.", photo: "Black Archer SUV at night, warm city lights", img: "f7595ba478f4ad203e322519215810fc.jpg", href: "/fleet", cta: "EXPLORE →", pos: "center center" },
   { id: "tiers", title: "Archer Tiers of Service.", line: "Choose the level of chauffeur and protection you want to hire.", photo: "Protection team in dark suits beside black vehicles", img: "5b6f121a83f2a1cb6e82e55aa98b8549.jpg", href: "/tiers", cta: "EXPLORE →", pos: "center 8%" },
+  { id: "social-club", title: "Archer Social. Join the Club.", line: "The inside word on events, fine dining and nights out across NJ, NY and PA, plus the causes we support.", photo: "Guests toasting at an Archer Social Club event", img: "3b4c2b9aa422ed0d88baba08204acf79.jpg", href: "/social-club", cta: "JOIN THE CLUB →", pos: "center center" },
+  { id: "careers", title: "Careers. Join the Archer Team.", line: "Chauffeurs, military and law-enforcement veterans, and social media and marketing talent. Your next mission starts here.", photo: "Archer team in dark suits beside black vehicles", img: "5b6f121a83f2a1cb6e82e55aa98b8549.jpg", href: "/careers", cta: "SEE OPEN POSITIONS →", pos: "center 20%" },
 ];
 
 const SECURITY_DEFAULT = [
@@ -64,7 +66,11 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
   const ok = h && Array.isArray(h.slides) && h.slides.length > 0;
   const SLIDES: typeof SLIDES_DEFAULT = ok ? h.slides : SLIDES_DEFAULT;
   const SERVICES: typeof SERVICES_DEFAULT = ok && h.services?.length ? h.services : SERVICES_DEFAULT;
-  const TILES: typeof TILES_DEFAULT = ok && h.tiles?.length ? h.tiles : TILES_DEFAULT;
+  const baseTiles: typeof TILES_DEFAULT = ok && h.tiles?.length ? h.tiles : TILES_DEFAULT;
+  const TILES: typeof TILES_DEFAULT = [
+    ...baseTiles,
+    ...TILES_DEFAULT.filter((d) => (d.id === "social-club" || d.id === "careers") && !baseTiles.some((b) => b.id === d.id)),
+  ];
   const SECURITY: typeof SECURITY_DEFAULT = ok && h.security?.length ? h.security : SECURITY_DEFAULT;
   const STEPS: typeof STEPS_DEFAULT = ok && h.steps?.length ? h.steps : STEPS_DEFAULT;
   const TRUST: typeof TRUST_DEFAULT = ok && h.trust?.length ? h.trust : TRUST_DEFAULT;
@@ -154,18 +160,23 @@ export function HomeV2({ site }: { site?: SiteData | null } = {}) {
 
       <div className="flex flex-col gap-6 bg-[#121212] pb-8 md:gap-10 md:pb-12">
         {TILES.map((t) => (
-          <Link key={t.id} id={t.id} href={t.href} className="group relative block min-h-[360px] overflow-hidden border-y border-white/10 bg-[#191919] text-[#F4F1EC] md:min-h-[420px]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={D + t.img} alt={t.photo} className="absolute inset-0 block h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" style={{ objectPosition: t.pos }} />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.1)_100%)]" />
-            <div className="absolute inset-x-0 bottom-0 top-0 flex items-center">
-              <div className={`${WRAP} flex w-full flex-col gap-3`}>
-                <h2 className="m-0 text-[32px] leading-[1.02] tracking-[-0.02em] md:text-[39px]" style={HEAD}>{t.title}</h2>
-                <p className="m-0 max-w-[560px] text-[19px] text-[#E6E1DA]">{t.line}</p>
-                <span className="mt-2 text-[13px] font-medium tracking-[0.12em] text-[#E87722]">{t.cta}</span>
+          <Fragment key={t.id}>
+            <Link id={t.id} href={t.href} className="group relative block min-h-[360px] overflow-hidden border-y border-white/10 border-t-[3px] border-t-[#E87722] bg-[#191919] text-[#F4F1EC] md:min-h-[420px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={D + t.img} alt={t.photo} className="absolute inset-0 block h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" style={{ objectPosition: t.pos }} />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88)_0%,rgba(0,0,0,0.45)_55%,rgba(0,0,0,0.1)_100%)]" />
+              <div className="absolute inset-x-0 bottom-0 top-0 flex items-center">
+                <div className={`${WRAP} flex w-full flex-col gap-3`}>
+                  <h2 className="m-0 text-[32px] leading-[1.02] tracking-[-0.02em] md:text-[39px]" style={HEAD}>{t.title}</h2>
+                  <p className="m-0 max-w-[560px] text-[19px] text-[#E6E1DA]">{t.line}</p>
+                  <span className="mt-2 text-[13px] font-medium tracking-[0.12em] text-[#E87722]">{t.cta}</span>
+                </div>
               </div>
+            </Link>
+            <div aria-hidden="true" className={WRAP}>
+              <div className="h-px w-full bg-gradient-to-r from-transparent via-[#E87722]/45 to-transparent" />
             </div>
-          </Link>
+          </Fragment>
         ))}
 
         {/* Full-Width Influencer Marketing Banner (replaces Executive Protection split) */}
