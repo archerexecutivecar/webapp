@@ -26,9 +26,17 @@ class InfluencerApplication extends Model
         'resume_path',
         'resume_name',
         'cover_note',
+        'details',
         'status',
         'internal_notes',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'details' => 'array',
+        ];
+    }
 
     public const VALID_STATUSES = [
         'new',

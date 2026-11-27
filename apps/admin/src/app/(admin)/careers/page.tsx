@@ -48,6 +48,7 @@ interface CareerApplication {
   license_number: string | null;
   years_experience: number | null;
   cover_note: string | null;
+  details?: Record<string, unknown> | null;
   status: 'new' | 'screening' | 'interview' | 'offer' | 'hired' | 'rejected' | 'withdrawn';
   internal_notes: string | null;
   rejection_reason: string | null;
@@ -83,6 +84,7 @@ interface InfluencerApplication {
   portfolio_url: string | null;
   resume_name: string | null;
   cover_note: string | null;
+  details?: Record<string, unknown> | null;
   status: string;
   created_at: string;
 }
@@ -946,6 +948,28 @@ export default function AdminCareersPage() {
                 </div>
               </div>
             </div>
+
+            {selectedApp.details && Object.keys(selectedApp.details).length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                  Submitted Application Details
+                </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {Object.entries(selectedApp.details)
+                    .filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
+                    .map(([k, v]) => (
+                      <div key={k} style={{ padding: 10, background: 'var(--surface-2)', borderRadius: 6 }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                          {k.replace(/_/g, ' ')}
+                        </span>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text)', marginTop: 2 }}>
+                          {Array.isArray(v) ? v.join(', ') : typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
 
             {selectedApp.cover_note && (
               <div style={{ marginBottom: 20 }}>

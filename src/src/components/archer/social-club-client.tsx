@@ -339,12 +339,12 @@ export function SocialClubClient() {
 
             return (
               <article key={post.id} className="flex flex-col border border-white/10 bg-[#1E1E1E]">
-                <div className="relative aspect-[16/9] bg-[#262626]">
+                <div className="relative aspect-square overflow-hidden bg-[#262626]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={post.image_url || `${D}3b4c2b9aa422ed0d88baba08204acf79.jpg`}
                     alt={post.title}
-                    className="h-full w-full object-cover"
+                    className="block h-full w-full object-cover"
                   />
                   {eventMonth && eventDay && (
                     <div className="absolute left-3 top-3 border-t-[3px] border-[#E87722] bg-[#121212] px-3 py-1.5 text-center leading-tight">

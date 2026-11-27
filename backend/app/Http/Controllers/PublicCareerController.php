@@ -127,6 +127,7 @@ class PublicCareerController extends Controller
             'license_number' => 'nullable|string|max:60',
             'years_experience' => 'nullable|integer|min:0|max:50',
             'cover_note' => 'nullable|string|max:4000',
+            'details' => 'nullable',
             'resume' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:15360',
             'drivers_license' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:15360',
             'tlc_license' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:15360',
@@ -134,8 +135,11 @@ class PublicCareerController extends Controller
             'additional_doc' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:15360',
         ]);
 
-        $response = DB::transaction(function () use ($validated, $job, $request) {
-            $application = CareerApplication::create([
+        $rawDetails = $request->input('details');
+        $details = is_string($rawDetails) ? json_decode($rawDetails, true) : (is_array($rawDetails) ? $rawDetails : null);
+
+        $response = DB::transaction(function () use ($validated, $job, $request, $details) {
+            $createData = [
                 'career_job_id' => $job->id,
                 'full_name' => $validated['full_name'],
                 'email' => strtolower(trim($validated['email'])),
@@ -146,7 +150,11 @@ class PublicCareerController extends Controller
                 'years_experience' => isset($validated['years_experience']) ? (int) $validated['years_experience'] : null,
                 'cover_note' => $validated['cover_note'] ?? null,
                 'status' => CareerApplication::STATUS_NEW,
-            ]);
+            ];
+            if (Schema::hasColumn('career_applications', 'details')) {
+                $createData['details'] = is_array($details) ? $details : null;
+            }
+            $application = CareerApplication::create($createData);
 
             $docTypes = [
                 'resume' => 'Resume / Curriculum Vitae',

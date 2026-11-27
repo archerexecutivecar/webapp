@@ -90,11 +90,14 @@ export function CareersApplyClient() {
   const [branch, setBranch] = useState("");
   const [serviceYears, setServiceYears] = useState("");
   const [certs, setCerts] = useState<string[]>(["Valid Driver's License"]);
+  const [yearsLicensed, setYearsLicensed] = useState("5");
   const [yearsExp, setYearsExp] = useState("2");
+  const [movingViolations, setMovingViolations] = useState("None");
   const [licenseState, setLicenseState] = useState("NJ");
 
   // Step 2 (Marketing / Influencer)
   const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [accountsGrown, setAccountsGrown] = useState("");
   const [igHandle, setIgHandle] = useState("");
   const [tiktokHandle, setTiktokHandle] = useState("");
   const [followerCount, setFollowerCount] = useState("");
@@ -106,6 +109,7 @@ export function CareersApplyClient() {
   const [availability, setAvailability] = useState<string[]>(["Weekdays", "Weekends"]);
   const [resume, setResume] = useState<File | null>(null);
   const [coverNote, setCoverNote] = useState("");
+  const [howHeard, setHowHeard] = useState("Archer website");
   const [attest, setAttest] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -180,6 +184,18 @@ export function CareersApplyClient() {
           coverNote,
         ].filter(Boolean).join("\n");
         if (note) fd.append("cover_note", note);
+        fd.append(
+          "details",
+          JSON.stringify({
+            earliest_start_date: startDate || null,
+            accounts_grown: accountsGrown || null,
+            platforms,
+            tools,
+            campaign_pitch: campaignPitch || null,
+            availability,
+            how_heard: howHeard,
+          })
+        );
         if (resume) fd.append("resume", resume);
 
         const res = await fetch(`${API_BASE}/influencer-applications`, { method: "POST", body: fd });
@@ -210,6 +226,18 @@ export function CareersApplyClient() {
           coverNote,
         ].filter(Boolean).join("\n");
         if (note) fd.append("cover_note", note);
+        fd.append(
+          "details",
+          JSON.stringify({
+            earliest_start_date: startDate || null,
+            accounts_grown: accountsGrown || null,
+            platforms,
+            tools,
+            campaign_pitch: campaignPitch || null,
+            availability,
+            how_heard: howHeard,
+          })
+        );
         if (resume) fd.append("resume", resume);
 
         const res = await submitCareerApplication(targetJob.id, fd);
@@ -398,8 +426,20 @@ export function CareersApplyClient() {
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
+                        Years licensed to drive
+                        <input type="number" min={0} value={yearsLicensed} onChange={(e) => setYearsLicensed(e.target.value)} className={inp} />
+                      </label>
+                      <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
                         Years of professional driving experience
                         <input type="number" min={0} value={yearsExp} onChange={(e) => setYearsExp(e.target.value)} className={inp} />
+                      </label>
+                      <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
+                        Moving violations in the last 3 years
+                        <select value={movingViolations} onChange={(e) => setMovingViolations(e.target.value)} className={inp}>
+                          <option>None</option>
+                          <option>1</option>
+                          <option>2 or more</option>
+                        </select>
                       </label>
                       <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
                         Driver&apos;s license state
@@ -426,6 +466,10 @@ export function CareersApplyClient() {
                         <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
                           Combined reach / followers
                           <input type="text" value={followerCount} onChange={(e) => setFollowerCount(e.target.value)} placeholder="e.g. 50K+" className={inp} />
+                        </label>
+                        <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
+                          Accounts you&apos;ve run or grown
+                          <input type="text" value={accountsGrown} onChange={(e) => setAccountsGrown(e.target.value)} placeholder="@handles and growth" className={inp} />
                         </label>
                         <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
                           Instagram handle
@@ -494,6 +538,17 @@ export function CareersApplyClient() {
                       <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
                         Why Archer, and what makes you right for this role?
                         <textarea rows={4} value={coverNote} onChange={(e) => setCoverNote(e.target.value)} className={inp} />
+                      </label>
+                      <label className="flex flex-col gap-1.5 text-[14px] text-[#C9C3BB]">
+                        How did you hear about us?
+                        <select value={howHeard} onChange={(e) => setHowHeard(e.target.value)} className={inp}>
+                          <option>Archer website</option>
+                          <option>Instagram or Facebook</option>
+                          <option>LinkedIn</option>
+                          <option>A friend or Archer team member</option>
+                          <option>Veteran or job board</option>
+                          <option>Other</option>
+                        </select>
                       </label>
                     </div>
 

@@ -25,8 +25,12 @@ class PublicInfluencerApplicationController extends Controller
             'follower_count' => 'nullable|string|max:60',
             'portfolio_url' => 'nullable|url|max:255',
             'cover_note' => 'nullable|string|max:4000',
+            'details' => 'nullable',
             'resume' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:15360',
         ]);
+
+        $rawDetails = $request->input('details');
+        $details = is_string($rawDetails) ? json_decode($rawDetails, true) : (is_array($rawDetails) ? $rawDetails : null);
 
         $application = InfluencerApplication::create([
             'full_name' => $validated['full_name'],
@@ -39,6 +43,7 @@ class PublicInfluencerApplicationController extends Controller
             'follower_count' => $validated['follower_count'] ?? null,
             'portfolio_url' => $validated['portfolio_url'] ?? null,
             'cover_note' => $validated['cover_note'] ?? null,
+            'details' => is_array($details) ? $details : null,
             'status' => 'new',
         ]);
 

@@ -25,6 +25,7 @@ class CareerApplication extends Model
         'license_number',
         'years_experience',
         'cover_note',
+        'details',
         'status',
         'internal_notes',
         'rejection_reason',
@@ -32,6 +33,7 @@ class CareerApplication extends Model
 
     protected $casts = [
         'years_experience' => 'integer',
+        'details' => 'array',
     ];
 
     public const STATUS_NEW = 'new';

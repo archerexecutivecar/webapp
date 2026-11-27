@@ -5,56 +5,71 @@ import { useEffect, useState } from "react";
 import {
   getCareersJobs,
   getCareersStatus,
-  getCareersTiers,
-  submitCareerApplication,
   trackCareerApplication,
-  type CareerTierOption,
   type PublicCareerJob,
   type TrackApplicationResult,
 } from "@/lib/careers-api";
-import { DISPATCH_EMAIL, DISPATCH_PHONE_DISPLAY } from "@/lib/archer-data";
+import { D, EYEBROW, HEAD, WRAP, ghost, primary } from "@/components/archer/v2/shared";
+
+const SLIDES = [
+  { tag: "JOIN THE TEAM", photo: "Chauffeur holding the door as a client steps into a black car", img: `${D}081914a303ca7784c4908a84598db02d.jpg`, head: "Join the Archer team.", line: "Professionals who take pride in safety, discretion and service. Your next mission starts here." },
+  { tag: "CHAUFFEURS", photo: "Executive working in the back seat", img: `${D}e590ac6009ccd68effdacfa781d3c7cc.jpg`, head: "Drive with purpose.", line: "SORA-certified chauffeurs, prepared vehicles and clients who notice the difference." },
+  { tag: "MILITARY & LAW ENFORCEMENT", photo: "Protection team in dark suits", img: `${D}5b6f121a83f2a1cb6e82e55aa98b8549.jpg`, head: "Your service still counts here.", line: "The training, judgment and discipline you built in uniform are exactly what our clients trust." },
+  { tag: "CONTENT & EVENTS", photo: "Gala banquet table", img: `${D}3b4c2b9aa422ed0d88baba08204acf79.jpg`, head: "Capture the moments that matter.", line: "Galas, game days and nights out across NJ, NY and PA. Bring your camera and your ideas." },
+  { tag: "SOCIAL & MARKETING", photo: "New York skyline at night", img: `${D}c94c04deb2217c75ac89561507a734bc.jpg`, head: "Tell the Archer story.", line: "Creators and marketers who can bring our community, events and brand to life." },
+];
+
+const OFFERS = [
+  "Hourly base pay plus gratuity on every ride",
+  "A clear path to grow: move up the tiers as your credentials grow",
+  "Late-model Archer vehicles, prepared for every shift",
+  "Schedules built around your availability",
+  "Training and support toward NJ SORA registration",
+  "A culture of professionalism, respect and discretion",
+  "A team that values military and law-enforcement experience",
+];
+
+const STEPS = [
+  { n: "1", title: "Apply online", text: "Pick your position and apply in three short steps. It takes about five minutes." },
+  { n: "2", title: "Phone interview", text: "A short call with our team about your experience and availability." },
+  { n: "3", title: "Background and verification", text: "Background check, driving record, and verification of your service and certifications." },
+  { n: "4", title: "Training and ride-along", text: "Learn the Archer standard: our vehicles, our clients and how we work." },
+  { n: "5", title: "Welcome to Archer", text: "Your first ride or assignment, with your tier set by your credentials." },
+];
+
+const FAQS = [
+  { q: "How are chauffeurs paid?", a: "An hourly base wage plus gratuity, based on the service you provide. Higher tiers earn higher rates." },
+  { q: "Do I need my own car?", a: "No. You drive Archer vehicles from our Executive Class and 1st Class fleet." },
+  { q: "I'm leaving the military. Can I apply before I separate?", a: "Yes. Apply now and tell us your separation date. We value military experience at every level." },
+  { q: "What is SORA, and do I need it?", a: "SORA is the New Jersey Security Officer Registration Act registration. It is required for our Tier 2 chauffeurs and above." },
+  { q: "Is the social media and marketing role remote?", a: "Partly. Planning, editing and posting can be done remotely; event coverage is on location across NJ, NY and PA." },
+  { q: "Can I work part time?", a: "Many roles offer flexible schedules. Tell us your availability in the application." },
+];
+
+const ROLE_IMAGES = [
+  `${D}081914a303ca7784c4908a84598db02d.jpg`,
+  `${D}5b6f121a83f2a1cb6e82e55aa98b8549.jpg`,
+  `${D}f7595ba478f4ad203e322519215810fc.jpg`,
+  `${D}1e801f10e10a1f511b4d8e355c084c32.jpg`,
+];
 
 export function CareersClient() {
+  const [slide, setSlide] = useState(0);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [jobs, setJobs] = useState<PublicCareerJob[]>([]);
-  const [tiers, setTiers] = useState<CareerTierOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDept, setSelectedDept] = useState<string>("All");
 
-  // Job Details Modal state
-  const [viewingJob, setViewingJob] = useState<PublicCareerJob | null>(null);
-
-  // Application Modal state
-  const [activeJob, setActiveJob] = useState<PublicCareerJob | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [confirmation, setConfirmation] = useState<{ reference_code: string; message: string } | null>(null);
-
-  // Application Tracking state
+  // Tracker
   const [trackCode, setTrackCode] = useState("");
   const [trackEmail, setTrackEmail] = useState("");
   const [trackingLoading, setTrackingLoading] = useState(false);
   const [trackResult, setTrackResult] = useState<TrackApplicationResult | null>(null);
   const [trackError, setTrackError] = useState<string | null>(null);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    full_name: "",
-    email: "",
-    phone: "",
-    city: "",
-    selected_tier: "",
-    license_number: "",
-    years_experience: "",
-    cover_note: "",
-  });
-
-  // Files
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [driverLicenseFile, setDriverLicenseFile] = useState<File | null>(null);
-  const [tlcLicenseFile, setTlcLicenseFile] = useState<File | null>(null);
-  const [securityLicenseFile, setSecurityLicenseFile] = useState<File | null>(null);
-  const [additionalDocFile, setAdditionalDocFile] = useState<File | null>(null);
+  useEffect(() => {
+    const t = window.setInterval(() => setSlide((v) => (v + 1) % SLIDES.length), 6000);
+    return () => window.clearInterval(t);
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -62,14 +77,9 @@ export function CareersClient() {
         setLoading(true);
         const isLive = await getCareersStatus();
         setEnabled(isLive);
-
         if (isLive) {
-          const [jobList, tierList] = await Promise.all([
-            getCareersJobs(),
-            getCareersTiers(),
-          ]);
-          setJobs(jobList.filter((j) => j.department !== "Influencer Marketing"));
-          setTiers(tierList);
+          const list = await getCareersJobs();
+          setJobs(list);
         }
       } catch {
         setEnabled(true);
@@ -80,902 +90,401 @@ export function CareersClient() {
     load();
   }, []);
 
-  const openApplication = (job: PublicCareerJob) => {
-    setViewingJob(null);
-    setActiveJob(job);
-    setSubmitError(null);
-    setConfirmation(null);
-    setFormData((prev) => ({
-      ...prev,
-      selected_tier: job.tier_recommendation || (tiers[0]?.label ?? ""),
-    }));
-  };
-
-  const handleApplySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeJob) return;
-
-    try {
-      setSubmitting(true);
-      setSubmitError(null);
-
-      const data = new FormData();
-      data.append("full_name", formData.full_name);
-      data.append("email", formData.email);
-      data.append("phone", formData.phone);
-      if (formData.city) data.append("city", formData.city);
-      if (formData.selected_tier) data.append("selected_tier", formData.selected_tier);
-      if (formData.license_number) data.append("license_number", formData.license_number);
-      if (formData.years_experience) data.append("years_experience", formData.years_experience);
-      if (formData.cover_note) data.append("cover_note", formData.cover_note);
-
-      // Documents
-      if (resumeFile) data.append("resume", resumeFile);
-      if (driverLicenseFile) data.append("drivers_license", driverLicenseFile);
-      if (tlcLicenseFile) data.append("tlc_license", tlcLicenseFile);
-      if (securityLicenseFile) data.append("security_license", securityLicenseFile);
-      if (additionalDocFile) data.append("additional_doc", additionalDocFile);
-
-      const res = await submitCareerApplication(activeJob.id, data);
-      setConfirmation(res);
-    } catch (err: any) {
-      setSubmitError(err?.message || "Failed to submit application. Please check your inputs and try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleTrackSubmit = async (e: React.FormEvent) => {
+  const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackCode.trim()) return;
-
     try {
       setTrackingLoading(true);
       setTrackError(null);
       setTrackResult(null);
-
       const res = await trackCareerApplication(trackCode.trim(), trackEmail.trim() || undefined);
       setTrackResult(res);
-    } catch (err: any) {
-      setTrackError(err?.message || "No application found matching this reference code.");
+    } catch (err) {
+      setTrackError(err instanceof Error ? err.message : "No application found matching this reference code.");
     } finally {
       setTrackingLoading(false);
     }
   };
 
-  const departments = ["All", ...Array.from(new Set(jobs.map((j) => j.department)))];
-  const filteredJobs = selectedDept === "All" ? jobs : jobs.filter((j) => j.department === selectedDept);
+  const cur = SLIDES[slide];
+  const driverJobs = jobs.filter((j) => j.department !== "Influencer Marketing");
+  const mktJob = jobs.find((j) => j.department === "Influencer Marketing") || null;
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#F4F1EC] pt-28 pb-20">
-      {/* Hero Section */}
-      <section className="archer-container max-w-6xl mx-auto px-4 sm:px-6 mb-16 text-center">
-        <span className="inline-block text-[#c59b27] font-semibold text-xs tracking-[0.28em] uppercase mb-4 px-3 py-1 rounded-full border border-[#c59b27]/30 bg-[#c59b27]/10">
-          CAREERS AT ARCHER
-        </span>
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-6">
-          Join The Archer Standard.
-        </h1>
-        <p className="max-w-2xl mx-auto text-[#B3ADA5] text-base sm:text-lg leading-relaxed mb-8">
-          Archer Executive Services recruits elite chauffeurs, tactical protection specialists, and logistics
-          dispatchers to deliver distinguished mobility for VIPs, executives, and family offices.
-        </p>
-
-        {/* Quick Jump Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/careers/apply?role=driver"
-            className="px-5 py-2.5 rounded-lg bg-[#E87722] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-[#F59A52] transition-colors"
-          >
-            Apply Now (3-Step) →
-          </Link>
-          <a
-            href="#openings"
-            className="px-5 py-2.5 rounded-lg bg-[#c59b27] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#d6aa32] transition-colors"
-          >
-            View Open Positions ↓
-          </a>
-          <a
-            href="#culture"
-            className="px-5 py-2.5 rounded-lg bg-[#181818] border border-white/10 text-white font-semibold text-xs uppercase tracking-wider hover:border-[#c59b27] transition-colors"
-          >
-            Archer Culture & Values
-          </a>
-          <a
-            href="#tracking"
-            className="px-5 py-2.5 rounded-lg bg-[#181818] border border-white/10 text-white font-semibold text-xs uppercase tracking-wider hover:border-[#c59b27] transition-colors"
-          >
-            Track Application 🔍
-          </a>
+    <div className="bg-[#121212] text-white">
+      {/* 1. Opening Slideshow Hero */}
+      <section aria-label="Opening slideshow" className="relative h-[80vh] min-h-[560px] overflow-hidden bg-[#0B0B0B]">
+        {SLIDES.map((s, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={s.img}
+            src={s.img}
+            alt={s.photo}
+            className="absolute inset-0 block h-full w-full object-cover transition-opacity duration-[1400ms]"
+            style={{ opacity: i === slide ? 1 : 0 }}
+          />
+        ))}
+        <div className="absolute inset-x-0 bottom-0 h-[72%] bg-gradient-to-t from-black/95 via-black/55 to-transparent" />
+        <div className="absolute inset-x-0 bottom-16 md:bottom-24">
+          <div className={`${WRAP} flex flex-wrap items-end justify-between gap-7`}>
+            <div className="flex max-w-[760px] flex-col gap-3">
+              <nav aria-label="Breadcrumb" className="text-[14px] text-[#C9C3BB]">
+                <Link href="/" className="text-[#C9C3BB]">Home</Link> / <span className="text-white">Careers</span>
+              </nav>
+              <span className={EYEBROW}>CAREERS AT ARCHER · {cur.tag}</span>
+              <h1 className="m-0 text-[38px] font-extrabold leading-[1.05] tracking-[-0.015em] md:text-[51px]" style={HEAD}>
+                {cur.head}
+              </h1>
+              <p className="m-0 max-w-[640px] text-[17px] text-[#E6E1DA] md:text-[19px]">{cur.line}</p>
+            </div>
+            <div className="flex min-w-[240px] flex-col gap-3">
+              <Link href="/careers/apply?role=driver" className={primary}>APPLY NOW</Link>
+              <a href="#positions" className={ghost}>SEE OPEN POSITIONS</a>
+            </div>
+          </div>
+        </div>
+        <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 gap-2.5 md:bottom-10">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.tag}
+              type="button"
+              aria-label={`Show slide ${i + 1}: ${s.tag}`}
+              onClick={() => setSlide(i)}
+              className="h-1 w-9 cursor-pointer border-0 p-0"
+              style={{ background: i === slide ? "#E87722" : "rgba(255,255,255,0.35)" }}
+            />
+          ))}
         </div>
       </section>
 
-      {/* Feature Closed Banner (when turned off from Admin) */}
-      {enabled === false && !loading && (
-        <div className="archer-container max-w-3xl mx-auto px-4 mb-20">
-          <div className="rounded-xl border border-white/10 bg-[#141414] p-8 sm:p-12 text-center shadow-2xl">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center text-[#B3ADA5]">
-              🔒
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-3">Applications Currently Closed</h2>
-            <p className="text-[#B3ADA5] text-sm sm:text-base leading-relaxed mb-6">
-              Archer Executive Services is not currently accepting unsolicited applications at this time.
-              All active job postings are temporarily paused. Please check back periodically.
+      {enabled === false && !loading ? (
+        <section className={`${WRAP} py-20 text-center`}>
+          <div className="mx-auto max-w-xl border border-white/10 bg-[#1E1E1E] p-10">
+            <h2 className="m-0 text-[28px]" style={HEAD}>Recruitment Temporarily Closed</h2>
+            <p className="mt-3 text-[#C9C3BB]">
+              Archer Executive Services is not currently accepting new applications online. Check back soon or contact dispatch.
             </p>
-            <div className="inline-flex flex-col sm:flex-row items-center gap-4 text-xs text-[#B3ADA5] border-t border-white/10 pt-6">
-              <span>Direct Inquiries: <a href={`mailto:${DISPATCH_EMAIL}`} className="text-[#c59b27] underline">{DISPATCH_EMAIL}</a></span>
-              <span className="hidden sm:inline">·</span>
-              <span>Dispatch: {DISPATCH_PHONE_DISPLAY}</span>
-            </div>
           </div>
-        </div>
-      )}
-
-      {/* ARCHER CULTURE & VALUES SECTION */}
-      <section id="culture" className="archer-container max-w-6xl mx-auto px-4 sm:px-6 mb-24">
-        <div className="text-center mb-14">
-          <span className="text-[#c59b27] font-semibold text-xs tracking-[0.24em] uppercase block mb-2">
-            THE ARCHER CREED
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-            Culture & The Standard We Uphold
-          </h2>
-          <p className="max-w-2xl mx-auto text-[#B3ADA5] text-sm sm:text-base mt-3">
-            At Archer, precision isn't an ambition—it is our absolute baseline. Our chauffeurs and security officers
-            are respected professionals entrusted with our clients' safety, schedule, and privacy.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
-            <div>
-              <div className="text-3xl mb-4">🛡️</div>
-              <h3 className="text-lg font-bold text-white mb-2">Executive Decorum & Respect</h3>
-              <p className="text-xs text-[#B3ADA5] leading-relaxed">
-                You are treated as an elite mobility practitioner, never a commodity. We value discretion, punctuality,
-                and impeccable white-glove client presentation.
+        </section>
+      ) : (
+        <>
+          {/* 2. Your journey starts here + What Archer offers */}
+          <section className={`${WRAP} grid gap-10 py-14 md:grid-cols-2 items-start`}>
+            <div className="flex flex-col gap-3">
+              <span className={EYEBROW}>JOIN THE ARCHER TEAM</span>
+              <h2 className="m-0 text-[29px] leading-[1.15]" style={HEAD}>Your journey starts here.</h2>
+              <p className="m-0 text-[16px] leading-relaxed text-[#C9C3BB]">
+                At Archer, we don&apos;t just provide transportation. We deliver an experience defined by safety, discretion and personal service, and our team is the heart of it. Every client journey is only as good as the professional behind the wheel or beside the client.
+              </p>
+              <p className="m-0 text-[16px] leading-relaxed text-[#C9C3BB]">
+                We&apos;re looking for people who share that standard: professional chauffeurs, current and former military and law-enforcement members, and creative minds who can tell our story on social media. If every detail matters to you, we&apos;d love to hear from you.
+              </p>
+              <p className="m-0 border-l-[3px] border-[#E87722] pl-4 text-[15px] leading-relaxed text-[#EDE8E1]">
+                <strong>Veterans and first responders, your service still counts here.</strong> Your training, judgment and discipline are what our clients trust most.
               </p>
             </div>
-            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
-              Zero-tolerance compromise
-            </div>
-          </div>
 
-          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
-            <div>
-              <div className="text-3xl mb-4">🚗</div>
-              <h3 className="text-lg font-bold text-white mb-2">Pristine Black Car Fleet</h3>
-              <p className="text-xs text-[#B3ADA5] leading-relaxed">
-                Operate exclusively late-model Cadillac Escalades, Lincoln Aviators, Chevrolet Suburbans, and Mercedes Sprinters,
-                fully maintained, detailed, and insured by Archer.
-              </p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
-              Premium vehicles only
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
-            <div>
-              <div className="text-3xl mb-4">📈</div>
-              <h3 className="text-lg font-bold text-white mb-2">Tier Career Advancement</h3>
-              <p className="text-xs text-[#B3ADA5] leading-relaxed">
-                Clear promotion milestones from Tier 1 Professional Chauffeur up to Tier 4 Armed Close Protection Specialist,
-                with sponsored certifications and defensive training.
-              </p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
-              Tier 1 through Tier 4
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-[#141414] border border-white/10 p-6 flex flex-col justify-between hover:border-[#c59b27]/40 transition-colors">
-            <div>
-              <div className="text-3xl mb-4">💎</div>
-              <h3 className="text-lg font-bold text-white mb-2">Premium Pay & Gratuities</h3>
-              <p className="text-xs text-[#B3ADA5] leading-relaxed">
-                Industry-leading hourly wages, guaranteed minimum shift earnings, and 100% transparent gratuity pass-through
-                deposited reliably each week.
-              </p>
-            </div>
-            <div className="mt-4 pt-4 border-t border-white/5 text-[11px] text-[#c59b27] font-semibold">
-              Weekly verified payroll
-            </div>
-          </div>
-        </div>
-
-        {/* Culture Quote Card */}
-        <div className="mt-8 rounded-xl bg-gradient-to-r from-[#181818] via-[#141414] to-[#181818] border border-white/10 p-8 text-center max-w-3xl mx-auto">
-          <p className="text-sm sm:text-base italic text-[#F4F1EC] leading-relaxed mb-4">
-            "On time ~ In style ~ Every time is not a slogan. It is the operating principle behind every chauffeur we hire,
-            every route we coordinate, and every passenger we protect."
-          </p>
-          <span className="text-xs font-bold uppercase tracking-widest text-[#c59b27]">
-            — Archer Executive Operations
-          </span>
-        </div>
-      </section>
-
-      {/* JOB OPENINGS SECTION */}
-      {enabled !== false && (
-        <section id="openings" className="archer-container max-w-6xl mx-auto px-4 sm:px-6 mb-24 scroll-mt-24">
-          <div className="text-center mb-10">
-            <span className="text-[#c59b27] font-semibold text-xs tracking-[0.24em] uppercase block mb-2">
-              CURRENT OPPORTUNITIES
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-              Open Positions Across All Divisions
-            </h2>
-          </div>
-
-          {/* Department Filter Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-12">
-            {departments.map((dept) => (
-              <button
-                key={dept}
-                onClick={() => setSelectedDept(dept)}
-                className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase transition-all ${
-                  selectedDept === dept
-                    ? "bg-[#c59b27] text-black shadow-lg shadow-[#c59b27]/20"
-                    : "bg-[#181818] text-[#B3ADA5] hover:text-white border border-white/10"
-                }`}
-              >
-                {dept}
-              </button>
-            ))}
-          </div>
-
-          {/* Job Listings Grid */}
-          {loading ? (
-            <div className="text-center py-20 text-[#B3ADA5]">
-              <div className="inline-block w-8 h-8 border-2 border-[#c59b27] border-t-transparent rounded-full animate-spin mb-4" />
-              <p>Loading available positions...</p>
-            </div>
-          ) : filteredJobs.length === 0 ? (
-            <div className="rounded-xl border border-white/10 bg-[#141414] p-12 text-center text-[#B3ADA5]">
-              <p className="text-lg text-white mb-2">No open positions found in this department.</p>
-              <p className="text-sm">Please select another department or check back soon.</p>
-            </div>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredJobs.map((job) => (
-                <div
-                  key={job.id}
-                  className="rounded-xl border border-white/10 bg-[#121212] p-6 sm:p-7 flex flex-col justify-between hover:border-[#c59b27]/50 transition-all duration-300 group shadow-lg"
-                >
-                  <div>
-                    {/* Category & Badge */}
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <span className="text-[11px] font-bold tracking-widest text-[#c59b27] uppercase">
-                        {job.department}
-                      </span>
-                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold uppercase tracking-wider">
-                        Active Opening
-                      </span>
-                    </div>
-
-                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#c59b27] transition-colors">
-                      {job.title}
-                    </h3>
-
-                    <div className="text-xs text-[#B3ADA5] mb-3 flex flex-wrap gap-x-3 gap-y-1">
-                      <span>📍 {job.location}</span>
-                      <span>·</span>
-                      <span>💼 {job.employment_type}</span>
-                    </div>
-
-                    {job.salary_range && (
-                      <div className="text-sm font-semibold text-[#F4F1EC] mb-3">
-                        💰 {job.salary_range}
-                      </div>
-                    )}
-
-                    {job.tier_recommendation && (
-                      <div className="inline-block text-[11px] font-medium text-[#c59b27] bg-[#c59b27]/10 border border-[#c59b27]/20 px-2.5 py-1 rounded-md mb-4">
-                        Recommended: {job.tier_recommendation}
-                      </div>
-                    )}
-
-                    <p className="text-xs sm:text-sm text-[#B3ADA5] leading-relaxed mb-6 line-clamp-3">
-                      {job.summary || "Deliver distinguished service as part of the Archer Executive fleet and team."}
-                    </p>
-
-                    {/* Requirements preview */}
-                    {Array.isArray(job.requirements) && job.requirements.length > 0 && (
-                      <div className="border-t border-white/5 pt-4 mb-6">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-2">
-                          Prerequisites:
-                        </span>
-                        <ul className="text-xs text-[#B3ADA5] space-y-1.5">
-                          {job.requirements.slice(0, 3).map((req, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <span className="text-[#c59b27]">✓</span>
-                              <span className="line-clamp-1">{req}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* USER REQUIREMENT: View Full Description & Apply Buttons */}
-                  <div className="flex flex-col gap-2 pt-2 border-t border-white/5">
-                    <button
-                      onClick={() => setViewingJob(job)}
-                      className="w-full py-2.5 px-3 rounded-lg bg-transparent hover:bg-white/5 border border-white/15 text-xs text-[#E6E1DA] font-semibold transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <span>View Full Description</span>
-                      <span>📖</span>
-                    </button>
-                    <button
-                      onClick={() => openApplication(job)}
-                      className="w-full py-3 px-4 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider shadow-lg transition-all"
-                    >
-                      Apply for Position →
-                    </button>
-                  </div>
+            <div className="flex flex-col gap-2.5 border border-white/10 bg-[#1E1E1E] p-6">
+              <h3 className="m-0 mb-1 text-[19px]" style={HEAD}>What Archer offers</h3>
+              {OFFERS.map((item) => (
+                <div key={item} className="flex items-start gap-3">
+                  <span className="font-bold text-[#E87722]">✓</span>
+                  <span className="text-[15px] leading-snug text-[#EDE8E1]">{item}</span>
                 </div>
               ))}
             </div>
-          )}
-        </section>
-      )}
+          </section>
 
-      {/* USER REQUIREMENT: APPLICATION TRACKING SECTION */}
-      <section id="tracking" className="archer-container max-w-4xl mx-auto px-4 sm:px-6 mb-24 scroll-mt-24">
-        <div className="rounded-2xl border border-white/10 bg-[#121212] p-8 sm:p-10 shadow-2xl">
-          <div className="text-center max-w-xl mx-auto mb-8">
-            <span className="text-[#c59b27] font-semibold text-xs tracking-[0.24em] uppercase block mb-1">
-              STATUS VERIFICATION
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-              Track Your Application
-            </h2>
-            <p className="text-xs sm:text-sm text-[#B3ADA5]">
-              Enter your Application Reference Code (e.g. <code>APP-XXXXXXXX</code>) and email address to view live review progress.
+          {/* 3. Open Positions (Driver & Operations — separated from Social Media & Marketing) */}
+          <section id="positions" aria-label="Open positions" className="border-t-4 border-t-[#E87722] bg-[#1A1A1A] py-14">
+            <div className={WRAP}>
+              <div className="mb-6 flex flex-col gap-1.5">
+                <span className={EYEBROW}>OPEN POSITIONS</span>
+                <h2 className="m-0 text-[28px] leading-[1.15]" style={HEAD}>Find your place on the team.</h2>
+              </div>
+
+              {loading ? (
+                <div className="py-12 text-center text-[#B3ADA5]">Loading open positions...</div>
+              ) : driverJobs.length === 0 ? (
+                <div className="border border-white/10 bg-[#121212] p-8 text-[#C9C3BB]">
+                  No driver or operations openings are currently published. Check back soon or{" "}
+                  <Link href="/careers/apply?role=driver" className="text-[#E87722] underline">submit a general application</Link>.
+                </div>
+              ) : (
+                <div className="grid gap-5 md:grid-cols-2">
+                  {driverJobs.map((job, idx) => {
+                    const isMle =
+                      job.title.toLowerCase().includes("military") ||
+                      job.title.toLowerCase().includes("security") ||
+                      (job.tier_recommendation || "").includes("2") ||
+                      (job.tier_recommendation || "").includes("3");
+                    const applyHref = `/careers/apply?role=${isMle ? "mle" : "driver"}&job=${encodeURIComponent(job.slug)}`;
+                    const reqs = Array.isArray(job.requirements) ? job.requirements.slice(0, 4) : [];
+                    const bens = Array.isArray(job.benefits) && job.benefits.length > 0
+                      ? job.benefits.slice(0, 4)
+                      : (job.description || "")
+                          .split(/\n+/)
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                          .slice(0, 3);
+
+                    return (
+                      <article key={job.id} className="flex flex-col border border-white/10 bg-[#121212]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={ROLE_IMAGES[idx % ROLE_IMAGES.length]}
+                          alt={job.title}
+                          className="block aspect-[21/9] w-full bg-[#262626] object-cover object-center"
+                        />
+                        <div className="flex flex-1 flex-col gap-3 p-6">
+                          <div className="flex flex-wrap gap-2">
+                            <span className="border border-[#E87722]/50 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#E87722]">
+                              {job.department}
+                            </span>
+                            <span className="border border-[#E87722]/50 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#E87722]">
+                              {job.employment_type}
+                            </span>
+                            {job.tier_recommendation && (
+                              <span className="border border-white/20 px-2 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-[#E6E1DA]">
+                                {job.tier_recommendation}
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="m-0 text-[22px] leading-[1.2]" style={HEAD}>{job.title}</h3>
+                          <p className="m-0 text-[15px] leading-snug text-[#C9C3BB]">
+                            {job.summary || job.location}
+                          </p>
+
+                          <div className="mt-1 grid gap-4 sm:grid-cols-2">
+                            {bens.length > 0 && (
+                              <div className="space-y-1.5">
+                                <span className="block text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">WHAT YOU&apos;LL DO</span>
+                                {bens.map((b, i) => (
+                                  <div key={i} className="flex gap-2 text-[14px] leading-snug text-[#EDE8E1]">
+                                    <span className="text-[#E87722]">•</span>
+                                    <span>{b}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {reqs.length > 0 && (
+                              <div className="space-y-1.5">
+                                <span className="block text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">WHAT YOU BRING</span>
+                                {reqs.map((r, i) => (
+                                  <div key={i} className="flex gap-2 text-[14px] leading-snug text-[#EDE8E1]">
+                                    <span className="text-[#E87722]">✓</span>
+                                    <span>{r}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
+                            <Link
+                              href={applyHref}
+                              className="bg-[#E87722] px-5 py-3 text-[14px] font-semibold text-[#121212] hover:bg-[#F59A52]"
+                            >
+                              Apply for this role
+                            </Link>
+                            <span className="text-[13px] text-[#8E8880]">
+                              {job.salary_range || job.location}
+                            </span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* 4. Separated Social Media & Influencer Marketing Section */}
+          <section id="marketing" aria-label="Social media and marketing" className="border-t-4 border-t-[#E87722] bg-[#121212] py-14">
+            <div className={`${WRAP} flex flex-col gap-9`}>
+              <div className="grid gap-10 md:grid-cols-2 items-start">
+                <div className="space-y-3">
+                  <span className={EYEBROW}>NOW HIRING · SOCIAL MEDIA &amp; MARKETING</span>
+                  <h2 className="m-0 text-[32px] leading-[1.12]" style={HEAD}>
+                    {mktJob?.title || "Tell the Archer story."}
+                  </h2>
+                  <p className="m-0 text-[16px] leading-relaxed text-[#C9C3BB]">
+                    {mktJob?.summary ||
+                      "Archer is where luxury, safety and service meet: black cars at private jets, chauffeurs at galas, game days and first-date anniversaries. We're looking for a creator and marketer to show that world, grow our community and make Archer the name people think of first in New Jersey and New York."}
+                  </p>
+                  <p className="m-0 text-[16px] leading-relaxed text-[#C9C3BB]">
+                    You&apos;ll run our social channels, capture our events, and build the Archer Club into a community people want to belong to.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 border border-white/10 bg-[#1E1E1E] p-6">
+                  <span className="text-[12px] font-medium tracking-[0.2em] text-[#E87722]">AT A GLANCE</span>
+                  {[
+                    ["Role", mktJob?.title || "Social Media & Marketing"],
+                    ["Type", mktJob?.employment_type || "Part time, contract or per event"],
+                    ["Where", mktJob?.location || "Remote planning, on location at events in NJ, NY and PA"],
+                    ["Works with", "The owner and the dispatch team"],
+                    ["Pay", mktJob?.salary_range || "To be discussed"],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex justify-between gap-4 border-t border-white/10 pt-2 text-[15px]">
+                      <span className="text-[#C9C3BB]">{k}</span>
+                      <span className="text-right text-white">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-2">
+                  <span className="text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">WHAT YOU&apos;LL DO</span>
+                  {[
+                    "Plan a monthly content calendar for Instagram, Facebook, LinkedIn and X",
+                    "Shoot and edit photos, reels and short videos of our vehicles, team and events",
+                    "Cover client nights, galas and game days on location",
+                    "Grow the Archer Club: sign-ups, the monthly letter and text alerts",
+                  ].map((d) => (
+                    <div key={d} className="flex gap-2 text-[15px] text-[#EDE8E1]">
+                      <span className="text-[#E87722]">•</span>
+                      <span>{d}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <span className="text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">WHAT YOU BRING</span>
+                  {(mktJob?.requirements?.length
+                    ? mktJob.requirements
+                    : [
+                        "A portfolio of accounts, campaigns or content you have created",
+                        "Strong photo and short-video skills on a phone or camera",
+                        "Clear, polished writing for captions and newsletters",
+                        "An eye for luxury, hospitality and events",
+                      ]
+                  ).map((d) => (
+                    <div key={d} className="flex gap-2 text-[15px] text-[#EDE8E1]">
+                      <span className="text-[#E87722]">✓</span>
+                      <span>{d}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <span className="text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">NICE TO HAVE</span>
+                  {[
+                    "Experience with luxury, travel, hospitality or automotive brands",
+                    "Paid social ads (Meta, LinkedIn)",
+                    "Email marketing & newsletter campaigns",
+                    "A network in the NJ and NY events scene",
+                  ].map((d) => (
+                    <div key={d} className="flex gap-2 text-[15px] text-[#EDE8E1]">
+                      <span className="text-[#E87722]">+</span>
+                      <span>{d}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <span className="text-[11px] font-medium tracking-[0.2em] text-[#B3ADA5]">A TYPICAL MONTH</span>
+                <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    ["12+", "posts and reels"],
+                    ["2", "events covered on location"],
+                    ["1", "Archer Club newsletter"],
+                    ["1", "growth report"],
+                  ].map(([n, t]) => (
+                    <div key={t} className="border-t-[3px] border-t-[#E87722] bg-[#1E1E1E] px-5 py-4">
+                      <div className="text-[32px] font-extrabold leading-[1.1]" style={HEAD}>{n}</div>
+                      <div className="text-[14px] text-[#C9C3BB]">{t}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-5 border border-white/10 border-l-[3px] border-l-[#E87722] bg-[#0E0E0E] p-7">
+                <div className="max-w-[640px] space-y-1.5">
+                  <h3 className="m-0 text-[26px] leading-[1.15]" style={HEAD}>Show us your work.</h3>
+                  <p className="m-0 text-[15px] text-[#C9C3BB]">
+                    Three short steps: you, your work and portfolio, then availability. About five minutes.
+                  </p>
+                </div>
+                <Link
+                  href={mktJob ? `/careers/apply?role=mkt&job=${encodeURIComponent(mktJob.slug)}` : "/careers/apply?role=mkt"}
+                  className="bg-[#E87722] px-8 py-4 text-[15px] font-semibold text-[#121212] hover:bg-[#F59A52]"
+                >
+                  Apply for Social Media &amp; Marketing
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          {/* 5. How Hiring Works */}
+          <section aria-label="Hiring process" className={`${WRAP} py-12`}>
+            <div className="mb-6 space-y-1.5">
+              <span className={EYEBROW}>HOW HIRING WORKS</span>
+              <h2 className="m-0 text-[28px] leading-[1.15]" style={HEAD}>Chauffeurs: from application to your first ride.</h2>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+              {STEPS.map((s) => (
+                <div key={s.n} className="flex flex-col gap-1.5 border-t-2 border-t-[#E87722] pt-3">
+                  <span className="text-[13px] font-semibold tracking-[0.16em] text-[#E87722]" style={HEAD}>STEP {s.n}</span>
+                  <h3 className="m-0 text-[18px]" style={HEAD}>{s.title}</h3>
+                  <p className="m-0 text-[14px] leading-snug text-[#C9C3BB]">{s.text}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 6. Questions about working at Archer */}
+          <section aria-label="Questions about working at Archer" className="mx-auto max-w-[900px] px-6 py-12">
+            <h2 className="m-0 mb-4 text-[26px]" style={HEAD}>Questions about working at Archer</h2>
+            {FAQS.map((f) => (
+              <details key={f.q} className="border-t border-white/15 py-3">
+                <summary className="cursor-pointer text-[16px] font-semibold" style={HEAD}>{f.q}</summary>
+                <p className="mb-0 mt-2 text-[15px] leading-relaxed text-[#C9C3BB]">{f.a}</p>
+              </details>
+            ))}
+            <p className="mt-5 text-[15px] text-[#C9C3BB]">
+              Want to see how the tiers work? <Link href="/tiers" className="text-[#E87722] underline">Archer Tiers of Service →</Link>
             </p>
-          </div>
+          </section>
 
-          <form onSubmit={handleTrackSubmit} className="max-w-xl mx-auto space-y-4 mb-8">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1">
-                  Reference Code *
-                </label>
+          {/* 7. Application Tracker */}
+          <section id="tracking" className="border-t border-white/10 bg-[#0E0E0E] py-12">
+            <div className="mx-auto max-w-[900px] px-6">
+              <span className={EYEBROW}>ALREADY APPLIED?</span>
+              <h2 className="m-0 mt-1 text-[24px]" style={HEAD}>Track your application status</h2>
+              <form onSubmit={handleTrack} className="mt-4 flex flex-wrap gap-3">
                 <input
                   type="text"
                   required
-                  placeholder="APP-XXXXXXXX"
+                  placeholder="Reference code (e.g. APP-1234ABCD)"
                   value={trackCode}
-                  onChange={(e) => setTrackCode(e.target.value.toUpperCase())}
-                  className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-[#c59b27]"
+                  onChange={(e) => setTrackCode(e.target.value)}
+                  className="min-w-[220px] flex-1 border border-white/20 bg-[#1E1E1E] px-3.5 py-2.5 text-sm text-white"
                 />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1">
-                  Email Address (Optional)
-                </label>
                 <input
                   type="email"
-                  placeholder="your.email@example.com"
+                  placeholder="Email (optional)"
                   value={trackEmail}
                   onChange={(e) => setTrackEmail(e.target.value)}
-                  className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
+                  className="min-w-[200px] flex-1 border border-white/20 bg-[#1E1E1E] px-3.5 py-2.5 text-sm text-white"
                 />
-              </div>
-            </div>
-
-            {trackError && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
-                {trackError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={trackingLoading}
-              className="w-full py-3 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider transition-all"
-            >
-              {trackingLoading ? "Checking Status..." : "Track Application Progress →"}
-            </button>
-          </form>
-
-          {/* Live Tracking Result Display */}
-          {trackResult && (
-            <div className="max-w-2xl mx-auto rounded-xl bg-[#1A1A1A] border border-[#c59b27]/30 p-6 sm:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-4 mb-6">
-                <div>
-                  <span className="text-[11px] font-bold uppercase text-[#c59b27] block">
-                    {trackResult.department} · {trackResult.location}
-                  </span>
-                  <h3 className="text-xl font-bold text-white">{trackResult.job_title}</h3>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-[#B3ADA5] uppercase block font-mono">Reference</span>
-                  <span className="text-sm font-bold text-white font-mono">{trackResult.reference_code}</span>
-                </div>
-              </div>
-
-              {/* Progress Stage Tracker */}
-              {trackResult.stage > 0 ? (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between text-xs text-[#B3ADA5] mb-2">
-                    <span>Hiring Stage: <strong className="text-white">{trackResult.stage} of {trackResult.total_stages}</strong></span>
-                    <span className="text-emerald-400 font-semibold">{trackResult.status_title}</span>
-                  </div>
-                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-[#c59b27] h-full rounded-full transition-all duration-500"
-                      style={{ width: `${(trackResult.stage / trackResult.total_stages) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="mb-6 p-3 rounded-lg bg-white/5 text-xs text-[#B3ADA5]">
-                  Status: <strong className="text-white">{trackResult.status_title}</strong>
-                </div>
-              )}
-
-              <div className="bg-[#141414] rounded-lg p-4 mb-4 border border-white/5">
-                <span className="text-[10px] uppercase font-bold text-[#c59b27] block mb-1">Current Progress</span>
-                <p className="text-xs sm:text-sm text-[#F4F1EC] leading-relaxed">
-                  {trackResult.status_description}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-[#B3ADA5] pt-2 border-t border-white/5">
-                <div>
-                  <span className="block text-[10px] uppercase text-white/50">Applicant</span>
-                  <span className="text-white font-medium">{trackResult.full_name}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase text-white/50">Selected Tier</span>
-                  <span className="text-[#c59b27] font-semibold">{trackResult.selected_tier || "N/A"}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase text-white/50">Submitted On</span>
-                  <span className="text-white font-medium">
-                    {new Date(trackResult.applied_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* FULL JOB DESCRIPTION MODAL */}
-      {viewingJob && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setViewingJob(null)}
-        >
-          <div
-            className="w-full max-w-3xl bg-[#141414] border border-white/15 rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto text-left shadow-2xl my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-white/10 pb-5 mb-6">
-              <div>
-                <span className="text-xs font-bold text-[#c59b27] uppercase tracking-wider">
-                  {viewingJob.department} · {viewingJob.location}
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">{viewingJob.title}</h2>
-                <div className="flex flex-wrap items-center gap-3 text-xs text-[#B3ADA5] mt-2">
-                  <span>💼 {viewingJob.employment_type}</span>
-                  {viewingJob.salary_range && <span>· 💰 {viewingJob.salary_range}</span>}
-                  {viewingJob.tier_recommendation && <span>· 🎖️ {viewingJob.tier_recommendation}</span>}
-                </div>
-              </div>
-              <button
-                onClick={() => setViewingJob(null)}
-                className="text-[#B3ADA5] hover:text-white text-xl p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Description Body */}
-            <div className="space-y-6 text-sm text-[#E6E1DA] leading-relaxed">
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-2">
-                  Role Overview
-                </h4>
-                <p className="whitespace-pre-line text-xs sm:text-sm text-[#C9C3BB]">
-                  {viewingJob.description}
-                </p>
-              </div>
-
-              {/* Requirements */}
-              {Array.isArray(viewingJob.requirements) && viewingJob.requirements.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-3">
-                    Prerequisites & Licensing Qualifications
-                  </h4>
-                  <ul className="space-y-2 text-xs sm:text-sm text-[#C9C3BB]">
-                    {viewingJob.requirements.map((req, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <span className="text-[#c59b27] font-bold">✓</span>
-                        <span>{req}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Benefits */}
-              {Array.isArray(viewingJob.benefits) && viewingJob.benefits.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-3">
-                    Compensation, Benefits & Fleet Support
-                  </h4>
-                  <ul className="space-y-2 text-xs sm:text-sm text-[#C9C3BB]">
-                    {viewingJob.benefits.map((b, i) => (
-                      <li key={i} className="flex items-start gap-2.5">
-                        <span className="text-[#c59b27] font-bold">★</span>
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {/* Action Bar */}
-            <div className="pt-6 mt-8 flex items-center justify-end gap-3 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setViewingJob(null)}
-                className="px-5 py-2.5 rounded-lg border border-white/10 text-xs font-semibold text-[#B3ADA5] hover:text-white"
-              >
-                Close
-              </button>
-              <button
-                type="button"
-                onClick={() => openApplication(viewingJob)}
-                className="px-7 py-2.5 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider shadow-lg transition-all"
-              >
-                Proceed to Application Form →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* APPLICATION SUBMISSION MODAL */}
-      {activeJob && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => {
-            if (!submitting) setActiveJob(null);
-          }}
-        >
-          <div
-            className="w-full max-w-2xl bg-[#141414] border border-white/15 rounded-2xl p-6 sm:p-8 max-h-[90vh] overflow-y-auto text-left shadow-2xl my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-white/10 pb-5 mb-6">
-              <div>
-                <span className="text-xs font-bold text-[#c59b27] uppercase tracking-wider">
-                  {activeJob.department} · {activeJob.location}
-                </span>
-                <h3 className="text-2xl font-extrabold text-white mt-1">{activeJob.title}</h3>
-                {activeJob.salary_range && (
-                  <p className="text-xs text-[#B3ADA5] mt-1">{activeJob.salary_range}</p>
-                )}
-              </div>
-              <button
-                disabled={submitting}
-                onClick={() => setActiveJob(null)}
-                className="text-[#B3ADA5] hover:text-white text-xl p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Confirmation State */}
-            {confirmation ? (
-              <div className="py-8 text-center">
-                <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-2xl mb-4">
-                  ✓
-                </div>
-                <h4 className="text-2xl font-bold text-white mb-2">Application Received</h4>
-                <p className="text-[#B3ADA5] text-sm max-w-md mx-auto mb-6">
-                  {confirmation.message} A confirmation email has been sent to your address with reference details.
-                </p>
-                <div className="inline-block bg-[#1C1C1C] border border-white/10 px-5 py-3 rounded-lg text-xs font-mono mb-8">
-                  <span className="text-[#B3ADA5] block text-[10px] uppercase font-sans mb-1">Your Application Code</span>
-                  <span className="text-lg font-bold text-[#c59b27]">{confirmation.reference_code}</span>
-                </div>
-                <div className="block">
-                  <button
-                    onClick={() => setActiveJob(null)}
-                    className="px-6 py-2.5 rounded-lg bg-[#c59b27] text-black font-bold text-xs uppercase tracking-wider"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleApplySubmit} className="space-y-5">
-                {submitError && (
-                  <div className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
-                    {submitError}
-                  </div>
-                )}
-
-                {/* Candidate Info */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Full Legal Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Marcus Vance"
-                      value={formData.full_name}
-                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                      className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Email Address (Confirmation will be sent) *
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. marcus@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Phone Number *
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="+1 (555) 000-0000"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Current City / Metro Area
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. New York, NY"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                    />
-                  </div>
-                </div>
-
-                {/* USER REQUIREMENT: Applicant selects their Tier */}
-                <div className="p-4 rounded-xl bg-[#1A1A1A] border border-[#c59b27]/30">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#c59b27] mb-1">
-                    Select Your Experience / Service Tier *
-                  </label>
-                  <p className="text-[11px] text-[#B3ADA5] mb-2.5">
-                    Select the Archer tier matching your driving credentials or protective certifications.
-                  </p>
-                  <select
-                    value={formData.selected_tier}
-                    onChange={(e) => setFormData({ ...formData, selected_tier: e.target.value })}
-                    className="w-full bg-[#242424] border border-white/15 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                  >
-                    {tiers.length > 0 ? (
-                      tiers.map((t) => (
-                        <option key={t.id} value={t.label}>
-                          {t.label} — {t.title}
-                        </option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="TIER 1 · PROFESSIONAL">TIER 1 · PROFESSIONAL (Professional Chauffeur)</option>
-                        <option value="TIER 2 · EXECUTIVE">TIER 2 · EXECUTIVE (Executive Chauffeur)</option>
-                        <option value="TIER 3 · SHADOW / ARMORED">TIER 3 · SHADOW / ARMORED (Tactical Mobility)</option>
-                        <option value="TIER 4 · CLOSE PROTECTION">TIER 4 · CLOSE PROTECTION (Armed Protection)</option>
-                        <option value="CORPORATE / OPERATIONS">CORPORATE / OPERATIONS (Dispatch & Logistics)</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                {/* Licenses & Experience */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Driver / TLC / Security License #
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. TLC-883921 / Guard #9201"
-                      value={formData.license_number}
-                      onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
-                      className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                      Years of Professional Experience
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="50"
-                      placeholder="e.g. 5"
-                      value={formData.years_experience}
-                      onChange={(e) => setFormData({ ...formData, years_experience: e.target.value })}
-                      className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                    />
-                  </div>
-                </div>
-
-                {/* Document Uploads */}
-                <div className="border-t border-white/10 pt-4">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-white mb-1">
-                    Upload Documents & Credentials
-                  </label>
-                  <p className="text-[11px] text-[#B3ADA5] mb-3">
-                    Upload your resume and relevant commercial licenses (PDF, JPG, PNG up to 15MB).
-                  </p>
-
-                  <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                    {/* Resume */}
-                    <div className="p-3 rounded-lg bg-[#181818] border border-white/10">
-                      <span className="block font-semibold text-white mb-1">1. Resume / CV</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                        className="text-[11px] text-[#B3ADA5] file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:bg-[#2A2A2A] file:text-white cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Driver License */}
-                    <div className="p-3 rounded-lg bg-[#181818] border border-white/10">
-                      <span className="block font-semibold text-white mb-1">2. Driver's License</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setDriverLicenseFile(e.target.files?.[0] || null)}
-                        className="text-[11px] text-[#B3ADA5] file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:bg-[#2A2A2A] file:text-white cursor-pointer"
-                      />
-                    </div>
-
-                    {/* TLC License */}
-                    <div className="p-3 rounded-lg bg-[#181818] border border-white/10">
-                      <span className="block font-semibold text-white mb-1">3. TLC / Chauffeur License</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setTlcLicenseFile(e.target.files?.[0] || null)}
-                        className="text-[11px] text-[#B3ADA5] file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:bg-[#2A2A2A] file:text-white cursor-pointer"
-                      />
-                    </div>
-
-                    {/* Security Credential */}
-                    <div className="p-3 rounded-lg bg-[#181818] border border-white/10">
-                      <span className="block font-semibold text-white mb-1">4. Security / Armed Permit</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setSecurityLicenseFile(e.target.files?.[0] || null)}
-                        className="text-[11px] text-[#B3ADA5] file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:bg-[#2A2A2A] file:text-white cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cover Note */}
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#B3ADA5] mb-1.5">
-                    Cover Note / Background Details
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Briefly describe your availability, previous executive transit experience, and why you are applying to Archer..."
-                    value={formData.cover_note}
-                    onChange={(e) => setFormData({ ...formData, cover_note: e.target.value })}
-                    className="w-full bg-[#1C1C1C] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#c59b27]"
-                  />
-                </div>
-
-                {/* Submit Action */}
-                <div className="pt-3 flex items-center justify-end gap-3 border-t border-white/10">
-                  <button
-                    type="button"
-                    disabled={submitting}
-                    onClick={() => setActiveJob(null)}
-                    className="px-5 py-2.5 rounded-lg border border-white/10 text-xs font-semibold text-[#B3ADA5] hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-7 py-2.5 rounded-lg bg-[#c59b27] hover:bg-[#d6aa32] text-black font-extrabold text-xs uppercase tracking-wider shadow-lg transition-all"
-                  >
-                    {submitting ? "Submitting Application..." : "Submit Application →"}
-                  </button>
-                </div>
+                <button type="submit" disabled={trackingLoading} className={`${primary} cursor-pointer disabled:opacity-50`}>
+                  {trackingLoading ? "CHECKING..." : "TRACK APPLICATION"}
+                </button>
               </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Separated Influencer Marketing Application Portal (non-adjacent to Driver section) */}
-      <section className="mt-20 border-t-4 border-t-[#E87722] border-white/10 pt-14">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 space-y-8">
-          <div className="grid gap-8 md:grid-cols-2 items-start">
-            <div>
-              <span className="text-[#E87722] font-semibold text-xs tracking-[0.22em] uppercase">
-                Now Hiring · Social Media &amp; Marketing
-              </span>
-              <h2 className="text-3xl font-bold text-white mt-2">
-                Tell the Archer story.
-              </h2>
-              <p className="text-sm text-[#B3ADA5] mt-3 leading-relaxed">
-                Archer is where luxury, safety and service meet: black cars at private jets, chauffeurs at galas, game days and first-date anniversaries. We&apos;re looking for a creator and marketer to show that world, grow our community and make Archer the name people think of first in New Jersey and New York.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                ["12+", "posts and reels / mo"],
-                ["2", "events covered on location"],
-                ["1", "Archer Club newsletter"],
-                ["1", "monthly growth report"],
-              ].map(([n, t]) => (
-                <div key={t} className="bg-[#181818] border-t-2 border-[#E87722] p-4">
-                  <div className="text-2xl font-extrabold text-white">{n}</div>
-                  <div className="text-xs text-[#B3ADA5] mt-1">{t}</div>
+              {trackError && <p className="mt-3 text-sm text-red-400">{trackError}</p>}
+              {trackResult && (
+                <div className="mt-4 border border-[#E87722]/40 bg-[#1E1E1E] p-4 text-sm">
+                  <div className="font-bold text-[#E87722]">{trackResult.status_title} ({trackResult.reference_code})</div>
+                  <div className="mt-1 text-[#C9C3BB]">{trackResult.status_description}</div>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-
-          <div className="rounded-xl border border-white/10 border-l-4 border-l-[#E87722] bg-[#141414] p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <h3 className="text-xl font-bold text-white">Show us your work.</h3>
-              <p className="text-sm text-[#B3ADA5] mt-1">
-                Three short steps: you, your work and portfolio, then availability. About five minutes.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3 shrink-0">
-              <Link
-                href="/careers/apply?role=mkt"
-                className="px-6 py-3 rounded-lg bg-[#E87722] hover:bg-[#F59A52] text-[#121212] font-bold text-xs uppercase tracking-wider text-center"
-              >
-                Apply for Social Media &amp; Marketing →
-              </Link>
-              <Link
-                href="/careers/influencer-marketing"
-                className="px-5 py-3 rounded-lg border border-white/20 text-white font-semibold text-xs uppercase tracking-wider text-center"
-              >
-                Creator Portal
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        </>
+      )}
     </div>
   );
 }
